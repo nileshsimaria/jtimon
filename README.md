@@ -83,6 +83,6 @@ Sample JSON config file to subscribe /interfaces @2s, /bpg @10s and /components 
     }]
 }
 
-Sample run which collect the stats too.
-$ ./jtimon --config <your-json-file> --stats <n> 
+Sample run which collect the stats too. Print stats every nth second.
+$ ./jtimon --config json-file-name --stats n 
 </pre>

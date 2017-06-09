@@ -82,4 +82,7 @@ Sample JSON config file to subscribe /interfaces @2s, /bpg @10s and /components 
         "freq": 10000
     }]
 }
+
+Sample run which collect the stats too.
+$ ./jtimon --config <your-json-file> --stats <n> 
 </pre>

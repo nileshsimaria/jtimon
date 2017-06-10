@@ -112,7 +112,6 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.Subs
 		}
 
 		if *sleep != 0 {
-			fmt.Printf("Sleeping for %v Milliseconds\n", *sleep)
 			time.Sleep(time.Duration(*sleep) * time.Millisecond)
 		}
 

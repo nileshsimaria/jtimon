@@ -17,6 +17,7 @@ type config struct {
 	Cid      string
 	Api      api
 	Grpc     grpccfg
+	Tls      tlscfg
 	Influx   *influxCfg
 	Paths    []spath
 }
@@ -27,6 +28,13 @@ type api struct {
 
 type grpccfg struct {
 	Ws int32
+}
+
+type tlscfg struct {
+	ClientCrt  string
+	ClientKey  string
+	Ca         string
+	ServerName string
 }
 
 type spath struct {
@@ -71,6 +79,12 @@ func logJSON(cfg config) {
 	emitLog(fmt.Sprintf("CID:  %v\n", cfg.Cid))
 	emitLog(fmt.Sprintf("API-Port: %v\n", cfg.Api.Port))
 	emitLog(fmt.Sprintf("gRPC window-size: %v\n", cfg.Grpc.Ws))
+
+	emitLog(fmt.Sprintf("TLS Client-CRT: %v\n", cfg.Tls.ClientCrt))
+	emitLog(fmt.Sprintf("TLS Client-KEY: %v\n", cfg.Tls.ClientKey))
+	emitLog(fmt.Sprintf("TLS CA: %v\n", cfg.Tls.Ca))
+	emitLog(fmt.Sprintf("TLS Server-Name: %v\n", cfg.Tls.ServerName))
+
 	for i := range cfg.Paths {
 		emitLog(fmt.Sprintf("Path: %v Freq: %v\n", cfg.Paths[i].Path, cfg.Paths[i].Freq))
 	}

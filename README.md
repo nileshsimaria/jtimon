@@ -15,6 +15,8 @@ Junos Telemetry Interface client
     $ go get github.com/spf13/pflag
     $ go get golang.org/x/net/context
     $ go get google.golang.org/grpc
+    $ go get github.com/nileshsimaria/jtimon/telemetry
+    $ go get github.com/nileshsimaria/jtimon/authentication
 
 5. cd jtimon
 6. go build

@@ -1,35 +1,35 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"io/ioutil"
 	"log"
 	"strconv"
 	"time"
 )
 
 var (
-	cert               = flag.String("cert", "", "CA certificate file")
-	cfgFile            = flag.String("config", "", "Config file name")
-	logFile            = flag.String("log", "", "Log file name")
-	gtrace             = flag.Bool("gtrace", false, "Collect GRPC traces")
-	td                 = flag.Bool("time-diff", false, "Time Diff for sensor analysis using InfluxDB")
-	dcheck             = flag.Bool("drop-check", false, "Check for packet drops")
-	lcheck             = flag.Bool("latency-check", false, "Check for latency")
-	prometheus         = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
-	print              = flag.Bool("print", false, "Print Telemetry data")
-	prefixCheck        = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
-	sleep              = flag.Int64("sleep", 0, "Sleep after each read (ms)")
-	mr                 = flag.Int64("max-run", 0, "Max run time in seconds")
-	maxKV              = flag.Int64("max-kv", 0, "Max kv")
-	pstats             = flag.Int64("stats", 0, "Collect and Print statistics periodically")
-	compression        = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
-	serverHostOverride = flag.String("server-host-override", "", "ServerName used to verify the hostname")
-	tls                = flag.Bool("tls", false, "Connection uses TLS")
-	st                 statsType
+	cfgFile     = flag.String("config", "", "Config file name")
+	logFile     = flag.String("log", "", "Log file name")
+	gtrace      = flag.Bool("gtrace", false, "Collect GRPC traces")
+	td          = flag.Bool("time-diff", false, "Time Diff for sensor analysis using InfluxDB")
+	dcheck      = flag.Bool("drop-check", false, "Check for packet drops")
+	lcheck      = flag.Bool("latency-check", false, "Check for latency")
+	prometheus  = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
+	print       = flag.Bool("print", false, "Print Telemetry data")
+	prefixCheck = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
+	sleep       = flag.Int64("sleep", 0, "Sleep after each read (ms)")
+	mr          = flag.Int64("max-run", 0, "Max run time in seconds")
+	maxKV       = flag.Int64("max-kv", 0, "Max kv")
+	pstats      = flag.Int64("stats", 0, "Collect and Print statistics periodically")
+	compression = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
+	st          statsType
 )
 
 type jcontext struct {
@@ -61,18 +61,26 @@ func main() {
 	go apiInit(&jctx)
 
 	var opts []grpc.DialOption
-	if *tls {
-		var sn string
-		if *serverHostOverride != "" {
-			sn = *serverHostOverride
+	if jctx.cfg.Tls.Ca != "" {
+		certificate, err := tls.LoadX509KeyPair(jctx.cfg.Tls.ClientCrt, jctx.cfg.Tls.ClientKey)
+
+		certPool := x509.NewCertPool()
+		bs, err := ioutil.ReadFile(jctx.cfg.Tls.Ca)
+		if err != nil {
+			log.Fatalf("failed to read ca cert: %s", err)
 		}
-		if *cert != "" {
-			creds, err := credentials.NewClientTLSFromFile(*cert, sn)
-			if err != nil {
-				log.Fatalf("%v", err)
-			}
-			opts = append(opts, grpc.WithTransportCredentials(creds))
+
+		ok := certPool.AppendCertsFromPEM(bs)
+		if !ok {
+			log.Fatal("failed to append certs")
 		}
+
+		transportCreds := credentials.NewTLS(&tls.Config{
+			Certificates: []tls.Certificate{certificate},
+			ServerName:   jctx.cfg.Tls.ServerName,
+			RootCAs:      certPool,
+		})
+		opts = append(opts, grpc.WithTransportCredentials(transportCreds))
 	} else {
 		opts = append(opts, grpc.WithInsecure())
 	}

@@ -109,6 +109,12 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *jcontext, rtime time.Time) {
 			kv["ilatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
 			//fmt.Printf("ilatency: %v\n", kv["ilatency"])
 		}
+		if v.Key == "__agentd_rx_timestamp__" {
+			kv["arxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
+		}
+		if v.Key == "__agentd_tx_timestamp__" {
+			kv["atxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
+		}
 
 		if v.Key == "__prefix__" {
 			prefix = v.GetStrValue()
@@ -137,22 +143,22 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *jcontext, rtime time.Time) {
 			}
 			break
 		case *na_pb.KeyValue_DoubleValue:
-			kv[xmlpath] = v.GetDoubleValue()
+			kv[xmlpath+"-float"] = float64(v.GetDoubleValue())
 			break
 		case *na_pb.KeyValue_IntValue:
-			kv[xmlpath] = float64(v.GetIntValue())
+			kv[xmlpath+"-float"] = float64(v.GetIntValue())
 			break
 		case *na_pb.KeyValue_UintValue:
-			kv[xmlpath] = float64(v.GetUintValue())
+			kv[xmlpath+"-float"] = float64(v.GetUintValue())
 			break
 		case *na_pb.KeyValue_SintValue:
-			kv[xmlpath] = float64(v.GetSintValue())
+			kv[xmlpath+"-float"] = float64(v.GetSintValue())
 			break
 		case *na_pb.KeyValue_BoolValue:
-			kv[xmlpath] = v.GetBoolValue()
+			kv[xmlpath+"-bool"] = v.GetBoolValue()
 			break
 		case *na_pb.KeyValue_BytesValue:
-			kv[xmlpath] = v.GetBytesValue()
+			kv[xmlpath+"-bytes"] = v.GetBytesValue()
 			break
 		default:
 		}

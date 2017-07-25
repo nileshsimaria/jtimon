@@ -5,6 +5,7 @@ import (
 	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"io"
 	"log"
 	"os"
@@ -62,10 +63,15 @@ func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
 }
 
 func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.SubscriptionRequest) {
+	var ctx context.Context
 	c := na_pb.NewOpenConfigTelemetryClient(conn)
-	stream, err := c.TelemetrySubscribe(
-		context.Background(),
-		&subReqM)
+	if jctx.cfg.Meta == true {
+		md := metadata.New(map[string]string{"username": jctx.cfg.User, "password": jctx.cfg.Password})
+		ctx = metadata.NewOutgoingContext(context.Background(), md)
+	} else {
+		ctx = context.Background()
+	}
+	stream, err := c.TelemetrySubscribe(ctx, &subReqM)
 
 	if err != nil {
 		log.Fatalf("Could not send RPC: %v\n", err)

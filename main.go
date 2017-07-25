@@ -113,13 +113,15 @@ func main() {
 	if jctx.cfg.User != "" && jctx.cfg.Password != "" {
 		user := jctx.cfg.User
 		pass := jctx.cfg.Password
-		l := auth_pb.NewLoginClient(conn)
-		dat, err := l.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.cfg.Cid})
-		if err != nil {
-			log.Fatalf("Could not login: %v", err)
-		}
-		if dat.Result == false {
-			log.Fatalf("LoginCheck failed\n")
+		if jctx.cfg.Meta == false {
+			l := auth_pb.NewLoginClient(conn)
+			dat, err := l.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.cfg.Cid})
+			if err != nil {
+				log.Fatalf("Could not login: %v", err)
+			}
+			if dat.Result == false {
+				log.Fatalf("LoginCheck failed\n")
+			}
 		}
 	}
 

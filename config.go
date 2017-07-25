@@ -14,6 +14,7 @@ type config struct {
 	Port     int
 	User     string
 	Password string
+	Meta     bool
 	Cid      string
 	Api      api
 	Grpc     grpccfg

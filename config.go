@@ -15,6 +15,7 @@ type config struct {
 	User     string
 	Password string
 	Meta     bool
+	Eos      bool
 	Cid      string
 	Api      api
 	Grpc     grpccfg

@@ -25,6 +25,10 @@ func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
 	emitLog(fmt.Sprintf("path: %s\n", ocData.Path))
 	emitLog(fmt.Sprintf("sequence_number: %d\n", ocData.SequenceNumber))
 	emitLog(fmt.Sprintf("timestamp: %d\n", ocData.Timestamp))
+	emitLog(fmt.Sprintf("sync_response: %d\n", ocData.SyncResponse))
+	if ocData.SyncResponse {
+		fmt.Printf("sync_response true for :%s\n", ocData.Path)
+	}
 
 	updateStats(ocData)
 
@@ -138,6 +142,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.Subs
 
 func subscribe(conn *grpc.ClientConn, jctx *jcontext) {
 	var subReqM na_pb.SubscriptionRequest
+	var additionalConfigM na_pb.SubscriptionAdditionalConfig
 	cfg := jctx.cfg
 
 	for i := range cfg.Paths {
@@ -147,5 +152,7 @@ func subscribe(conn *grpc.ClientConn, jctx *jcontext) {
 
 		subReqM.PathList = append(subReqM.PathList, &pathM)
 	}
+	additionalConfigM.NeedEos = jctx.cfg.Eos
+	subReqM.AdditionalConfig = &additionalConfigM
 	subSendAndReceive(conn, jctx, subReqM)
 }

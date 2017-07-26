@@ -27,7 +27,7 @@ func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
 	emitLog(fmt.Sprintf("timestamp: %d\n", ocData.Timestamp))
 	emitLog(fmt.Sprintf("sync_response: %d\n", ocData.SyncResponse))
 	if ocData.SyncResponse {
-		fmt.Printf("sync_response true for :%s\n", ocData.Path)
+		fmt.Printf("Received sync_response\n")
 	}
 
 	updateStats(ocData)

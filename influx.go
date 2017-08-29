@@ -78,7 +78,43 @@ func getMeasurementName(ocData *na_pb.OpenConfigData, cfg config) string {
 	if cfg.Influx.Measurement != "" {
 		return cfg.Influx.Measurement
 	}
-	return ocData.SystemId
+	if ocData != nil {
+		return ocData.SystemId
+	} else {
+		return ""
+	}
+}
+
+// A go routine to add summary of stats collection in to influxDB
+func addIDBSummary(jctx *jcontext, stmap map[string]interface{}) {
+	cfg := jctx.cfg
+	jctx.iFlux.Lock()
+	defer jctx.iFlux.Unlock()
+
+	if jctx.iFlux.influxc == nil {
+		return
+	}
+
+	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+		Database:  cfg.Influx.Dbname,
+		Precision: "us",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(stmap) != 0 {
+		st_measurement := getMeasurementName(nil, jctx.cfg)
+		tags := make(map[string]string)
+		pt, err := client.NewPoint(st_measurement+"-LOG", tags, stmap, time.Now())
+		if err != nil {
+			log.Fatal(err)
+		}
+		bp.AddPoint(pt)
+		if err := (*jctx.iFlux.influxc).Write(bp); err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
 // A go routine to add one telemetry packet in to InfluxDB

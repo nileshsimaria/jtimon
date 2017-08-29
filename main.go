@@ -26,7 +26,7 @@ var (
 	prefixCheck = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
 	sleep       = flag.Int64("sleep", 0, "Sleep after each read (ms)")
 	mr          = flag.Int64("max-run", 0, "Max run time in seconds")
-	maxKV       = flag.Int64("max-kv", 0, "Max kv")
+	maxKV       = flag.Uint64("max-kv", 0, "Max kv")
 	pstats      = flag.Int64("stats", 0, "Collect and Print statistics periodically")
 	compression = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
 	st          statsType

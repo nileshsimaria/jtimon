@@ -60,7 +60,9 @@ func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
 			prefixSeen = true
 		} else if !strings.HasPrefix(kv.Key, "__") {
 			if !prefixSeen && !strings.HasPrefix(kv.Key, "/") {
-				fmt.Printf("Missing prefix for sensor: %s\n", ocData.Path)
+				if *prefixCheck {
+					fmt.Printf("Missing prefix for sensor: %s\n", ocData.Path)
+				}
 			}
 		}
 	}

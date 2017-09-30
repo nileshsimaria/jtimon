@@ -26,6 +26,8 @@ type influxCfg struct {
 	Password    string
 	Recreate    bool
 	Measurement string
+	Flat        bool
+	Diet        bool
 }
 
 type timeDiff struct {
@@ -85,6 +87,83 @@ func getMeasurementName(ocData *na_pb.OpenConfigData, cfg config) string {
 	}
 }
 
+// A go routine to add one telemetry packet in to InfluxDB (flat schema)
+func addIDBFlat(jctx *jcontext, ocData *na_pb.OpenConfigData, rtime time.Time) {
+	cfg := jctx.cfg
+
+	jctx.iFlux.Lock()
+	defer jctx.iFlux.Unlock()
+	prefix := ""
+
+	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+		Database:  cfg.Influx.Dbname,
+		Precision: "us",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	rs := uint64(0)
+	for _, kv := range ocData.Kv {
+		tags := make(map[string]string)
+		fields := make(map[string]interface{})
+
+		if kv.Key == "__prefix__" {
+			switch value := kv.Value.(type) {
+			case *na_pb.KeyValue_StrValue:
+				prefix = value.StrValue
+			}
+			continue
+		} else if kv.Key == "__junos_re_stream_creation_timestamp__" {
+			switch value := kv.Value.(type) {
+			case *na_pb.KeyValue_UintValue:
+				rs = value.UintValue
+			}
+			tags["jkey"] = kv.Key
+		} else {
+			tags["jkey"] = prefix + kv.Key
+		}
+
+		if rs == 0 {
+			rs = ocData.Timestamp
+		}
+
+		fields["__junos_re_stream_creation_timestamp__"] = rs
+		fields["system_id"] = ocData.SystemId
+		fields["component_id"] = ocData.ComponentId
+		fields["path"] = ocData.Path
+		fields["sequence_number"] = ocData.SequenceNumber
+		fields["timestamp"] = ocData.Timestamp
+
+		switch value := kv.Value.(type) {
+		case *na_pb.KeyValue_DoubleValue:
+			fields["jvalue"] = fmt.Sprintf("%v", value.DoubleValue)
+		case *na_pb.KeyValue_IntValue:
+			fields["jvalue"] = fmt.Sprintf("%v", value.IntValue)
+		case *na_pb.KeyValue_UintValue:
+			fields["jvalue"] = fmt.Sprintf("%v", value.UintValue)
+		case *na_pb.KeyValue_SintValue:
+			fields["jvalue"] = fmt.Sprintf("%v", value.SintValue)
+		case *na_pb.KeyValue_BoolValue:
+			fields["jvalue"] = fmt.Sprintf("%v", value.BoolValue)
+		case *na_pb.KeyValue_StrValue:
+			fields["jvalue"] = value.StrValue
+		}
+
+		if len(fields) != 0 {
+			pt, err := client.NewPoint(getMeasurementName(ocData, cfg), tags, fields, rtime)
+			if err != nil {
+				log.Fatal(err)
+			}
+			bp.AddPoint(pt)
+		}
+	}
+	// Write the batch
+	if err := (*jctx.iFlux.influxc).Write(bp); err != nil {
+		log.Fatal(err)
+	}
+}
+
 // A go routine to add summary of stats collection in to influxDB
 func addIDBSummary(jctx *jcontext, stmap map[string]interface{}) {
 	cfg := jctx.cfg
@@ -121,6 +200,15 @@ func addIDBSummary(jctx *jcontext, stmap map[string]interface{}) {
 func addIDB(ocData *na_pb.OpenConfigData, jctx *jcontext, rtime time.Time) {
 	cfg := jctx.cfg
 
+	if jctx.iFlux.influxc == nil {
+		return
+	}
+
+	if cfg.Influx.Flat == true {
+		addIDBFlat(jctx, ocData, rtime)
+		return
+	}
+
 	jctx.iFlux.Lock()
 	defer jctx.iFlux.Unlock()
 	prefix := ""
@@ -143,7 +231,6 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *jcontext, rtime time.Time) {
 				kv["elatency"] = rtime.UnixNano()/1000000 - int64(v.GetUintValue())
 			}
 			kv["ilatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
-			//fmt.Printf("ilatency: %v\n", kv["ilatency"])
 		}
 		if v.Key == "__agentd_rx_timestamp__" {
 			kv["arxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
@@ -169,34 +256,38 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *jcontext, rtime time.Time) {
 		}
 		tags["device"] = cfg.Host
 		tags["sensor"] = ocData.Path
+		kv["sequence_number"] = ocData.SequenceNumber
+		kv["component_id"] = ocData.ComponentId
 
-		switch v.Value.(type) {
-		case *na_pb.KeyValue_StrValue:
-			if val, err := strconv.ParseInt(v.GetStrValue(), 10, 64); err == nil {
-				kv[xmlpath+"-int"] = val
-			} else {
-				kv[xmlpath] = v.GetStrValue()
+		if cfg.Influx.Diet == false {
+			switch v.Value.(type) {
+			case *na_pb.KeyValue_StrValue:
+				if val, err := strconv.ParseInt(v.GetStrValue(), 10, 64); err == nil {
+					kv[xmlpath+"-int"] = val
+				} else {
+					kv[xmlpath] = v.GetStrValue()
+				}
+				break
+			case *na_pb.KeyValue_DoubleValue:
+				kv[xmlpath+"-float"] = float64(v.GetDoubleValue())
+				break
+			case *na_pb.KeyValue_IntValue:
+				kv[xmlpath+"-float"] = float64(v.GetIntValue())
+				break
+			case *na_pb.KeyValue_UintValue:
+				kv[xmlpath+"-float"] = float64(v.GetUintValue())
+				break
+			case *na_pb.KeyValue_SintValue:
+				kv[xmlpath+"-float"] = float64(v.GetSintValue())
+				break
+			case *na_pb.KeyValue_BoolValue:
+				kv[xmlpath+"-bool"] = v.GetBoolValue()
+				break
+			case *na_pb.KeyValue_BytesValue:
+				kv[xmlpath+"-bytes"] = v.GetBytesValue()
+				break
+			default:
 			}
-			break
-		case *na_pb.KeyValue_DoubleValue:
-			kv[xmlpath+"-float"] = float64(v.GetDoubleValue())
-			break
-		case *na_pb.KeyValue_IntValue:
-			kv[xmlpath+"-float"] = float64(v.GetIntValue())
-			break
-		case *na_pb.KeyValue_UintValue:
-			kv[xmlpath+"-float"] = float64(v.GetUintValue())
-			break
-		case *na_pb.KeyValue_SintValue:
-			kv[xmlpath+"-float"] = float64(v.GetSintValue())
-			break
-		case *na_pb.KeyValue_BoolValue:
-			kv[xmlpath+"-bool"] = v.GetBoolValue()
-			break
-		case *na_pb.KeyValue_BytesValue:
-			kv[xmlpath+"-bytes"] = v.GetBytesValue()
-			break
-		default:
 		}
 
 		if len(kv) != 0 {

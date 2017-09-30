@@ -98,5 +98,7 @@ func logJSON(cfg config) {
 		emitLog(fmt.Sprintf("Recreate DB: %v\n", cfg.Influx.Recreate))
 		emitLog(fmt.Sprintf("User: %v\n", cfg.Influx.User))
 		emitLog(fmt.Sprintf("Password: %v\n", cfg.Influx.Password))
+		emitLog(fmt.Sprintf("Flat Schema: %v\n", cfg.Influx.Flat))
+		emitLog(fmt.Sprintf("Diet Influx: %v\n", cfg.Influx.Diet))
 	}
 }

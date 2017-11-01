@@ -27,7 +27,8 @@ var (
 	sleep       = flag.Int64("sleep", 0, "Sleep after each read (ms)")
 	mr          = flag.Int64("max-run", 0, "Max run time in seconds")
 	maxKV       = flag.Uint64("max-kv", 0, "Max kv")
-	pstats      = flag.Int64("stats", 0, "Collect and Print statistics periodically")
+	pstats      = flag.Int64("stats", 0, "Print collected stats periodically")
+	ppsize      = flag.Bool("per-packet-size", false, "Capture size of each telemetry packet")
 	compression = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
 	st          statsType
 )
@@ -48,6 +49,8 @@ func main() {
 
 	jctx := jcontext{}
 	jctx.cfg = configInit(*cfgFile)
+	jctx.cfg.CStats.pstats = *pstats
+	jctx.cfg.CStats.per_packet_size = *ppsize
 
 	go prometheusHandler(*prometheus)
 	start_gtrace(*gtrace)
@@ -59,6 +62,13 @@ func main() {
 
 	dropInit(&jctx)
 	go apiInit(&jctx)
+
+	pmap := make(map[string]interface{})
+	for i := range jctx.cfg.Paths {
+		pmap["path"] = jctx.cfg.Paths[i].Path
+		pmap["reporting-rate"] = jctx.cfg.Paths[i].Freq
+		addGRPCHeader(&jctx, pmap)
+	}
 
 	var opts []grpc.DialOption
 	if jctx.cfg.Tls.Ca != "" {
@@ -85,9 +95,7 @@ func main() {
 		opts = append(opts, grpc.WithInsecure())
 	}
 
-	if *pstats != 0 {
-		opts = append(opts, grpc.WithStatsHandler(&statshandler{}))
-	}
+	opts = append(opts, grpc.WithStatsHandler(&statshandler{jctx: &jctx}))
 	if *compression != "" {
 		var dc grpc.Decompressor
 		if *compression == "gzip" {

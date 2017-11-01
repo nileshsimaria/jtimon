@@ -24,6 +24,7 @@ type statsType struct {
 }
 
 type statshandler struct {
+	jctx *jcontext
 }
 
 func (h *statshandler) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
@@ -55,8 +56,11 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 		st.totalInPayloadLength += uint64(s.(*stats.InPayload).Length)
 		st.totalInPayloadWireLength += uint64(s.(*stats.InPayload).WireLength)
 
-		if uint64(s.(*stats.InPayload).Length) > 16384 {
-			//fmt.Printf("SH: Payload Length: %v\n", uint64(s.(*stats.InPayload).Length))
+		if h.jctx.cfg.CStats.per_packet_size {
+			switch v := (s.(*stats.InPayload).Payload).(type) {
+			case *na_pb.OpenConfigData:
+				fmt.Printf("path: %s size: %d\n", v.Path, s.(*stats.InPayload).Length)
+			}
 		}
 
 	case *stats.InTrailer:
@@ -161,17 +165,15 @@ func printSummary(jctx *jcontext, pstats int64) {
 	s += fmt.Sprintf("%-12v : data points (KV pairs)\n", st.totalKV)
 	stmap["kv"] = st.totalKV
 
-	if pstats != 0 {
-		s += fmt.Sprintf("%-12v : in-header wirelength (bytes)\n", st.totalInHeaderWireLength)
-		stmap["in-header-wire-length"] = st.totalInHeaderWireLength
-		s += fmt.Sprintf("%-12v : in-payload length (bytes)\n", st.totalInPayloadLength)
-		stmap["in-payload-length-bytes"] = st.totalInPayloadLength
-		s += fmt.Sprintf("%-12v : in-payload wirelength (bytes)\n", st.totalInPayloadWireLength)
-		stmap["in-payload-wirelength-bytes"] = st.totalInPayloadWireLength
-		if endTime.Seconds() != 0 {
-			s += fmt.Sprintf("%-12v : throughput (bytes per seconds)\n", st.totalInPayloadLength/uint64(endTime.Seconds()))
-			stmap["throughput"] = st.totalInPayloadLength / uint64(endTime.Seconds())
-		}
+	s += fmt.Sprintf("%-12v : in-header wirelength (bytes)\n", st.totalInHeaderWireLength)
+	stmap["in-header-wire-length"] = st.totalInHeaderWireLength
+	s += fmt.Sprintf("%-12v : in-payload length (bytes)\n", st.totalInPayloadLength)
+	stmap["in-payload-length-bytes"] = st.totalInPayloadLength
+	s += fmt.Sprintf("%-12v : in-payload wirelength (bytes)\n", st.totalInPayloadWireLength)
+	stmap["in-payload-wirelength-bytes"] = st.totalInPayloadWireLength
+	if endTime.Seconds() != 0 {
+		s += fmt.Sprintf("%-12v : throughput (bytes per seconds)\n", st.totalInPayloadLength/uint64(endTime.Seconds()))
+		stmap["throughput"] = st.totalInPayloadLength / uint64(endTime.Seconds())
 	}
 
 	if *lcheck && st.totalLatencyPkt != 0 {

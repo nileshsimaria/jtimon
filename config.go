@@ -22,6 +22,12 @@ type config struct {
 	Tls      tlscfg
 	Influx   *influxCfg
 	Paths    []spath
+	CStats   statsT
+}
+
+type statsT struct {
+	pstats          int64
+	per_packet_size bool
 }
 
 type api struct {

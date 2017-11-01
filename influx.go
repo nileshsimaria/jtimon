@@ -164,6 +164,38 @@ func addIDBFlat(jctx *jcontext, ocData *na_pb.OpenConfigData, rtime time.Time) {
 	}
 }
 
+// A go routine to add header of gRPC in to influxDB
+func addGRPCHeader(jctx *jcontext, hmap map[string]interface{}) {
+	cfg := jctx.cfg
+	jctx.iFlux.Lock()
+	defer jctx.iFlux.Unlock()
+
+	if jctx.iFlux.influxc == nil {
+		return
+	}
+
+	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+		Database:  cfg.Influx.Dbname,
+		Precision: "us",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(hmap) != 0 {
+		st_measurement := getMeasurementName(nil, jctx.cfg)
+		tags := make(map[string]string)
+		pt, err := client.NewPoint(st_measurement+"-HDR", tags, hmap, time.Now())
+		if err != nil {
+			log.Fatal(err)
+		}
+		bp.AddPoint(pt)
+		if err := (*jctx.iFlux.influxc).Write(bp); err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
 // A go routine to add summary of stats collection in to influxDB
 func addIDBSummary(jctx *jcontext, stmap map[string]interface{}) {
 	cfg := jctx.cfg

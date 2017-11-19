@@ -15,9 +15,7 @@ import (
 )
 
 func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
-	if *dcheck == true {
-		dropCheck(jctx, ocData)
-	}
+	updateStats(ocData, true)
 
 	emitLog(fmt.Sprintf("system_id: %s\n", ocData.SystemId))
 	emitLog(fmt.Sprintf("component_id: %d\n", ocData.ComponentId))
@@ -30,11 +28,9 @@ func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
 		fmt.Printf("Received sync_response\n")
 	}
 
-	updateStats(ocData)
-
 	prefixSeen := false
 	for _, kv := range ocData.Kv {
-		updateStatsKV(jctx)
+		updateStatsKV(jctx, true)
 
 		emitLog(fmt.Sprintf("  key: %s\n", kv.Key))
 		switch value := kv.Value.(type) {
@@ -87,11 +83,17 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.Subs
 	if errh != nil {
 		log.Fatalf("Failed to get header for stream: %v", errh)
 	}
-	emitLog("\nHeaders:\n")
+	fmt.Println("gRPC headers from Junos:")
 	for k, v := range hdr {
-		emitLog(fmt.Sprintf("  %s: %s\n", k, v))
+		fmt.Printf("  %s: %s\n", k, v)
 	}
-	log.Printf("\n")
+	if jctx.cfg.Log.LogFileName != "" {
+		fmt.Printf("\nlogging Junos Telemetry data in %s ...", jctx.cfg.Log.LogFileName)
+		fmt.Printf("\nto stop receiving, press CTRL+C \n")
+	}
+	if jctx.cfg.CStats.csv_stats {
+		emitLog(fmt.Sprintf("%s,%s,%s,%s,%s,%s\n", "sensor-path", "sequence-number", "component-id", "packet-size", "p-ts", "e-ts"))
+	}
 
 	/*
 	 * The following for loop will run forever as long as server is up and
@@ -118,7 +120,14 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.Subs
 
 		rtime := time.Now()
 
-		handleOneTelemetryPkt(ocData, jctx)
+		if *dcheck == true {
+			dropCheck(jctx, ocData)
+		}
+
+		if !jctx.cfg.CStats.csv_stats {
+			handleOneTelemetryPkt(ocData, jctx)
+		}
+
 		if jctx.iFlux.influxc != nil {
 			go addIDB(ocData, jctx, rtime)
 		}

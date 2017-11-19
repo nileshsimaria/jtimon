@@ -56,10 +56,19 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 		st.totalInPayloadLength += uint64(s.(*stats.InPayload).Length)
 		st.totalInPayloadWireLength += uint64(s.(*stats.InPayload).WireLength)
 
-		if h.jctx.cfg.CStats.per_packet_size {
+		if h.jctx.cfg.CStats.csv_stats {
 			switch v := (s.(*stats.InPayload).Payload).(type) {
 			case *na_pb.OpenConfigData:
-				fmt.Printf("path: %s size: %d\n", v.Path, s.(*stats.InPayload).Length)
+				updateStats(v, false)
+				for _, kv := range v.Kv {
+					updateStatsKV(h.jctx, false)
+					switch kvvalue := kv.Value.(type) {
+					case *na_pb.KeyValue_UintValue:
+						if kv.Key == "__timestamp__" {
+							emitLog(fmt.Sprintf("%s,%d,%d,%d,%d,%d\n", v.Path, v.SequenceNumber, v.ComponentId, s.(*stats.InPayload).Length, v.Timestamp, kvvalue.UintValue))
+						}
+					}
+				}
 			}
 		}
 
@@ -69,9 +78,11 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 	}
 }
 
-func updateStats(ocData *na_pb.OpenConfigData) {
-	st.Lock()
-	defer st.Unlock()
+func updateStats(ocData *na_pb.OpenConfigData, need_lock bool) {
+	if need_lock {
+		st.Lock()
+		defer st.Unlock()
+	}
 
 	st.totalIn++
 
@@ -86,9 +97,11 @@ func updateStats(ocData *na_pb.OpenConfigData) {
 	}
 }
 
-func updateStatsKV(jctx *jcontext) {
-	st.Lock()
-	defer st.Unlock()
+func updateStatsKV(jctx *jcontext, need_lock bool) {
+	if need_lock {
+		st.Lock()
+		defer st.Unlock()
+	}
 	st.totalKV++
 
 	if *maxKV != 0 && st.totalKV >= *maxKV {

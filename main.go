@@ -28,7 +28,7 @@ var (
 	mr          = flag.Int64("max-run", 0, "Max run time in seconds")
 	maxKV       = flag.Uint64("max-kv", 0, "Max kv")
 	pstats      = flag.Int64("stats", 0, "Print collected stats periodically")
-	ppsize      = flag.Bool("per-packet-size", false, "Capture size of each telemetry packet")
+	csvStats    = flag.Bool("csv-stats", false, "Capture size of each telemetry packet")
 	compression = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
 	st          statsType
 )
@@ -50,13 +50,13 @@ func main() {
 	jctx := jcontext{}
 	jctx.cfg = configInit(*cfgFile)
 	jctx.cfg.CStats.pstats = *pstats
-	jctx.cfg.CStats.per_packet_size = *ppsize
+	jctx.cfg.CStats.csv_stats = *csvStats
 
+	logInit(&jctx, *logFile)
 	go prometheusHandler(*prometheus)
 	start_gtrace(*gtrace)
 	go maxRun(&jctx, *mr)
 	go periodicStats(*pstats)
-	logInit(*logFile)
 
 	jctx.iFlux.influxc = influxInit(jctx.cfg)
 

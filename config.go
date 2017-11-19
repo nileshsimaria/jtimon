@@ -23,11 +23,16 @@ type config struct {
 	Influx   *influxCfg
 	Paths    []spath
 	CStats   statsT
+	Log      logT
+}
+
+type logT struct {
+	LogFileName string
 }
 
 type statsT struct {
-	pstats          int64
-	per_packet_size bool
+	pstats    int64
+	csv_stats bool
 }
 
 type api struct {
@@ -61,7 +66,7 @@ func configInit(cfgFile string) config {
 	// parse config file
 	cfg := parseJSON(cfgFile)
 
-	logJSON(cfg)
+	//logJSON(cfg)
 
 	return cfg
 }

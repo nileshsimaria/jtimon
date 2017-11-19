@@ -59,6 +59,7 @@ func main() {
 	go periodicStats(*pstats)
 
 	jctx.iFlux.influxc = influxInit(jctx.cfg)
+	configValidation(&jctx)
 
 	dropInit(&jctx)
 	go apiInit(&jctx)

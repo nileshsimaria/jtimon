@@ -92,7 +92,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.Subs
 		fmt.Printf("\nto stop receiving, press CTRL+C \n")
 	}
 	if jctx.cfg.CStats.csv_stats {
-		emitLog(fmt.Sprintf("%s,%s,%s,%s,%s,%s\n", "sensor-path", "sequence-number", "component-id", "packet-size", "p-ts", "e-ts"))
+		emitLog(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s\n", "sensor-path", "sequence-number", "component-id", "sub-component-id", "packet-size", "p-ts", "e-ts"))
 	}
 
 	/*
@@ -104,6 +104,9 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.Subs
 		sigchan := make(chan os.Signal, 10)
 		signal.Notify(sigchan, os.Interrupt)
 		<-sigchan
+		if *dcheck == true {
+			dropCheckCSV(jctx)
+		}
 		printSummary(jctx, *pstats)
 		os.Exit(0)
 	}()
@@ -120,7 +123,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.Subs
 
 		rtime := time.Now()
 
-		if *dcheck == true {
+		if *dcheck == true && !jctx.cfg.CStats.csv_stats {
 			dropCheck(jctx, ocData)
 		}
 

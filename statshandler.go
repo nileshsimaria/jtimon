@@ -65,7 +65,8 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 					switch kvvalue := kv.Value.(type) {
 					case *na_pb.KeyValue_UintValue:
 						if kv.Key == "__timestamp__" {
-							emitLog(fmt.Sprintf("%s,%d,%d,%d,%d,%d\n", v.Path, v.SequenceNumber, v.ComponentId, s.(*stats.InPayload).Length, v.Timestamp, kvvalue.UintValue))
+							emitLog(fmt.Sprintf("%s,%d,%d,%d,%d,%d,%d\n",
+								v.Path, v.SequenceNumber, v.ComponentId, v.SubComponentId, s.(*stats.InPayload).Length, v.Timestamp, kvvalue.UintValue))
 						}
 					}
 				}

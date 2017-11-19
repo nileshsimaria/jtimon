@@ -28,6 +28,7 @@ type config struct {
 
 type logT struct {
 	LogFileName string
+	FileHandle  *os.File
 }
 
 type statsT struct {
@@ -69,6 +70,16 @@ func configInit(cfgFile string) config {
 	//logJSON(cfg)
 
 	return cfg
+}
+
+func configValidation(jctx *jcontext) {
+	if jctx.cfg.CStats.csv_stats {
+		if *dcheck {
+			if jctx.cfg.Log.LogFileName == "" {
+				log.Fatalf("Can't use --drop-check when cvs data log file is not used")
+			}
+		}
+	}
 }
 
 func parseJSON(cfgFile string) config {

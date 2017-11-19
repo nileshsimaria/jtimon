@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	na_pb "github.com/nileshsimaria/jtimon/telemetry"
+	"log"
+	"os"
+	"strconv"
 	"strings"
 )
 
@@ -17,15 +21,44 @@ func dropInit(jctx *jcontext) {
 	jctx.dMap = make(map[uint32]map[uint32]map[string]dropData)
 }
 
-func dropCheck(jctx *jcontext, ocData *na_pb.OpenConfigData) {
+func dropCheckCSV(jctx *jcontext) {
+	if !jctx.cfg.CStats.csv_stats {
+		return
+	}
+
+	if jctx.cfg.Log.LogFileName == "" {
+		return
+	}
+	if err := jctx.cfg.Log.FileHandle.Close(); err != nil {
+		log.Fatalf("Could not close csv data log file(%s): %v\n", jctx.cfg.Log.LogFileName, err)
+	}
+
+	f, err := os.Open(jctx.cfg.Log.LogFileName)
+	if err != nil {
+		log.Fatalf("Could not open csv data log file(%s) for drop-check: %v\n", jctx.cfg.Log.LogFileName, err)
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "sensor-path,sequence-number,component-id,sub-component-id,packet-size,p-ts,e-ts") {
+			tokens := strings.Split(line, ",")
+			//fmt.Printf("\n%s + %s + %s + %s + %s + %s + %s", tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6])
+			cid, _ := strconv.ParseUint(tokens[2], 10, 32)
+			scid, _ := strconv.ParseUint(tokens[3], 10, 32)
+			seq_num, _ := strconv.ParseUint(tokens[1], 10, 32)
+
+			dropCheckWork(jctx, uint32(cid), uint32(scid), tokens[0], seq_num)
+		}
+
+	}
+}
+
+func dropCheckWork(jctx *jcontext, cid uint32, scid uint32, path string, seq uint64) {
 	var last dropData
 	var new dropData
 	var ok bool
-
-	cid := ocData.ComponentId
-	scid := ocData.SubComponentId
-	path := ocData.Path
-	seq := ocData.SequenceNumber
 
 	_, ok = jctx.dMap[cid]
 	if ok == false {
@@ -56,6 +89,10 @@ func dropCheck(jctx *jcontext, ocData *na_pb.OpenConfigData) {
 		}
 		jctx.dMap[cid][scid][path] = new
 	}
+}
+
+func dropCheck(jctx *jcontext, ocData *na_pb.OpenConfigData) {
+	dropCheckWork(jctx, ocData.ComponentId, ocData.SubComponentId, ocData.Path, ocData.SequenceNumber)
 }
 
 func printDropDS(jctx *jcontext) {

@@ -60,13 +60,20 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 			switch v := (s.(*stats.InPayload).Payload).(type) {
 			case *na_pb.OpenConfigData:
 				updateStats(v, false)
-				for _, kv := range v.Kv {
+				for idx, kv := range v.Kv {
 					updateStatsKV(h.jctx, false)
 					switch kvvalue := kv.Value.(type) {
 					case *na_pb.KeyValue_UintValue:
 						if kv.Key == "__timestamp__" {
-							emitLog(fmt.Sprintf("%s,%d,%d,%d,%d,%d,%d\n",
-								v.Path, v.SequenceNumber, v.ComponentId, v.SubComponentId, s.(*stats.InPayload).Length, v.Timestamp, kvvalue.UintValue))
+							var re_c_ts uint64 = 0
+							if len(v.Kv) > idx+1 {
+								nextKV := v.Kv[idx+1]
+								if nextKV.Key == "__junos_re_stream_creation_timestamp__" {
+									re_c_ts = nextKV.GetUintValue()
+								}
+							}
+							emitLog(fmt.Sprintf("%s,%d,%d,%d,%d,%d,%d,%d\n",
+								v.Path, v.SequenceNumber, v.ComponentId, v.SubComponentId, s.(*stats.InPayload).Length, v.Timestamp, kvvalue.UintValue, re_c_ts))
 						}
 					}
 				}

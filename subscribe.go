@@ -132,7 +132,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.Subs
 			handleOneTelemetryPkt(ocData, jctx)
 		}
 
-		if jctx.iFlux.influxc != nil {
+		if jctx.iFlux.influxc != nil && !jctx.cfg.CStats.csv_stats {
 			go addIDB(ocData, jctx, rtime)
 		}
 

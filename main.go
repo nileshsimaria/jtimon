@@ -3,15 +3,16 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"io/ioutil"
+	"log"
+	"strconv"
+	"time"
+
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"io/ioutil"
-	"log"
-	"strconv"
-	"time"
 )
 
 var (

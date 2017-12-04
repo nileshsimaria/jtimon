@@ -288,7 +288,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *jcontext, rtime time.Time) {
 		}
 		tags["device"] = cfg.Host
 		tags["sensor"] = ocData.Path
-		kv["sequence_number"] = ocData.SequenceNumber
+		kv["sequence_number"] = float64(ocData.SequenceNumber)
 		kv["component_id"] = ocData.ComponentId
 
 		if cfg.Influx.Diet == false {

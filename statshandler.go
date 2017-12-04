@@ -180,35 +180,35 @@ func printSummary(jctx *jcontext, pstats int64) {
 	stmap := make(map[string]interface{})
 
 	s := fmt.Sprintf("\nCollector Stats (Run time : %s)\n", endTime)
-	stmap["run-time"] = endTime
+	stmap["run-time"] = float64(endTime)
 	s += fmt.Sprintf("%-12v : in-packets\n", st.totalIn)
-	stmap["in-packets"] = st.totalIn
+	stmap["in-packets"] = float64(st.totalIn)
 	s += fmt.Sprintf("%-12v : data points (KV pairs)\n", st.totalKV)
-	stmap["kv"] = st.totalKV
+	stmap["kv"] = float64(st.totalKV)
 
 	s += fmt.Sprintf("%-12v : in-header wirelength (bytes)\n", st.totalInHeaderWireLength)
-	stmap["in-header-wire-length"] = st.totalInHeaderWireLength
+	stmap["in-header-wire-length"] = float64(st.totalInHeaderWireLength)
 	s += fmt.Sprintf("%-12v : in-payload length (bytes)\n", st.totalInPayloadLength)
-	stmap["in-payload-length-bytes"] = st.totalInPayloadLength
+	stmap["in-payload-length-bytes"] = float64(st.totalInPayloadLength)
 	s += fmt.Sprintf("%-12v : in-payload wirelength (bytes)\n", st.totalInPayloadWireLength)
-	stmap["in-payload-wirelength-bytes"] = st.totalInPayloadWireLength
+	stmap["in-payload-wirelength-bytes"] = float64(st.totalInPayloadWireLength)
 	if endTime.Seconds() != 0 {
 		s += fmt.Sprintf("%-12v : throughput (bytes per seconds)\n", st.totalInPayloadLength/uint64(endTime.Seconds()))
-		stmap["throughput"] = st.totalInPayloadLength / uint64(endTime.Seconds())
+		stmap["throughput"] = float64(st.totalInPayloadLength / uint64(endTime.Seconds()))
 	}
 
 	if *lcheck && st.totalLatencyPkt != 0 {
 		s += fmt.Sprintf("%-12v : latency sample packets\n", st.totalLatencyPkt)
-		stmap["latency-sample-packets"] = st.totalLatencyPkt
+		stmap["latency-sample-packets"] = float64(st.totalLatencyPkt)
 		s += fmt.Sprintf("%-12v : latency (ms)\n", st.totalLatency)
-		stmap["total-latency"] = st.totalLatency
+		stmap["total-latency"] = float64(st.totalLatency)
 		s += fmt.Sprintf("%-12v : average latency (ms)\n", st.totalLatency/st.totalLatencyPkt)
-		stmap["average-latency"] = st.totalLatency / st.totalLatencyPkt
+		stmap["average-latency"] = float64(st.totalLatency / st.totalLatencyPkt)
 	}
 
 	if *dcheck == true {
 		s += fmt.Sprintf("%-12v : total packet drops\n", st.totalDdrops)
-		stmap["total-drops"] = st.totalDdrops
+		stmap["total-drops"] = float64(st.totalDdrops)
 	}
 
 	s += fmt.Sprintf("\n")

@@ -92,8 +92,8 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.Subs
 		fmt.Printf("\nto stop receiving, press CTRL+C \n")
 	}
 	if jctx.cfg.CStats.csv_stats {
-		emitLog(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s\n",
-			"sensor-path", "sequence-number", "component-id", "sub-component-id", "packet-size", "p-ts", "e-ts", "re-stream-creation-ts"))
+		emitLog(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
+			"sensor-path", "sequence-number", "component-id", "sub-component-id", "packet-size", "p-ts", "e-ts", "re-stream-creation-ts", "re-payload-get-ts"))
 	}
 
 	/*

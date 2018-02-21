@@ -46,7 +46,7 @@ jtimon              latest              3b7622e1464f        6 minutes ago       
 Run it:
 
 <pre>
-$ docker run -ti --rm -v ${PWD}:/root,ro jtimon --help
+$ docker run -ti --rm -v ${PWD}:/root:ro jtimon --help
 </pre>
 
 

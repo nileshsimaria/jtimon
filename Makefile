@@ -7,7 +7,7 @@ build:
 	docker build -t jtimon .
 
 run: build
-	docker run -ti --rm -v ${PWD}:/root jtimon --help
+	docker run -ti --rm -v ${PWD}:/root:ro jtimon --help
 
 sh: 
 	docker run -ti --rm -v ${PWD}:/root --entrypoint=/bin/sh jtimon

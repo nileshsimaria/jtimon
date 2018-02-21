@@ -23,6 +23,33 @@ Junos Telemetry Interface client
 7. ./jtimon --help
 </pre>
 
+# Docker container
+
+Alternatively to building jtimon native, one can build a jtimon Docker container and
+run it dockerized while passing the local directory to the container to access the 
+json file.
+
+To build the container:
+
+<pre>
+$ make build
+</pre>
+
+Check the resulting image:
+
+<pre>
+$ docker images jtimon
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+jtimon              latest              3b7622e1464f        6 minutes ago       174MB
+</pre>
+
+Run it:
+
+<pre>
+$ docker run -ti --rm -v ${PWD}:/root,ro jtimon --help
+</pre>
+
+
 # CLI Options
 
 <pre>

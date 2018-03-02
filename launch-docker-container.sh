@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 name=$(basename $0)
 if [ ".$name" = ".launch-docker-container.sh" ]; then

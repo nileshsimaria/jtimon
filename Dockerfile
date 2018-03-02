@@ -2,6 +2,7 @@
 # All rights reserved.
 
 FROM alpine:3.7
+RUN apk add --no-cache ethtool
 RUN apk add --no-cache --virtual build-dependencies git go musl-dev \
   && go get github.com/golang/protobuf/proto \
   && go get github.com/gorilla/mux \
@@ -18,5 +19,4 @@ RUN apk add --no-cache --virtual build-dependencies git go musl-dev \
 
 VOLUME /root
 WORKDIR /root
-
 ENTRYPOINT ["/usr/local/bin/jtimon"]

@@ -46,9 +46,16 @@ jtimon              latest              3b7622e1464f        6 minutes ago       
 Run it:
 
 <pre>
-$ docker run -ti --rm -v ${PWD}:/root:ro jtimon --help
+$ docker run -ti --rm -v ${PWD}:/u:ro jtimon --help
 </pre>
 
+Or simply by calling ./jtimon, which is a symlink to launch-docker-container.sh, capable of launching the container by name with the current directory mounted into /u:
+
+<pre>
+$ ./jtimon
+Enter config file name: bla.json
+2018/03/02 13:53:44 File error: open bla.json: no such file or directory
+</pre>
 
 # CLI Options
 

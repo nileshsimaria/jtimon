@@ -17,6 +17,6 @@ RUN apk add --no-cache --virtual build-dependencies git go musl-dev \
   && cd jtimon && go build && strip jtimon && mv jtimon /usr/local/bin \
   && cd .. && rm -rf jtimon && apk del build-dependencies
 
-VOLUME /root
-WORKDIR /root
+VOLUME /u
+WORKDIR /u
 ENTRYPOINT ["/usr/local/bin/jtimon"]

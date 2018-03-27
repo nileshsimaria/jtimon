@@ -163,7 +163,7 @@ func subscribe(conn *grpc.ClientConn, jctx *jcontext) {
 	for i := range cfg.Paths {
 		var pathM na_pb.Path
 		pathM.Path = cfg.Paths[i].Path
-		pathM.SampleFrequency = cfg.Paths[i].Freq
+		pathM.SampleFrequency = uint32(cfg.Paths[i].Freq)
 
 		subReqM.PathList = append(subReqM.PathList, &pathM)
 	}

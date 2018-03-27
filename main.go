@@ -16,22 +16,25 @@ import (
 )
 
 var (
-	cfgFile     = flag.String("config", "", "Config file name")
-	logFile     = flag.String("log", "", "Log file name")
-	gtrace      = flag.Bool("gtrace", false, "Collect GRPC traces")
-	td          = flag.Bool("time-diff", false, "Time Diff for sensor analysis using InfluxDB")
-	dcheck      = flag.Bool("drop-check", false, "Check for packet drops")
-	lcheck      = flag.Bool("latency-check", false, "Check for latency")
-	prometheus  = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
-	print       = flag.Bool("print", false, "Print Telemetry data")
-	prefixCheck = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
-	sleep       = flag.Int64("sleep", 0, "Sleep after each read (ms)")
-	mr          = flag.Int64("max-run", 0, "Max run time in seconds")
-	maxKV       = flag.Uint64("max-kv", 0, "Max kv")
-	pstats      = flag.Int64("stats", 0, "Print collected stats periodically")
-	csvStats    = flag.Bool("csv-stats", false, "Capture size of each telemetry packet")
-	compression = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
-	st          statsType
+	cfgFile      = flag.String("config", "", "Config file name")
+	gnmiMode     = flag.String("gnmi-mode", "stream", "Mode of gnmi (stream | once | poll")
+	gnmiEncoding = flag.String("gnmi-encoding", "proto", "gnmi encoding (proto | json | bytes | ascii | ietf-json")
+	logFile      = flag.String("log", "", "Log file name")
+	gtrace       = flag.Bool("gtrace", false, "Collect GRPC traces")
+	gnmi         = flag.Bool("gnmi", false, "Use gnmi proto")
+	td           = flag.Bool("time-diff", false, "Time Diff for sensor analysis using InfluxDB")
+	dcheck       = flag.Bool("drop-check", false, "Check for packet drops")
+	lcheck       = flag.Bool("latency-check", false, "Check for latency")
+	prometheus   = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
+	print        = flag.Bool("print", false, "Print Telemetry data")
+	prefixCheck  = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
+	sleep        = flag.Int64("sleep", 0, "Sleep after each read (ms)")
+	mr           = flag.Int64("max-run", 0, "Max run time in seconds")
+	maxKV        = flag.Uint64("max-kv", 0, "Max kv")
+	pstats       = flag.Int64("stats", 0, "Print collected stats periodically")
+	csvStats     = flag.Bool("csv-stats", false, "Capture size of each telemetry packet")
+	compression  = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
+	st           statsType
 )
 
 type jcontext struct {
@@ -68,7 +71,7 @@ func main() {
 	pmap := make(map[string]interface{})
 	for i := range jctx.cfg.Paths {
 		pmap["path"] = jctx.cfg.Paths[i].Path
-		pmap["reporting-rate"] = jctx.cfg.Paths[i].Freq
+		pmap["reporting-rate"] = float64(jctx.cfg.Paths[i].Freq)
 		addGRPCHeader(&jctx, pmap)
 	}
 
@@ -135,5 +138,9 @@ func main() {
 		}
 	}
 
-	subscribe(conn, &jctx)
+	if *gnmi {
+		subscribe_gnmi(conn, &jctx)
+	} else {
+		subscribe(conn, &jctx)
+	}
 }

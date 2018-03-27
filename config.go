@@ -53,7 +53,8 @@ type tlscfg struct {
 
 type spath struct {
 	Path string
-	Freq uint32
+	Freq uint64
+	Mode string
 }
 
 func configInit(cfgFile string) config {
@@ -110,7 +111,7 @@ func logJSON(cfg config) {
 	emitLog(fmt.Sprintf("TLS Server-Name: %v\n", cfg.Tls.ServerName))
 
 	for i := range cfg.Paths {
-		emitLog(fmt.Sprintf("Path: %v Freq: %v\n", cfg.Paths[i].Path, cfg.Paths[i].Freq))
+		emitLog(fmt.Sprintf("Path: %v Freq: %v Subscription-Mode: %v\n", cfg.Paths[i].Path, cfg.Paths[i].Freq, cfg.Paths[i].Mode))
 	}
 	if cfg.Influx != nil {
 		emitLog(fmt.Sprintf("Server : %v\n", cfg.Influx.Server))

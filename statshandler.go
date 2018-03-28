@@ -197,7 +197,7 @@ func printSummary(jctx *jcontext, pstats int64) {
 	stmap["in-payload-length-bytes"] = float64(st.totalInPayloadLength)
 	s += fmt.Sprintf("%-12v : in-payload wirelength (bytes)\n", st.totalInPayloadWireLength)
 	stmap["in-payload-wirelength-bytes"] = float64(st.totalInPayloadWireLength)
-	if endTime.Seconds() != 0 {
+	if uint64(endTime.Seconds()) != 0 {
 		s += fmt.Sprintf("%-12v : throughput (bytes per seconds)\n", st.totalInPayloadLength/uint64(endTime.Seconds()))
 		stmap["throughput"] = float64(st.totalInPayloadLength / uint64(endTime.Seconds()))
 	}

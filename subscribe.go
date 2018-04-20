@@ -2,16 +2,17 @@ package main
 
 import (
 	"fmt"
-	na_pb "github.com/nileshsimaria/jtimon/telemetry"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 	"io"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
+
+	na_pb "github.com/nileshsimaria/jtimon/telemetry"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
@@ -26,6 +27,11 @@ func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
 	emitLog(fmt.Sprintf("sync_response: %d\n", ocData.SyncResponse))
 	if ocData.SyncResponse {
 		fmt.Printf("Received sync_response\n")
+	}
+
+	del := ocData.GetDelete()
+	for _, d := range del {
+		emitLog(fmt.Sprintf("Delete: %s\n", d.GetPath()))
 	}
 
 	prefixSeen := false

@@ -53,25 +53,24 @@ Enter config file name: bla.json
 <pre>
 $ ./jtimon --help
 Usage of ./jtimon:
-      --cert string                   CA certificate file
-      --compression string            Enable HTTP/2 compression (gzip, deflate)
-      --config string                 Config file name
-      --drop-check                    Check for packet drops
-      --gtrace                        Collect GRPC traces
-      --latency-check                 Check for latency
-      --log string                    Log file name
-      --max-kv int                    Max kv
-      --max-run int                   Max run time in seconds
-      --pdt                           PDT style influx DB schema
-      --prefix-check                  Report missing __prefix__ in telemetry packet
-      --print                         Print Telemetry data
-      --prometheus                    Stats for prometheus monitoring system
-      --server-host-override string   ServerName used to verify the hostname
-      --sleep int                     Sleep after each read (ms)
-      --stats int                     Collect and Print statistics periodically
-      --time-diff                     Time Diff for sensor analysis using InfluxDB
-      --tls                           Connection uses TLS
-</pre>      
+      --compression string     Enable HTTP/2 compression (gzip, deflate)
+      --config string          Config file name
+      --csv-stats              Capture size of each telemetry packet
+      --drop-check             Check for packet drops
+      --gnmi                   Use gnmi proto
+      --gnmi-encoding string   gnmi encoding (proto | json | bytes | ascii | ietf-json (default "proto")
+      --gnmi-mode string       Mode of gnmi (stream | once | poll (default "stream")
+      --gtrace                 Collect GRPC traces
+      --latency-check          Check for latency
+      --log string             Log file name
+      --max-kv uint            Max kv
+      --max-run int            Max run time in seconds
+      --prefix-check           Report missing __prefix__ in telemetry packet
+      --print                  Print Telemetry data
+      --prometheus             Stats for prometheus monitoring system
+      --sleep int              Sleep after each read (ms)
+      --stats int              Print collected stats periodically
+      --time-diff              Time Diff for sensor analysis using InfluxDB</pre>      
 
 # Config
 <pre>

@@ -3,24 +3,15 @@ Junos Telemetry Interface client
 
 # Setup
 <pre>
-1. Install golang
-2. Set GOROOT/GOPATH as needed
-3. git clone https://github.com/nileshsimaria/jtimon.git
-4. Fetch following dependent packages
+$ go get github.com/nileshsimaria/jtimon
+$ $GOPATH/bin/jtimon --help
 
-    $ go get github.com/golang/protobuf/proto
-    $ go get github.com/gorilla/mux
-    $ go get github.com/influxdata/influxdb/client/v2
-    $ go get github.com/prometheus/client_golang/prometheus/promhttp
-    $ go get github.com/spf13/pflag
-    $ go get golang.org/x/net/context
-    $ go get google.golang.org/grpc
-    $ go get github.com/nileshsimaria/jtimon/telemetry
-    $ go get github.com/nileshsimaria/jtimon/authentication
+OR
 
-5. cd jtimon
-6. go build
-7. ./jtimon --help
+$ git clone https://github.com/nileshsimaria/jtimon.git
+$ cd jtimon
+$ go build
+$ ./jtimon --help
 </pre>
 
 # Docker container

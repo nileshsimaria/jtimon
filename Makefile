@@ -3,6 +3,12 @@
 
 all: run
 
+LDFLAGS=--ldflags="-X main.Version=`git rev-list -1 HEAD` -X main.BuildTime=`date +%FT%T%z`"
+build-mac:
+	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o jtimon-darwin-amd64
+build-linux:
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o jtimon-linux-amd64
+
 build: 
 	docker build -t jtimon .
 	ln -sf launch-docker-container.sh jtimon

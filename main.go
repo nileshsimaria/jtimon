@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"strconv"
@@ -21,6 +22,7 @@ var (
 	gnmiEncoding = flag.String("gnmi-encoding", "proto", "gnmi encoding (proto | json | bytes | ascii | ietf-json")
 	logFile      = flag.String("log", "", "Log file name")
 	gtrace       = flag.Bool("gtrace", false, "Collect GRPC traces")
+	version      = flag.Bool("version", false, "Print version and build-time of the binary and exit")
 	gnmi         = flag.Bool("gnmi", false, "Use gnmi proto")
 	td           = flag.Bool("time-diff", false, "Time Diff for sensor analysis using InfluxDB")
 	dcheck       = flag.Bool("drop-check", false, "Check for packet drops")
@@ -37,6 +39,11 @@ var (
 	st           statsType
 )
 
+var (
+	Version   = "version-not-available"
+	BuildTime = "build-time-not-available"
+)
+
 type jcontext struct {
 	cfg   config
 	dMap  map[uint32]map[uint32]map[string]dropData
@@ -50,6 +57,13 @@ type jcontext struct {
 func main() {
 	st.startTime = time.Now()
 	flag.Parse()
+	if *version {
+		fmt.Println("Version:   ", Version)
+		fmt.Println("BuildTime: ", BuildTime)
+		return
+	}
+	fmt.Println("Version:   ", Version)
+	fmt.Println("BuildTime: ", BuildTime)
 
 	jctx := jcontext{}
 	jctx.cfg = configInit(*cfgFile)

@@ -17,7 +17,6 @@ import (
 )
 
 var (
-	//cfgFile      = flag.String("config", "", "Config file name")
 	cfgFile      = flag.StringSlice("config", make([]string, 0, 0), "Config file name(s)")
 	gnmiMode     = flag.String("gnmi-mode", "stream", "Mode of gnmi (stream | once | poll")
 	gnmiEncoding = flag.String("gnmi-encoding", "proto", "gnmi encoding (proto | json | bytes | ascii | ietf-json")

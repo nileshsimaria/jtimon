@@ -3,11 +3,12 @@ package main
 import (
 	"bufio"
 	"fmt"
-	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+
+	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 )
 
 type dropData struct {
@@ -22,7 +23,7 @@ func dropInit(jctx *jcontext) {
 }
 
 func dropCheckCSV(jctx *jcontext) {
-	if !jctx.cfg.CStats.csv_stats {
+	if !jctx.cfg.CStats.csvStats {
 		return
 	}
 
@@ -47,9 +48,9 @@ func dropCheckCSV(jctx *jcontext) {
 			//fmt.Printf("\n%s + %s + %s + %s + %s + %s + %s", tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6])
 			cid, _ := strconv.ParseUint(tokens[2], 10, 32)
 			scid, _ := strconv.ParseUint(tokens[3], 10, 32)
-			seq_num, _ := strconv.ParseUint(tokens[1], 10, 32)
+			seqNum, _ := strconv.ParseUint(tokens[1], 10, 32)
 
-			dropCheckWork(jctx, uint32(cid), uint32(scid), tokens[0], seq_num)
+			dropCheckWork(jctx, uint32(cid), uint32(scid), tokens[0], seqNum)
 		}
 
 	}

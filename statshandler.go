@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	na_pb "github.com/nileshsimaria/jtimon/telemetry"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc/stats"
 	"os"
 	"sync"
 	"time"
+
+	na_pb "github.com/nileshsimaria/jtimon/telemetry"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc/stats"
 )
 
 type statsType struct {
@@ -56,7 +57,7 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 		st.totalInPayloadLength += uint64(s.(*stats.InPayload).Length)
 		st.totalInPayloadWireLength += uint64(s.(*stats.InPayload).WireLength)
 
-		if h.jctx.cfg.CStats.csv_stats {
+		if h.jctx.cfg.CStats.csvStats {
 			switch v := (s.(*stats.InPayload).Payload).(type) {
 			case *na_pb.OpenConfigData:
 				updateStats(v, false)
@@ -65,20 +66,20 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 					switch kvvalue := kv.Value.(type) {
 					case *na_pb.KeyValue_UintValue:
 						if kv.Key == "__timestamp__" {
-							var re_c_ts uint64 = 0
-							var re_p_get_ts uint64 = 0
+							var reCTS uint64
+							var rePGetTS uint64
 							if len(v.Kv) > idx+2 {
 								nextKV := v.Kv[idx+1]
 								if nextKV.Key == "__junos_re_stream_creation_timestamp__" {
-									re_c_ts = nextKV.GetUintValue()
+									reCTS = nextKV.GetUintValue()
 								}
 								nextnextKV := v.Kv[idx+2]
 								if nextnextKV.Key == "__junos_re_payload_get_timestamp__" {
-									re_p_get_ts = nextnextKV.GetUintValue()
+									rePGetTS = nextnextKV.GetUintValue()
 								}
 							}
 							emitLog(fmt.Sprintf("%s,%d,%d,%d,%d,%d,%d,%d,%d\n",
-								v.Path, v.SequenceNumber, v.ComponentId, v.SubComponentId, s.(*stats.InPayload).Length, v.Timestamp, kvvalue.UintValue, re_c_ts, re_p_get_ts))
+								v.Path, v.SequenceNumber, v.ComponentId, v.SubComponentId, s.(*stats.InPayload).Length, v.Timestamp, kvvalue.UintValue, reCTS, rePGetTS))
 						}
 					}
 				}
@@ -91,8 +92,8 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 	}
 }
 
-func updateStats(ocData *na_pb.OpenConfigData, need_lock bool) {
-	if need_lock {
+func updateStats(ocData *na_pb.OpenConfigData, needLock bool) {
+	if needLock {
 		st.Lock()
 		defer st.Unlock()
 	}
@@ -110,8 +111,8 @@ func updateStats(ocData *na_pb.OpenConfigData, need_lock bool) {
 	}
 }
 
-func updateStatsKV(jctx *jcontext, need_lock bool) {
-	if need_lock {
+func updateStatsKV(jctx *jcontext, needLock bool) {
+	if needLock {
 		st.Lock()
 		defer st.Unlock()
 	}

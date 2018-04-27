@@ -17,7 +17,8 @@ import (
 )
 
 var (
-	cfgFile      = flag.String("config", "", "Config file name")
+	//cfgFile      = flag.String("config", "", "Config file name")
+	cfgFile      = flag.StringSlice("config", make([]string, 0, 0), "Config file name(s)")
 	gnmiMode     = flag.String("gnmi-mode", "stream", "Mode of gnmi (stream | once | poll")
 	gnmiEncoding = flag.String("gnmi-encoding", "proto", "gnmi encoding (proto | json | bytes | ascii | ietf-json")
 	logFile      = flag.String("log", "", "Log file name")
@@ -40,7 +41,9 @@ var (
 )
 
 var (
-	Version   = "version-not-available"
+	// Version (Version of the binary, supplied at the build time)
+	Version = "version-not-available"
+	// BuildTime (Time of the build, supplied at the build time)
 	BuildTime = "build-time-not-available"
 )
 
@@ -57,104 +60,114 @@ type jcontext struct {
 func main() {
 	st.startTime = time.Now()
 	flag.Parse()
-	if *version {
-		fmt.Println("Version:   ", Version)
-		fmt.Println("BuildTime: ", BuildTime)
-		return
-	}
+
 	fmt.Println("Version:   ", Version)
 	fmt.Println("BuildTime: ", BuildTime)
-
-	jctx := jcontext{}
-	jctx.cfg = configInit(*cfgFile)
-	jctx.cfg.CStats.pstats = *pstats
-	jctx.cfg.CStats.csv_stats = *csvStats
-
-	logInit(&jctx, *logFile)
-	go prometheusHandler(*prometheus)
-	start_gtrace(*gtrace)
-	go maxRun(&jctx, *mr)
-	go periodicStats(*pstats)
-
-	jctx.iFlux.influxc = influxInit(jctx.cfg)
-	configValidation(&jctx)
-
-	dropInit(&jctx)
-	go apiInit(&jctx)
-
-	pmap := make(map[string]interface{})
-	for i := range jctx.cfg.Paths {
-		pmap["path"] = jctx.cfg.Paths[i].Path
-		pmap["reporting-rate"] = float64(jctx.cfg.Paths[i].Freq)
-		addGRPCHeader(&jctx, pmap)
+	if *version {
+		return
 	}
 
-	var opts []grpc.DialOption
-	if jctx.cfg.Tls.Ca != "" {
-		certificate, err := tls.LoadX509KeyPair(jctx.cfg.Tls.ClientCrt, jctx.cfg.Tls.ClientKey)
-
-		certPool := x509.NewCertPool()
-		bs, err := ioutil.ReadFile(jctx.cfg.Tls.Ca)
-		if err != nil {
-			log.Fatalf("failed to read ca cert: %s", err)
-		}
-
-		ok := certPool.AppendCertsFromPEM(bs)
-		if !ok {
-			log.Fatal("failed to append certs")
-		}
-
-		transportCreds := credentials.NewTLS(&tls.Config{
-			Certificates: []tls.Certificate{certificate},
-			ServerName:   jctx.cfg.Tls.ServerName,
-			RootCAs:      certPool,
-		})
-		opts = append(opts, grpc.WithTransportCredentials(transportCreds))
-	} else {
-		opts = append(opts, grpc.WithInsecure())
+	if len(*cfgFile) == 0 {
+		log.Fatalf("Can not run JTIMON without config file")
 	}
 
-	opts = append(opts, grpc.WithStatsHandler(&statshandler{jctx: &jctx}))
-	if *compression != "" {
-		var dc grpc.Decompressor
-		if *compression == "gzip" {
-			dc = grpc.NewGZIPDecompressor()
-		} else if *compression == "deflate" {
-			dc = newDEFLATEDecompressor()
-		}
-		compressionOpts := grpc.Decompressor(dc)
-		opts = append(opts, grpc.WithDecompressor(compressionOpts))
-	}
+	for _, file := range *cfgFile {
+		fmt.Println(file)
 
-	if jctx.cfg.Grpc.Ws != 0 {
-		opts = append(opts, grpc.WithInitialWindowSize(jctx.cfg.Grpc.Ws))
-	}
+		go func(file string) {
+			jctx := jcontext{}
+			jctx.cfg = configInit(file)
+			jctx.cfg.CStats.pStats = *pstats
+			jctx.cfg.CStats.csvStats = *csvStats
 
-	hostname := jctx.cfg.Host + ":" + strconv.Itoa(jctx.cfg.Port)
-	conn, err := grpc.Dial(hostname, opts...)
-	if err != nil {
-		log.Fatalf("Could not connect: %v", err)
-	}
-	defer conn.Close()
+			logInit(&jctx, *logFile)
+			go prometheusHandler(*prometheus)
+			startGtrace(*gtrace)
+			go maxRun(&jctx, *mr)
+			go periodicStats(*pstats)
 
-	if jctx.cfg.User != "" && jctx.cfg.Password != "" {
-		user := jctx.cfg.User
-		pass := jctx.cfg.Password
-		if jctx.cfg.Meta == false {
-			l := auth_pb.NewLoginClient(conn)
-			dat, err := l.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.cfg.Cid})
+			jctx.iFlux.influxc = influxInit(jctx.cfg)
+			configValidation(&jctx)
+
+			dropInit(&jctx)
+			go apiInit(&jctx)
+
+			pmap := make(map[string]interface{})
+			for i := range jctx.cfg.Paths {
+				pmap["path"] = jctx.cfg.Paths[i].Path
+				pmap["reporting-rate"] = float64(jctx.cfg.Paths[i].Freq)
+				addGRPCHeader(&jctx, pmap)
+			}
+
+			var opts []grpc.DialOption
+			if jctx.cfg.TLS.CA != "" {
+				certificate, err := tls.LoadX509KeyPair(jctx.cfg.TLS.ClientCrt, jctx.cfg.TLS.ClientKey)
+
+				certPool := x509.NewCertPool()
+				bs, err := ioutil.ReadFile(jctx.cfg.TLS.CA)
+				if err != nil {
+					log.Fatalf("failed to read ca cert: %s", err)
+				}
+
+				ok := certPool.AppendCertsFromPEM(bs)
+				if !ok {
+					log.Fatal("failed to append certs")
+				}
+
+				transportCreds := credentials.NewTLS(&tls.Config{
+					Certificates: []tls.Certificate{certificate},
+					ServerName:   jctx.cfg.TLS.ServerName,
+					RootCAs:      certPool,
+				})
+				opts = append(opts, grpc.WithTransportCredentials(transportCreds))
+			} else {
+				opts = append(opts, grpc.WithInsecure())
+			}
+
+			opts = append(opts, grpc.WithStatsHandler(&statshandler{jctx: &jctx}))
+			if *compression != "" {
+				var dc grpc.Decompressor
+				if *compression == "gzip" {
+					dc = grpc.NewGZIPDecompressor()
+				} else if *compression == "deflate" {
+					dc = newDEFLATEDecompressor()
+				}
+				compressionOpts := grpc.Decompressor(dc)
+				opts = append(opts, grpc.WithDecompressor(compressionOpts))
+			}
+
+			if jctx.cfg.Grpc.Ws != 0 {
+				opts = append(opts, grpc.WithInitialWindowSize(jctx.cfg.Grpc.Ws))
+			}
+
+			hostname := jctx.cfg.Host + ":" + strconv.Itoa(jctx.cfg.Port)
+			conn, err := grpc.Dial(hostname, opts...)
 			if err != nil {
-				log.Fatalf("Could not login: %v", err)
+				log.Fatalf("Could not connect: %v", err)
 			}
-			if dat.Result == false {
-				log.Fatalf("LoginCheck failed\n")
-			}
-		}
-	}
+			defer conn.Close()
 
-	if *gnmi {
-		subscribe_gnmi(conn, &jctx)
-	} else {
-		subscribe(conn, &jctx)
+			if jctx.cfg.User != "" && jctx.cfg.Password != "" {
+				user := jctx.cfg.User
+				pass := jctx.cfg.Password
+				if jctx.cfg.Meta == false {
+					l := auth_pb.NewLoginClient(conn)
+					dat, err := l.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.cfg.Cid})
+					if err != nil {
+						log.Fatalf("Could not login: %v", err)
+					}
+					if dat.Result == false {
+						log.Fatalf("LoginCheck failed\n")
+					}
+				}
+			}
+
+			if *gnmi {
+				subscribeGNMI(conn, &jctx)
+			} else {
+				subscribe(conn, &jctx)
+			}
+		}(file)
 	}
+	select {}
 }

@@ -24,7 +24,7 @@ func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
 	emitLog(fmt.Sprintf("path: %s\n", ocData.Path))
 	emitLog(fmt.Sprintf("sequence_number: %d\n", ocData.SequenceNumber))
 	emitLog(fmt.Sprintf("timestamp: %d\n", ocData.Timestamp))
-	emitLog(fmt.Sprintf("sync_response: %d\n", ocData.SyncResponse))
+	emitLog(fmt.Sprintf("sync_response: %v\n", ocData.SyncResponse))
 	if ocData.SyncResponse {
 		fmt.Printf("Received sync_response\n")
 	}
@@ -41,7 +41,7 @@ func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
 		emitLog(fmt.Sprintf("  key: %s\n", kv.Key))
 		switch value := kv.Value.(type) {
 		case *na_pb.KeyValue_DoubleValue:
-			emitLog(fmt.Sprintf("  double_value: %d\n", value.DoubleValue))
+			emitLog(fmt.Sprintf("  double_value: %v\n", value.DoubleValue))
 		case *na_pb.KeyValue_IntValue:
 			emitLog(fmt.Sprintf("  int_value: %d\n", value.IntValue))
 		case *na_pb.KeyValue_UintValue:
@@ -49,7 +49,7 @@ func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
 		case *na_pb.KeyValue_SintValue:
 			emitLog(fmt.Sprintf("  sint_value: %d\n", value.SintValue))
 		case *na_pb.KeyValue_BoolValue:
-			emitLog(fmt.Sprintf("  bool_value: %s\n", value.BoolValue))
+			emitLog(fmt.Sprintf("  bool_value: %v\n", value.BoolValue))
 		case *na_pb.KeyValue_StrValue:
 			emitLog(fmt.Sprintf("  str_value: %s\n", value.StrValue))
 		case *na_pb.KeyValue_BytesValue:
@@ -97,7 +97,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.Subs
 		fmt.Printf("\nlogging Junos Telemetry data in %s ...", jctx.cfg.Log.LogFileName)
 		fmt.Printf("\nto stop receiving, press CTRL+C \n")
 	}
-	if jctx.cfg.CStats.csv_stats {
+	if jctx.cfg.CStats.csvStats {
 		emitLog(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
 			"sensor-path", "sequence-number", "component-id", "sub-component-id", "packet-size", "p-ts", "e-ts", "re-stream-creation-ts", "re-payload-get-ts"))
 	}
@@ -130,15 +130,15 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.Subs
 
 		rtime := time.Now()
 
-		if *dcheck == true && !jctx.cfg.CStats.csv_stats {
+		if *dcheck == true && !jctx.cfg.CStats.csvStats {
 			dropCheck(jctx, ocData)
 		}
 
-		if !jctx.cfg.CStats.csv_stats {
+		if !jctx.cfg.CStats.csvStats {
 			handleOneTelemetryPkt(ocData, jctx)
 		}
 
-		if jctx.iFlux.influxc != nil && !jctx.cfg.CStats.csv_stats {
+		if jctx.iFlux.influxc != nil && !jctx.cfg.CStats.csvStats {
 			go addIDB(ocData, jctx, rtime)
 		}
 

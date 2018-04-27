@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/influxdata/influxdb/client/v2"
-	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/influxdata/influxdb/client/v2"
+	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 )
 
 type iFluxCtx struct {
@@ -82,9 +83,8 @@ func getMeasurementName(ocData *na_pb.OpenConfigData, cfg config) string {
 	}
 	if ocData != nil {
 		return ocData.SystemId
-	} else {
-		return ""
 	}
+	return ""
 }
 
 // A go routine to add one telemetry packet in to InfluxDB (flat schema)
@@ -183,9 +183,9 @@ func addGRPCHeader(jctx *jcontext, hmap map[string]interface{}) {
 	}
 
 	if len(hmap) != 0 {
-		st_measurement := getMeasurementName(nil, jctx.cfg)
+		stMeasurement := getMeasurementName(nil, jctx.cfg)
 		tags := make(map[string]string)
-		pt, err := client.NewPoint(st_measurement+"-HDR", tags, hmap, time.Now())
+		pt, err := client.NewPoint(stMeasurement+"-HDR", tags, hmap, time.Now())
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -215,9 +215,9 @@ func addIDBSummary(jctx *jcontext, stmap map[string]interface{}) {
 	}
 
 	if len(stmap) != 0 {
-		st_measurement := getMeasurementName(nil, jctx.cfg)
+		stMeasurement := getMeasurementName(nil, jctx.cfg)
 		tags := make(map[string]string)
-		pt, err := client.NewPoint(st_measurement+"-LOG", tags, stmap, time.Now())
+		pt, err := client.NewPoint(stMeasurement+"-LOG", tags, stmap, time.Now())
 		if err != nil {
 			log.Fatal(err)
 		}

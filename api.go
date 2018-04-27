@@ -2,19 +2,20 @@ package main
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 func apiInit(jctx *jcontext) {
 
-	if jctx.cfg.Api.Port == 0 {
+	if jctx.cfg.API.Port == 0 {
 		return
 	}
 
-	portstr := fmt.Sprintf(":%v", jctx.cfg.Api.Port)
+	portstr := fmt.Sprintf(":%v", jctx.cfg.API.Port)
 
 	jctx.pause.pch = make(chan int64)
 	jctx.pause.upch = make(chan struct{})

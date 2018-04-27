@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -17,9 +16,9 @@ type config struct {
 	Meta     bool
 	Eos      bool
 	Cid      string
-	Api      api
+	API      api
 	Grpc     grpccfg
-	Tls      tlscfg
+	TLS      tlscfg
 	Influx   *influxCfg
 	Paths    []spath
 	CStats   statsT
@@ -32,8 +31,8 @@ type logT struct {
 }
 
 type statsT struct {
-	pstats    int64
-	csv_stats bool
+	pStats   int64
+	csvStats bool
 }
 
 type api struct {
@@ -47,7 +46,7 @@ type grpccfg struct {
 type tlscfg struct {
 	ClientCrt  string
 	ClientKey  string
-	Ca         string
+	CA         string
 	ServerName string
 }
 
@@ -58,13 +57,6 @@ type spath struct {
 }
 
 func configInit(cfgFile string) config {
-	if cfgFile == "" {
-		fmt.Printf("Enter config file name: ")
-		r := bufio.NewScanner(os.Stdin)
-		r.Scan()
-		cfgFile = r.Text()
-	}
-
 	// parse config file
 	cfg := parseJSON(cfgFile)
 
@@ -74,7 +66,7 @@ func configInit(cfgFile string) config {
 }
 
 func configValidation(jctx *jcontext) {
-	if jctx.cfg.CStats.csv_stats {
+	if jctx.cfg.CStats.csvStats {
 		if *dcheck {
 			if jctx.cfg.Log.LogFileName == "" {
 				log.Fatalf("Can't use --drop-check when cvs data log file is not used")
@@ -102,13 +94,13 @@ func logJSON(cfg config) {
 	emitLog(fmt.Sprintf("Host: %v\n", cfg.Host))
 	emitLog(fmt.Sprintf("Port: %v\n", cfg.Port))
 	emitLog(fmt.Sprintf("CID:  %v\n", cfg.Cid))
-	emitLog(fmt.Sprintf("API-Port: %v\n", cfg.Api.Port))
+	emitLog(fmt.Sprintf("API-Port: %v\n", cfg.API.Port))
 	emitLog(fmt.Sprintf("gRPC window-size: %v\n", cfg.Grpc.Ws))
 
-	emitLog(fmt.Sprintf("TLS Client-CRT: %v\n", cfg.Tls.ClientCrt))
-	emitLog(fmt.Sprintf("TLS Client-KEY: %v\n", cfg.Tls.ClientKey))
-	emitLog(fmt.Sprintf("TLS CA: %v\n", cfg.Tls.Ca))
-	emitLog(fmt.Sprintf("TLS Server-Name: %v\n", cfg.Tls.ServerName))
+	emitLog(fmt.Sprintf("TLS Client-CRT: %v\n", cfg.TLS.ClientCrt))
+	emitLog(fmt.Sprintf("TLS Client-KEY: %v\n", cfg.TLS.ClientKey))
+	emitLog(fmt.Sprintf("TLS CA: %v\n", cfg.TLS.CA))
+	emitLog(fmt.Sprintf("TLS Server-Name: %v\n", cfg.TLS.ServerName))
 
 	for i := range cfg.Paths {
 		emitLog(fmt.Sprintf("Path: %v Freq: %v Subscription-Mode: %v\n", cfg.Paths[i].Path, cfg.Paths[i].Freq, cfg.Paths[i].Mode))

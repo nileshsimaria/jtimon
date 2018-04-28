@@ -92,7 +92,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 	}
 
 	gmutex.Lock()
-	fmt.Printf("gRPC headers from Junos for %s[%d]", jctx.file, jctx.idx)
+	fmt.Printf("gRPC headers from Junos for %s[%d]\n", jctx.file, jctx.idx)
 	for k, v := range hdr {
 		fmt.Printf("  %s: %s\n", k, v)
 	}

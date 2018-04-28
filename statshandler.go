@@ -180,7 +180,7 @@ func printSummary(jctx *JCtx, pstats int64) {
 	endTime := time.Since(jctx.st.startTime)
 	stmap := make(map[string]interface{})
 
-	s := fmt.Sprintf("\nCollector Stats (Run time : %s)\n", endTime)
+	s := fmt.Sprintf("\nCollector Stats for %s[%d] (Run time : %s)\n", jctx.file, jctx.idx, endTime)
 	stmap["run-time"] = float64(endTime)
 	s += fmt.Sprintf("%-12v : in-packets\n", jctx.st.totalIn)
 	stmap["in-packets"] = float64(jctx.st.totalIn)

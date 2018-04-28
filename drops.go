@@ -17,12 +17,12 @@ type dropData struct {
 	drop     uint64
 }
 
-func dropInit(jctx *jcontext) {
+func dropInit(jctx *JCtx) {
 	// Create a map for key ComponentID
 	jctx.dMap = make(map[uint32]map[uint32]map[string]dropData)
 }
 
-func dropCheckCSV(jctx *jcontext) {
+func dropCheckCSV(jctx *JCtx) {
 	if !jctx.cfg.CStats.csvStats {
 		return
 	}
@@ -56,7 +56,7 @@ func dropCheckCSV(jctx *jcontext) {
 	}
 }
 
-func dropCheckWork(jctx *jcontext, cid uint32, scid uint32, path string, seq uint64) {
+func dropCheckWork(jctx *JCtx, cid uint32, scid uint32, path string, seq uint64) {
 	var last dropData
 	var new dropData
 	var ok bool
@@ -92,11 +92,11 @@ func dropCheckWork(jctx *jcontext, cid uint32, scid uint32, path string, seq uin
 	}
 }
 
-func dropCheck(jctx *jcontext, ocData *na_pb.OpenConfigData) {
+func dropCheck(jctx *JCtx, ocData *na_pb.OpenConfigData) {
 	dropCheckWork(jctx, ocData.ComponentId, ocData.SubComponentId, ocData.Path, ocData.SequenceNumber)
 }
 
-func printDropDS(jctx *jcontext) {
+func printDropDS(jctx *JCtx) {
 	jctx.st.Lock()
 	fmt.Printf("\n Drops Distribution")
 	fmt.Printf("\n+----+-----+-------+----------+%s+", strings.Repeat("-", 121))

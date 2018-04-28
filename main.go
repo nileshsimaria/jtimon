@@ -43,7 +43,8 @@ var (
 	BuildTime = "build-time-not-available"
 )
 
-type jcontext struct {
+// JCtx is JTIMON Context
+type JCtx struct {
 	cfg   config
 	file  string
 	idx   int
@@ -74,7 +75,7 @@ func main() {
 		fmt.Printf("Starting go-routine for %s[%d]\n", file, idx)
 
 		go func(file string, idx int) {
-			jctx := jcontext{}
+			jctx := JCtx{}
 			jctx.file = file
 			jctx.idx = idx
 			jctx.st.startTime = time.Now()

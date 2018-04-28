@@ -65,7 +65,7 @@ func configInit(cfgFile string) config {
 	return cfg
 }
 
-func configValidation(jctx *jcontext) {
+func configValidation(jctx *JCtx) {
 	if jctx.cfg.CStats.csvStats {
 		if *dcheck {
 			if jctx.cfg.Log.LogFileName == "" {

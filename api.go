@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func apiInit(jctx *jcontext) {
+func apiInit(jctx *JCtx) {
 
 	if jctx.cfg.API.Port == 0 {
 		return
@@ -27,7 +27,7 @@ func apiInit(jctx *jcontext) {
 	log.Fatal(http.ListenAndServe(portstr, router))
 }
 
-func (jctx *jcontext) pauseHandler(w http.ResponseWriter, r *http.Request) {
+func (jctx *JCtx) pauseHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	pauseTime := vars["pauseTime"]
 	fmt.Printf("Pause Time: %v\n", pauseTime)
@@ -39,7 +39,7 @@ func (jctx *jcontext) pauseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (jctx *jcontext) upauseHandler(w http.ResponseWriter, r *http.Request) {
+func (jctx *JCtx) upauseHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Request for unpause\n")
 	jctx.pause.upch <- struct{}{}
 }

@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
+func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 	updateStats(jctx, ocData, true)
 
 	emitLog(fmt.Sprintf("system_id: %s\n", ocData.SystemId))
@@ -70,7 +70,7 @@ func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
 	}
 }
 
-func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.SubscriptionRequest) {
+func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.SubscriptionRequest) {
 	var ctx context.Context
 	c := na_pb.NewOpenConfigTelemetryClient(conn)
 	if jctx.cfg.Meta == true {
@@ -161,7 +161,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *jcontext, subReqM na_pb.Subs
 	}
 }
 
-func subscribe(conn *grpc.ClientConn, jctx *jcontext) {
+func subscribe(conn *grpc.ClientConn, jctx *JCtx) {
 	var subReqM na_pb.SubscriptionRequest
 	var additionalConfigM na_pb.SubscriptionAdditionalConfig
 	cfg := jctx.cfg

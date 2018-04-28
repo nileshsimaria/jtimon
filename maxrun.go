@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func maxRun(jctx *jcontext, maxRun int64) {
+func maxRun(jctx *JCtx, maxRun int64) {
 	if maxRun == 0 {
 		return
 	}

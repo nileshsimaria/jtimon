@@ -25,7 +25,7 @@ type statsType struct {
 }
 
 type statshandler struct {
-	jctx *jcontext
+	jctx *JCtx
 }
 
 func (h *statshandler) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
@@ -92,7 +92,7 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 	}
 }
 
-func updateStats(jctx *jcontext, ocData *na_pb.OpenConfigData, needLock bool) {
+func updateStats(jctx *JCtx, ocData *na_pb.OpenConfigData, needLock bool) {
 	if needLock {
 		jctx.st.Lock()
 		defer jctx.st.Unlock()
@@ -111,7 +111,7 @@ func updateStats(jctx *jcontext, ocData *na_pb.OpenConfigData, needLock bool) {
 	}
 }
 
-func updateStatsKV(jctx *jcontext, needLock bool) {
+func updateStatsKV(jctx *JCtx, needLock bool) {
 	if needLock {
 		jctx.st.Lock()
 		defer jctx.st.Unlock()
@@ -125,7 +125,7 @@ func updateStatsKV(jctx *jcontext, needLock bool) {
 	}
 }
 
-func periodicStats(jctx *jcontext, pstats int64) {
+func periodicStats(jctx *JCtx, pstats int64) {
 	if pstats == 0 {
 		return
 	}
@@ -176,7 +176,7 @@ func periodicStats(jctx *jcontext, pstats int64) {
 	}
 }
 
-func printSummary(jctx *jcontext, pstats int64) {
+func printSummary(jctx *JCtx, pstats int64) {
 
 	if *dcheck == true {
 		printDropDS(jctx)

@@ -67,7 +67,7 @@ func getMeasurementName(ocData *na_pb.OpenConfigData, cfg config) string {
 }
 
 // A go routine to add header of gRPC in to influxDB
-func addGRPCHeader(jctx *jcontext, hmap map[string]interface{}) {
+func addGRPCHeader(jctx *JCtx, hmap map[string]interface{}) {
 	cfg := jctx.cfg
 	jctx.iFlux.Lock()
 	defer jctx.iFlux.Unlock()
@@ -99,7 +99,7 @@ func addGRPCHeader(jctx *jcontext, hmap map[string]interface{}) {
 }
 
 // A go routine to add summary of stats collection in to influxDB
-func addIDBSummary(jctx *jcontext, stmap map[string]interface{}) {
+func addIDBSummary(jctx *JCtx, stmap map[string]interface{}) {
 	cfg := jctx.cfg
 	jctx.iFlux.Lock()
 	defer jctx.iFlux.Unlock()
@@ -131,7 +131,7 @@ func addIDBSummary(jctx *jcontext, stmap map[string]interface{}) {
 }
 
 // A go routine to add one telemetry packet in to InfluxDB
-func addIDB(ocData *na_pb.OpenConfigData, jctx *jcontext, rtime time.Time) {
+func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	cfg := jctx.cfg
 
 	if jctx.iFlux.influxc == nil {

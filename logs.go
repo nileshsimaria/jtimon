@@ -11,7 +11,7 @@ func emitLog(s string) {
 	}
 }
 
-func logInit(jctx *jcontext, logFile string) {
+func logInit(jctx *JCtx, logFile string) {
 	if logFile != "" {
 		f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0666)
 		if err != nil {

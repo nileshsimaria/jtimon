@@ -58,7 +58,7 @@ func getMode(mode string) gnmipb.SubscriptionList_Mode {
 	return gnmipb.SubscriptionList_STREAM
 }
 
-func subscribeGNMI(conn *grpc.ClientConn, jctx *jcontext) {
+func subscribeGNMI(conn *grpc.ClientConn, jctx *JCtx) {
 	cfg := jctx.cfg
 
 	s := &gnmipb.SubscribeRequest_Subscribe{
@@ -110,7 +110,7 @@ func processGNMIResponse(resp *gnmipb.SubscribeResponse) {
 	}
 }
 
-func subSendAndReceiveGNMI(conn *grpc.ClientConn, jctx *jcontext, req *gnmipb.SubscribeRequest) {
+func subSendAndReceiveGNMI(conn *grpc.ClientConn, jctx *JCtx, req *gnmipb.SubscribeRequest) {
 	var ctx context.Context
 	c := gnmipb.NewGNMIClient(conn)
 

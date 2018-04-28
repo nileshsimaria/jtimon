@@ -3,7 +3,7 @@
 
 all: run
 
-LDFLAGS=--ldflags="-X main.Version=`git rev-list -1 HEAD` -X main.BuildTime=`date +%FT%T%z`"
+LDFLAGS=--ldflags="-X main.version=`git rev-list -1 HEAD` -X main.buildTime=`date +%FT%T%z`"
 build-mac:
 	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o jtimon-darwin-amd64
 build-linux:

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"time"
 )
 
@@ -12,5 +11,5 @@ func maxRun(jctx *JCtx, maxRun int64) {
 	tickChan := time.NewTimer(time.Second * time.Duration(maxRun)).C
 	<-tickChan
 	printSummary(jctx, *pstats)
-	os.Exit(0)
+	jctx.wg.Done()
 }

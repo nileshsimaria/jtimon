@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"sync"
 	"time"
 
@@ -117,12 +116,6 @@ func updateStatsKV(jctx *JCtx, needLock bool) {
 		defer jctx.st.Unlock()
 	}
 	jctx.st.totalKV++
-
-	if *maxKV != 0 && jctx.st.totalKV >= *maxKV {
-		jctx.st.Unlock()
-		printSummary(jctx, *pstats)
-		os.Exit(0)
-	}
 }
 
 func periodicStats(jctx *JCtx, pstats int64) {
@@ -177,11 +170,13 @@ func periodicStats(jctx *JCtx, pstats int64) {
 }
 
 func printSummary(jctx *JCtx, pstats int64) {
+	gmutex.Lock()
+	defer gmutex.Unlock()
 
 	if *dcheck == true {
 		printDropDS(jctx)
 	}
-	jctx.st.Lock()
+
 	endTime := time.Since(jctx.st.startTime)
 	stmap := make(map[string]interface{})
 
@@ -219,7 +214,6 @@ func printSummary(jctx *JCtx, pstats int64) {
 
 	s += fmt.Sprintf("\n")
 	fmt.Printf("\n%s\n", s)
-	jctx.st.Unlock()
 
 	addIDBSummary(jctx, stmap)
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strconv"
+	"sync"
 	"time"
 
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
@@ -21,7 +22,7 @@ var (
 	gnmiEncoding = flag.String("gnmi-encoding", "proto", "gnmi encoding (proto | json | bytes | ascii | ietf-json")
 	logFile      = flag.String("log", "", "Log file name")
 	gtrace       = flag.Bool("gtrace", false, "Collect GRPC traces")
-	version      = flag.Bool("version", false, "Print version and build-time of the binary and exit")
+	ver          = flag.Bool("version", false, "Print version and build-time of the binary and exit")
 	gnmi         = flag.Bool("gnmi", false, "Use gnmi proto")
 	dcheck       = flag.Bool("drop-check", false, "Check for packet drops")
 	lcheck       = flag.Bool("latency-check", false, "Check for latency")
@@ -30,17 +31,13 @@ var (
 	prefixCheck  = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
 	sleep        = flag.Int64("sleep", 0, "Sleep after each read (ms)")
 	mr           = flag.Int64("max-run", 0, "Max run time in seconds")
-	maxKV        = flag.Uint64("max-kv", 0, "Max kv")
 	pstats       = flag.Int64("stats", 0, "Print collected stats periodically")
 	csvStats     = flag.Bool("csv-stats", false, "Capture size of each telemetry packet")
 	compression  = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
-)
 
-var (
-	// Version (Version of the binary, supplied at the build time)
-	Version = "version-not-available"
-	// BuildTime (Time of the build, supplied at the build time)
-	BuildTime = "build-time-not-available"
+	version   = "version-not-available"
+	buildTime = "build-time-not-available"
+	gmutex    = &sync.Mutex{}
 )
 
 // JCtx is JTIMON Context
@@ -48,6 +45,7 @@ type JCtx struct {
 	cfg   config
 	file  string
 	idx   int
+	wg    *sync.WaitGroup
 	dMap  map[uint32]map[uint32]map[string]dropData
 	iFlux iFluxCtx
 	st    statsType
@@ -60,17 +58,20 @@ type JCtx struct {
 func main() {
 	flag.Parse()
 
-	fmt.Println("Version:   ", Version)
-	fmt.Println("BuildTime: ", BuildTime)
-	if *version {
+	fmt.Println("Version:   ", version)
+	fmt.Println("BuildTime: ", buildTime)
+	if *ver {
 		return
 	}
 
+	var wg sync.WaitGroup
 	if len(*cfgFile) == 0 {
-		fmt.Println("Can not run JTIMON without any config file")
+		fmt.Println("Can not run without any config file")
 		return
 	}
+	wg.Add(len(*cfgFile))
 	startGtrace(*gtrace)
+
 	for idx, file := range *cfgFile {
 		fmt.Printf("Starting go-routine for %s[%d]\n", file, idx)
 
@@ -78,20 +79,27 @@ func main() {
 			jctx := JCtx{}
 			jctx.file = file
 			jctx.idx = idx
+			jctx.wg = &wg
 			jctx.st.startTime = time.Now()
-			jctx.cfg = configInit(file)
+
+			var err error
+			jctx.cfg, err = configInit(file)
+			if err != nil {
+				gmutex.Lock()
+				fmt.Printf("Config parsing error for %s[%d]: %v\n", file, idx, err)
+				gmutex.Unlock()
+				wg.Done()
+				return
+			}
+
 			jctx.cfg.CStats.pStats = *pstats
 			jctx.cfg.CStats.csvStats = *csvStats
 
 			logInit(&jctx, *logFile)
 			go prometheusHandler(*prometheus)
-
 			go maxRun(&jctx, *mr)
 			go periodicStats(&jctx, *pstats)
-
 			jctx.iFlux.influxc = influxInit(jctx.cfg)
-			configValidation(&jctx)
-
 			dropInit(&jctx)
 			go apiInit(&jctx)
 
@@ -109,13 +117,19 @@ func main() {
 				certPool := x509.NewCertPool()
 				bs, err := ioutil.ReadFile(jctx.cfg.TLS.CA)
 				if err != nil {
+					gmutex.Lock()
 					fmt.Printf("[%d] Failed to read ca cert: %s\n", idx, err)
+					gmutex.Unlock()
+					wg.Done()
 					return
 				}
 
 				ok := certPool.AppendCertsFromPEM(bs)
 				if !ok {
+					gmutex.Lock()
 					fmt.Printf("[%d] Failed to append certs\n", idx)
+					gmutex.Unlock()
+					wg.Done()
 					return
 				}
 
@@ -148,7 +162,10 @@ func main() {
 			hostname := jctx.cfg.Host + ":" + strconv.Itoa(jctx.cfg.Port)
 			conn, err := grpc.Dial(hostname, opts...)
 			if err != nil {
+				gmutex.Lock()
 				fmt.Printf("[%d] Could not connect: %v\n", idx, err)
+				gmutex.Unlock()
+				wg.Done()
 				return
 			}
 			defer conn.Close()
@@ -160,11 +177,17 @@ func main() {
 					l := auth_pb.NewLoginClient(conn)
 					dat, err := l.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.cfg.Cid})
 					if err != nil {
+						gmutex.Lock()
 						fmt.Printf("[%d] Could not login: %v\n", idx, err)
+						gmutex.Unlock()
+						wg.Done()
 						return
 					}
 					if dat.Result == false {
+						gmutex.Lock()
 						fmt.Printf("[%d] LoginCheck failed", idx)
+						gmutex.Unlock()
+						wg.Done()
 						return
 					}
 				}
@@ -175,7 +198,9 @@ func main() {
 			} else {
 				subscribe(conn, &jctx)
 			}
+			wg.Done()
 		}(file, idx)
 	}
-	select {}
+	wg.Wait()
+	fmt.Printf("All done ... exiting!\n")
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -79,17 +78,21 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 	} else {
 		ctx = context.Background()
 	}
+
 	stream, err := c.TelemetrySubscribe(ctx, &subReqM)
 
 	if err != nil {
-		log.Fatalf("Could not send RPC: %v\n", err)
+		SafePrint(fmt.Sprintf("Could not send RPC: %v\n", err))
+		return
 	}
 
 	hdr, errh := stream.Header()
 	if errh != nil {
-		log.Fatalf("Failed to get header for stream: %v", errh)
+		SafePrint(fmt.Sprintf("Failed to get header for stream: %v", errh))
 	}
-	fmt.Println("gRPC headers from Junos:")
+
+	gmutex.Lock()
+	fmt.Printf("gRPC headers from Junos for %s[%d]", jctx.file, jctx.idx)
 	for k, v := range hdr {
 		fmt.Printf("  %s: %s\n", k, v)
 	}
@@ -97,6 +100,8 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 		fmt.Printf("\nlogging Junos Telemetry data in %s ...", jctx.cfg.Log.LogFileName)
 		fmt.Printf("\nto stop receiving, press CTRL+C \n")
 	}
+	gmutex.Unlock()
+
 	if jctx.cfg.CStats.csvStats {
 		emitLog(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
 			"sensor-path", "sequence-number", "component-id", "sub-component-id", "packet-size", "p-ts", "e-ts", "re-stream-creation-ts", "re-payload-get-ts"))
@@ -115,7 +120,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 			dropCheckCSV(jctx)
 		}
 		printSummary(jctx, *pstats)
-		os.Exit(0)
+		jctx.wg.Done()
 	}()
 
 	for {
@@ -125,7 +130,8 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 			break
 		}
 		if err != nil {
-			log.Fatalf("%v.TelemetrySubscribe(_) = _, %v", conn, err)
+			SafePrint(fmt.Sprintf("%v.TelemetrySubscribe(_) = _, %v", conn, err))
+			jctx.wg.Done()
 		}
 
 		rtime := time.Now()
@@ -148,11 +154,11 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 
 		select {
 		case pfor := <-jctx.pause.pch:
-			fmt.Printf("Pausing for %v seconds\n", pfor)
+			SafePrint(fmt.Sprintf("Pausing for %v seconds\n", pfor))
 			t := time.NewTimer(time.Second * time.Duration(pfor))
 			select {
 			case <-t.C:
-				fmt.Printf("Done pausing for %v seconds\n", pfor)
+				SafePrint(fmt.Sprintf("Done pausing for %v seconds\n", pfor))
 			case <-jctx.pause.upch:
 				t.Stop()
 			}

@@ -11,6 +11,13 @@ import (
 	gnmipb "github.com/nileshsimaria/jtimon/gnmi"
 )
 
+// SafePrint is go routine safe printing on terminal
+func SafePrint(msg string) {
+	gmutex.Lock()
+	fmt.Printf(msg)
+	gmutex.Unlock()
+}
+
 //PathType of gnmi
 type PathType int64
 

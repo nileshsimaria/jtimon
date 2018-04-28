@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 )
 
@@ -56,40 +55,32 @@ type spath struct {
 	Mode string
 }
 
-func configInit(cfgFile string) config {
+func configInit(cfgFile string) (config, error) {
 	// parse config file
-	cfg := parseJSON(cfgFile)
-
-	//logJSON(cfg)
-
-	return cfg
-}
-
-func configValidation(jctx *JCtx) {
-	if jctx.cfg.CStats.csvStats {
-		if *dcheck {
-			if jctx.cfg.Log.LogFileName == "" {
-				log.Fatalf("Can't use --drop-check when cvs data log file is not used")
-			}
-		}
+	cfg, err := parseJSON(cfgFile)
+	if err != nil {
+		logJSON(cfg)
 	}
+
+	return cfg, err
 }
 
-func parseJSON(cfgFile string) config {
+func parseJSON(cfgFile string) (config, error) {
 	var cfg config
 
-	file, e := ioutil.ReadFile(cfgFile)
-	if e != nil {
-		log.Fatalf("File error: %v\n", e)
-		os.Exit(1)
+	file, err := ioutil.ReadFile(cfgFile)
+	if err != nil {
+		return cfg, err
 	}
 	if err := json.Unmarshal(file, &cfg); err != nil {
-		panic(err)
+		return cfg, err
 	}
-	return cfg
+	return cfg, nil
 }
 
 func logJSON(cfg config) {
+	gmutex.Lock()
+
 	emitLog(fmt.Sprintf("Processing json config\n"))
 	emitLog(fmt.Sprintf("Host: %v\n", cfg.Host))
 	emitLog(fmt.Sprintf("Port: %v\n", cfg.Port))
@@ -105,6 +96,7 @@ func logJSON(cfg config) {
 	for i := range cfg.Paths {
 		emitLog(fmt.Sprintf("Path: %v Freq: %v Subscription-Mode: %v\n", cfg.Paths[i].Path, cfg.Paths[i].Freq, cfg.Paths[i].Mode))
 	}
+
 	if cfg.Influx != nil {
 		emitLog(fmt.Sprintf("Server : %v\n", cfg.Influx.Server))
 		emitLog(fmt.Sprintf("Port: %v\n", cfg.Influx.Port))
@@ -115,4 +107,6 @@ func logJSON(cfg config) {
 		emitLog(fmt.Sprintf("Password: %v\n", cfg.Influx.Password))
 		emitLog(fmt.Sprintf("Diet Influx: %v\n", cfg.Influx.Diet))
 	}
+
+	gmutex.Unlock()
 }

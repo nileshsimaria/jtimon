@@ -56,7 +56,7 @@ func spitTagsNPath(xmlpath string) (string, map[string]string) {
 	return xmlpath, tags
 }
 
-func getMeasurementName(ocData *na_pb.OpenConfigData, cfg config) string {
+func mName(ocData *na_pb.OpenConfigData, cfg config) string {
 	if cfg.Influx.Measurement != "" {
 		return cfg.Influx.Measurement
 	}
@@ -85,9 +85,10 @@ func addGRPCHeader(jctx *JCtx, hmap map[string]interface{}) {
 	}
 
 	if len(hmap) != 0 {
-		stMeasurement := getMeasurementName(nil, jctx.cfg)
+		m := mName(nil, jctx.cfg)
+		m = fmt.Sprintf("%s-%d-HDR", m, jctx.idx)
 		tags := make(map[string]string)
-		pt, err := client.NewPoint(stMeasurement+"-HDR", tags, hmap, time.Now())
+		pt, err := client.NewPoint(m, tags, hmap, time.Now())
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -117,9 +118,10 @@ func addIDBSummary(jctx *JCtx, stmap map[string]interface{}) {
 	}
 
 	if len(stmap) != 0 {
-		stMeasurement := getMeasurementName(nil, jctx.cfg)
+		m := mName(nil, jctx.cfg)
+		m = fmt.Sprintf("%s-%d-LOG", m, jctx.idx)
 		tags := make(map[string]string)
-		pt, err := client.NewPoint(stMeasurement+"-LOG", tags, stmap, time.Now())
+		pt, err := client.NewPoint(m, tags, stmap, time.Now())
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -215,7 +217,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 		}
 
 		if len(kv) != 0 {
-			pt, err := client.NewPoint(getMeasurementName(ocData, jctx.cfg), tags, kv, rtime)
+			pt, err := client.NewPoint(mName(ocData, jctx.cfg), tags, kv, rtime)
 			if err != nil {
 				log.Fatal(err)
 			}

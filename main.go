@@ -23,7 +23,6 @@ var (
 	gtrace       = flag.Bool("gtrace", false, "Collect GRPC traces")
 	version      = flag.Bool("version", false, "Print version and build-time of the binary and exit")
 	gnmi         = flag.Bool("gnmi", false, "Use gnmi proto")
-	td           = flag.Bool("time-diff", false, "Time Diff for sensor analysis using InfluxDB")
 	dcheck       = flag.Bool("drop-check", false, "Check for packet drops")
 	lcheck       = flag.Bool("latency-check", false, "Check for latency")
 	prometheus   = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")

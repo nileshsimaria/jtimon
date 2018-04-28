@@ -222,8 +222,4 @@ func printSummary(jctx *jcontext, pstats int64) {
 	jctx.st.Unlock()
 
 	addIDBSummary(jctx, stmap)
-
-	if *td == true {
-		influxDBQueryString(jctx)
-	}
 }

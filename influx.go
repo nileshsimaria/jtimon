@@ -16,7 +16,6 @@ import (
 type iFluxCtx struct {
 	sync.Mutex
 	influxc *client.Client
-	tdm     map[string]timeDiff
 }
 
 type influxCfg struct {
@@ -27,32 +26,12 @@ type influxCfg struct {
 	Password    string
 	Recreate    bool
 	Measurement string
-	Flat        bool
 	Diet        bool
 }
 
 type timeDiff struct {
 	field string
 	tags  map[string]string
-}
-
-func addTimeDiff(jctx *jcontext, sensor string, tags map[string]string, field string) {
-	jctx.iFlux.Lock()
-	defer jctx.iFlux.Unlock()
-
-	if jctx.iFlux.tdm == nil {
-		jctx.iFlux.tdm = make(map[string]timeDiff)
-	}
-
-	_, ok := jctx.iFlux.tdm[sensor]
-	if ok == false {
-		jctx.iFlux.tdm[sensor] = timeDiff{field, tags}
-		fmt.Printf("tdd-sensor: %s\n", sensor)
-		fmt.Printf("tdd-field : %s\n", field)
-		for tn, tv := range tags {
-			fmt.Printf("tdd-tag: name: %s value: %s\n", tn, tv)
-		}
-	}
 }
 
 // Takes in XML path with predicates and returns list of tags+values
@@ -85,83 +64,6 @@ func getMeasurementName(ocData *na_pb.OpenConfigData, cfg config) string {
 		return ocData.SystemId
 	}
 	return ""
-}
-
-// A go routine to add one telemetry packet in to InfluxDB (flat schema)
-func addIDBFlat(jctx *jcontext, ocData *na_pb.OpenConfigData, rtime time.Time) {
-	cfg := jctx.cfg
-
-	jctx.iFlux.Lock()
-	defer jctx.iFlux.Unlock()
-	prefix := ""
-
-	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  cfg.Influx.Dbname,
-		Precision: "us",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	rs := uint64(0)
-	for _, kv := range ocData.Kv {
-		tags := make(map[string]string)
-		fields := make(map[string]interface{})
-
-		if kv.Key == "__prefix__" {
-			switch value := kv.Value.(type) {
-			case *na_pb.KeyValue_StrValue:
-				prefix = value.StrValue
-			}
-			continue
-		} else if kv.Key == "__junos_re_stream_creation_timestamp__" {
-			switch value := kv.Value.(type) {
-			case *na_pb.KeyValue_UintValue:
-				rs = value.UintValue
-			}
-			tags["jkey"] = kv.Key
-		} else {
-			tags["jkey"] = prefix + kv.Key
-		}
-
-		if rs == 0 {
-			rs = ocData.Timestamp
-		}
-
-		fields["__junos_re_stream_creation_timestamp__"] = rs
-		fields["system_id"] = ocData.SystemId
-		fields["component_id"] = ocData.ComponentId
-		fields["path"] = ocData.Path
-		fields["sequence_number"] = ocData.SequenceNumber
-		fields["timestamp"] = ocData.Timestamp
-
-		switch value := kv.Value.(type) {
-		case *na_pb.KeyValue_DoubleValue:
-			fields["jvalue"] = fmt.Sprintf("%v", value.DoubleValue)
-		case *na_pb.KeyValue_IntValue:
-			fields["jvalue"] = fmt.Sprintf("%v", value.IntValue)
-		case *na_pb.KeyValue_UintValue:
-			fields["jvalue"] = fmt.Sprintf("%v", value.UintValue)
-		case *na_pb.KeyValue_SintValue:
-			fields["jvalue"] = fmt.Sprintf("%v", value.SintValue)
-		case *na_pb.KeyValue_BoolValue:
-			fields["jvalue"] = fmt.Sprintf("%v", value.BoolValue)
-		case *na_pb.KeyValue_StrValue:
-			fields["jvalue"] = value.StrValue
-		}
-
-		if len(fields) != 0 {
-			pt, err := client.NewPoint(getMeasurementName(ocData, cfg), tags, fields, rtime)
-			if err != nil {
-				log.Fatal(err)
-			}
-			bp.AddPoint(pt)
-		}
-	}
-	// Write the batch
-	if err := (*jctx.iFlux.influxc).Write(bp); err != nil {
-		log.Fatal(err)
-	}
 }
 
 // A go routine to add header of gRPC in to influxDB
@@ -236,11 +138,6 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *jcontext, rtime time.Time) {
 		return
 	}
 
-	if cfg.Influx.Flat == true {
-		addIDBFlat(jctx, ocData, rtime)
-		return
-	}
-
 	jctx.iFlux.Lock()
 	defer jctx.iFlux.Unlock()
 	prefix := ""
@@ -281,11 +178,6 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *jcontext, rtime time.Time) {
 		}
 
 		xmlpath, tags := spitTagsNPath(key)
-		if *td == true {
-			if strings.HasPrefix(v.Key, "__") == false {
-				addTimeDiff(jctx, ocData.Path, tags, xmlpath)
-			}
-		}
 		tags["device"] = cfg.Host
 		tags["sensor"] = ocData.Path
 		kv["sequence_number"] = float64(ocData.SequenceNumber)
@@ -336,24 +228,6 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *jcontext, rtime time.Time) {
 	}
 }
 
-func influxDBQueryString(jctx *jcontext) {
-	jctx.iFlux.Lock()
-	defer jctx.iFlux.Unlock()
-
-	fmt.Println("influxDBQueryString()")
-
-	for sensor, timeDiff := range jctx.iFlux.tdm {
-		fmt.Printf("tdd-sensor: %s\n", sensor)
-		fmt.Printf("tdd-field : %s\n", timeDiff.field)
-		for tn, tv := range timeDiff.tags {
-			fmt.Printf("tdd-tag: name: %s value: %s\n", tn, tv)
-		}
-	}
-
-	//resp, err := queryIDB(*iFlux.influxc, fmt.Sprintf("DROP DATABASE %s", cfg.Influx.Dbname), cfg.Influx.Dbname)
-	//fmt.Printf("%v\n", resp)
-
-}
 func getInfluxClient(cfg config) *client.Client {
 	if cfg.Influx == nil {
 		return nil

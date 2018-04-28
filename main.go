@@ -70,7 +70,7 @@ func main() {
 		fmt.Println("Can not run JTIMON without any config file")
 		return
 	}
-
+	startGtrace(*gtrace)
 	for idx, file := range *cfgFile {
 		fmt.Printf("Starting go-routine for %s[%d]\n", file, idx)
 
@@ -85,7 +85,7 @@ func main() {
 
 			logInit(&jctx, *logFile)
 			go prometheusHandler(*prometheus)
-			startGtrace(*gtrace)
+
 			go maxRun(&jctx, *mr)
 			go periodicStats(&jctx, *pstats)
 

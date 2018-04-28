@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"strconv"
 	"time"
 
@@ -36,7 +35,6 @@ var (
 	pstats       = flag.Int64("stats", 0, "Print collected stats periodically")
 	csvStats     = flag.Bool("csv-stats", false, "Capture size of each telemetry packet")
 	compression  = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
-	st           statsType
 )
 
 var (
@@ -48,8 +46,11 @@ var (
 
 type jcontext struct {
 	cfg   config
+	file  string
+	idx   int
 	dMap  map[uint32]map[uint32]map[string]dropData
 	iFlux iFluxCtx
+	st    statsType
 	pause struct {
 		pch  chan int64
 		upch chan struct{}
@@ -57,7 +58,6 @@ type jcontext struct {
 }
 
 func main() {
-	st.startTime = time.Now()
 	flag.Parse()
 
 	fmt.Println("Version:   ", Version)
@@ -67,14 +67,18 @@ func main() {
 	}
 
 	if len(*cfgFile) == 0 {
-		log.Fatalf("Can not run JTIMON without config file")
+		fmt.Println("Can not run JTIMON without any config file")
+		return
 	}
 
-	for _, file := range *cfgFile {
-		fmt.Println(file)
+	for idx, file := range *cfgFile {
+		fmt.Printf("Starting go-routine for %s[%d]\n", file, idx)
 
-		go func(file string) {
+		go func(file string, idx int) {
 			jctx := jcontext{}
+			jctx.file = file
+			jctx.idx = idx
+			jctx.st.startTime = time.Now()
 			jctx.cfg = configInit(file)
 			jctx.cfg.CStats.pStats = *pstats
 			jctx.cfg.CStats.csvStats = *csvStats
@@ -83,7 +87,7 @@ func main() {
 			go prometheusHandler(*prometheus)
 			startGtrace(*gtrace)
 			go maxRun(&jctx, *mr)
-			go periodicStats(*pstats)
+			go periodicStats(&jctx, *pstats)
 
 			jctx.iFlux.influxc = influxInit(jctx.cfg)
 			configValidation(&jctx)
@@ -105,12 +109,14 @@ func main() {
 				certPool := x509.NewCertPool()
 				bs, err := ioutil.ReadFile(jctx.cfg.TLS.CA)
 				if err != nil {
-					log.Fatalf("failed to read ca cert: %s", err)
+					fmt.Printf("[%d] Failed to read ca cert: %s\n", idx, err)
+					return
 				}
 
 				ok := certPool.AppendCertsFromPEM(bs)
 				if !ok {
-					log.Fatal("failed to append certs")
+					fmt.Printf("[%d] Failed to append certs\n", idx)
+					return
 				}
 
 				transportCreds := credentials.NewTLS(&tls.Config{
@@ -142,7 +148,8 @@ func main() {
 			hostname := jctx.cfg.Host + ":" + strconv.Itoa(jctx.cfg.Port)
 			conn, err := grpc.Dial(hostname, opts...)
 			if err != nil {
-				log.Fatalf("Could not connect: %v", err)
+				fmt.Printf("[%d] Could not connect: %v\n", idx, err)
+				return
 			}
 			defer conn.Close()
 
@@ -153,10 +160,12 @@ func main() {
 					l := auth_pb.NewLoginClient(conn)
 					dat, err := l.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.cfg.Cid})
 					if err != nil {
-						log.Fatalf("Could not login: %v", err)
+						fmt.Printf("[%d] Could not login: %v\n", idx, err)
+						return
 					}
 					if dat.Result == false {
-						log.Fatalf("LoginCheck failed\n")
+						fmt.Printf("[%d] LoginCheck failed", idx)
+						return
 					}
 				}
 			}
@@ -166,7 +175,7 @@ func main() {
 			} else {
 				subscribe(conn, &jctx)
 			}
-		}(file)
+		}(file, idx)
 	}
 	select {}
 }

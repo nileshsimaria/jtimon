@@ -97,7 +97,7 @@ func dropCheck(jctx *jcontext, ocData *na_pb.OpenConfigData) {
 }
 
 func printDropDS(jctx *jcontext) {
-	st.Lock()
+	jctx.st.Lock()
 	fmt.Printf("\n Drops Distribution")
 	fmt.Printf("\n+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
 	fmt.Printf("\n| CID |SCID| Drops | Received | %-120s|", "Sensor Path")
@@ -108,11 +108,11 @@ func printDropDS(jctx *jcontext) {
 			for path, dData := range pathM {
 				if path != "" {
 					fmt.Printf("|%5v|%4v| %6v| %8v | %-120s| \n", cid, scid, dData.drop, dData.received, path)
-					st.totalDdrops += dData.drop
+					jctx.st.totalDdrops += dData.drop
 				}
 			}
 		}
 	}
 	fmt.Printf("+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
-	st.Unlock()
+	jctx.st.Unlock()
 }

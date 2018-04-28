@@ -16,7 +16,7 @@ import (
 )
 
 func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *jcontext) {
-	updateStats(ocData, true)
+	updateStats(jctx, ocData, true)
 
 	emitLog(fmt.Sprintf("system_id: %s\n", ocData.SystemId))
 	emitLog(fmt.Sprintf("component_id: %d\n", ocData.ComponentId))

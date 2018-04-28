@@ -45,22 +45,22 @@ func (h *statshandler) HandleConn(ctx context.Context, s stats.ConnStats) {
 }
 
 func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
-	st.Lock()
-	defer st.Unlock()
+	h.jctx.st.Lock()
+	defer h.jctx.st.Unlock()
 
 	switch s.(type) {
 	case *stats.InHeader:
-		st.totalInHeaderWireLength += uint64(s.(*stats.InHeader).WireLength)
+		h.jctx.st.totalInHeaderWireLength += uint64(s.(*stats.InHeader).WireLength)
 	case *stats.OutHeader:
 	case *stats.OutPayload:
 	case *stats.InPayload:
-		st.totalInPayloadLength += uint64(s.(*stats.InPayload).Length)
-		st.totalInPayloadWireLength += uint64(s.(*stats.InPayload).WireLength)
+		h.jctx.st.totalInPayloadLength += uint64(s.(*stats.InPayload).Length)
+		h.jctx.st.totalInPayloadWireLength += uint64(s.(*stats.InPayload).WireLength)
 
 		if h.jctx.cfg.CStats.csvStats {
 			switch v := (s.(*stats.InPayload).Payload).(type) {
 			case *na_pb.OpenConfigData:
-				updateStats(v, false)
+				updateStats(h.jctx, v, false)
 				for idx, kv := range v.Kv {
 					updateStatsKV(h.jctx, false)
 					switch kvvalue := kv.Value.(type) {
@@ -92,40 +92,40 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 	}
 }
 
-func updateStats(ocData *na_pb.OpenConfigData, needLock bool) {
+func updateStats(jctx *jcontext, ocData *na_pb.OpenConfigData, needLock bool) {
 	if needLock {
-		st.Lock()
-		defer st.Unlock()
+		jctx.st.Lock()
+		defer jctx.st.Unlock()
 	}
 
-	st.totalIn++
+	jctx.st.totalIn++
 
 	if *lcheck {
 		now := time.Now()
 		nanos := now.UnixNano()
 		millis := nanos / 1000000
 		if millis > int64(ocData.Timestamp) {
-			st.totalLatency += uint64((millis - int64(ocData.Timestamp)))
-			st.totalLatencyPkt++
+			jctx.st.totalLatency += uint64((millis - int64(ocData.Timestamp)))
+			jctx.st.totalLatencyPkt++
 		}
 	}
 }
 
 func updateStatsKV(jctx *jcontext, needLock bool) {
 	if needLock {
-		st.Lock()
-		defer st.Unlock()
+		jctx.st.Lock()
+		defer jctx.st.Unlock()
 	}
-	st.totalKV++
+	jctx.st.totalKV++
 
-	if *maxKV != 0 && st.totalKV >= *maxKV {
-		st.Unlock()
+	if *maxKV != 0 && jctx.st.totalKV >= *maxKV {
+		jctx.st.Unlock()
 		printSummary(jctx, *pstats)
 		os.Exit(0)
 	}
 }
 
-func periodicStats(pstats int64) {
+func periodicStats(jctx *jcontext, pstats int64) {
 	if pstats == 0 {
 		return
 	}
@@ -136,12 +136,12 @@ func periodicStats(pstats int64) {
 		<-tickChan
 
 		// Do nothing if we haven't heard back anything from the device
-		st.Lock()
-		if st.totalIn == 0 {
-			st.Unlock()
+		jctx.st.Lock()
+		if jctx.st.totalIn == 0 {
+			jctx.st.Unlock()
 			continue
 		}
-		st.Unlock()
+		jctx.st.Unlock()
 
 		// print header
 		if i%100 == 0 {
@@ -156,22 +156,22 @@ func periodicStats(pstats int64) {
 			}
 		}
 
-		st.Lock()
-		if *lcheck && st.totalLatencyPkt != 0 {
+		jctx.st.Lock()
+		if *lcheck && jctx.st.totalLatencyPkt != 0 {
 			fmt.Printf("| %s | %18v | %18v | %18v | %18v | %15v |\n", time.Now().Format(time.UnixDate),
-				st.totalKV,
-				st.totalIn,
-				st.totalInPayloadLength,
-				st.totalInPayloadWireLength,
-				st.totalLatency/st.totalLatencyPkt)
+				jctx.st.totalKV,
+				jctx.st.totalIn,
+				jctx.st.totalInPayloadLength,
+				jctx.st.totalInPayloadWireLength,
+				jctx.st.totalLatency/jctx.st.totalLatencyPkt)
 		} else {
 			fmt.Printf("| %s | %18v | %18v | %18v | %18v |\n", time.Now().Format(time.UnixDate),
-				st.totalKV,
-				st.totalIn,
-				st.totalInPayloadLength,
-				st.totalInPayloadWireLength)
+				jctx.st.totalKV,
+				jctx.st.totalIn,
+				jctx.st.totalInPayloadLength,
+				jctx.st.totalInPayloadWireLength)
 		}
-		st.Unlock()
+		jctx.st.Unlock()
 		i++
 	}
 }
@@ -181,45 +181,45 @@ func printSummary(jctx *jcontext, pstats int64) {
 	if *dcheck == true {
 		printDropDS(jctx)
 	}
-	st.Lock()
-	endTime := time.Since(st.startTime)
+	jctx.st.Lock()
+	endTime := time.Since(jctx.st.startTime)
 	stmap := make(map[string]interface{})
 
 	s := fmt.Sprintf("\nCollector Stats (Run time : %s)\n", endTime)
 	stmap["run-time"] = float64(endTime)
-	s += fmt.Sprintf("%-12v : in-packets\n", st.totalIn)
-	stmap["in-packets"] = float64(st.totalIn)
-	s += fmt.Sprintf("%-12v : data points (KV pairs)\n", st.totalKV)
-	stmap["kv"] = float64(st.totalKV)
+	s += fmt.Sprintf("%-12v : in-packets\n", jctx.st.totalIn)
+	stmap["in-packets"] = float64(jctx.st.totalIn)
+	s += fmt.Sprintf("%-12v : data points (KV pairs)\n", jctx.st.totalKV)
+	stmap["kv"] = float64(jctx.st.totalKV)
 
-	s += fmt.Sprintf("%-12v : in-header wirelength (bytes)\n", st.totalInHeaderWireLength)
-	stmap["in-header-wire-length"] = float64(st.totalInHeaderWireLength)
-	s += fmt.Sprintf("%-12v : in-payload length (bytes)\n", st.totalInPayloadLength)
-	stmap["in-payload-length-bytes"] = float64(st.totalInPayloadLength)
-	s += fmt.Sprintf("%-12v : in-payload wirelength (bytes)\n", st.totalInPayloadWireLength)
-	stmap["in-payload-wirelength-bytes"] = float64(st.totalInPayloadWireLength)
+	s += fmt.Sprintf("%-12v : in-header wirelength (bytes)\n", jctx.st.totalInHeaderWireLength)
+	stmap["in-header-wire-length"] = float64(jctx.st.totalInHeaderWireLength)
+	s += fmt.Sprintf("%-12v : in-payload length (bytes)\n", jctx.st.totalInPayloadLength)
+	stmap["in-payload-length-bytes"] = float64(jctx.st.totalInPayloadLength)
+	s += fmt.Sprintf("%-12v : in-payload wirelength (bytes)\n", jctx.st.totalInPayloadWireLength)
+	stmap["in-payload-wirelength-bytes"] = float64(jctx.st.totalInPayloadWireLength)
 	if uint64(endTime.Seconds()) != 0 {
-		s += fmt.Sprintf("%-12v : throughput (bytes per seconds)\n", st.totalInPayloadLength/uint64(endTime.Seconds()))
-		stmap["throughput"] = float64(st.totalInPayloadLength / uint64(endTime.Seconds()))
+		s += fmt.Sprintf("%-12v : throughput (bytes per seconds)\n", jctx.st.totalInPayloadLength/uint64(endTime.Seconds()))
+		stmap["throughput"] = float64(jctx.st.totalInPayloadLength / uint64(endTime.Seconds()))
 	}
 
-	if *lcheck && st.totalLatencyPkt != 0 {
-		s += fmt.Sprintf("%-12v : latency sample packets\n", st.totalLatencyPkt)
-		stmap["latency-sample-packets"] = float64(st.totalLatencyPkt)
-		s += fmt.Sprintf("%-12v : latency (ms)\n", st.totalLatency)
-		stmap["total-latency"] = float64(st.totalLatency)
-		s += fmt.Sprintf("%-12v : average latency (ms)\n", st.totalLatency/st.totalLatencyPkt)
-		stmap["average-latency"] = float64(st.totalLatency / st.totalLatencyPkt)
+	if *lcheck && jctx.st.totalLatencyPkt != 0 {
+		s += fmt.Sprintf("%-12v : latency sample packets\n", jctx.st.totalLatencyPkt)
+		stmap["latency-sample-packets"] = float64(jctx.st.totalLatencyPkt)
+		s += fmt.Sprintf("%-12v : latency (ms)\n", jctx.st.totalLatency)
+		stmap["total-latency"] = float64(jctx.st.totalLatency)
+		s += fmt.Sprintf("%-12v : average latency (ms)\n", jctx.st.totalLatency/jctx.st.totalLatencyPkt)
+		stmap["average-latency"] = float64(jctx.st.totalLatency / jctx.st.totalLatencyPkt)
 	}
 
 	if *dcheck == true {
-		s += fmt.Sprintf("%-12v : total packet drops\n", st.totalDdrops)
-		stmap["total-drops"] = float64(st.totalDdrops)
+		s += fmt.Sprintf("%-12v : total packet drops\n", jctx.st.totalDdrops)
+		stmap["total-drops"] = float64(jctx.st.totalDdrops)
 	}
 
 	s += fmt.Sprintf("\n")
 	fmt.Printf("\n%s\n", s)
-	st.Unlock()
+	jctx.st.Unlock()
 
 	addIDBSummary(jctx, stmap)
 

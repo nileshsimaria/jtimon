@@ -174,7 +174,6 @@ func periodicStats(jctx *JCtx) {
 }
 
 func printSummary(jctx *JCtx) {
-	fmt.Println("printSummary")
 	gmutex.Lock()
 	defer gmutex.Unlock()
 

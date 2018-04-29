@@ -24,7 +24,6 @@ var (
 	gnmiMode     = flag.String("gnmi-mode", "stream", "Mode of gnmi (stream | once | poll")
 	gnmiEncoding = flag.String("gnmi-encoding", "proto", "gnmi encoding (proto | json | bytes | ascii | ietf-json")
 	gtrace       = flag.Bool("gtrace", false, "Collect GRPC traces")
-	verbose      = flag.Bool("verbose", false, "Dump packet contents if logging")
 	grpcHeaders  = flag.Bool("grpc-headers", false, "Add grpc headers in DB")
 	ver          = flag.Bool("version", false, "Print version and build-time of the binary and exit")
 	gnmi         = flag.Bool("gnmi", false, "Use gnmi proto")

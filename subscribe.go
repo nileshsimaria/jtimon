@@ -107,11 +107,10 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 		gmutex.Unlock()
 	}
 
-	// TODO: revisit csvStats stuff
-	/*if jctx.cfg.CStats.csvStats {
+	if jctx.cfg.Log.CSVStats {
 		l(true, jctx, fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
 			"sensor-path", "sequence-number", "component-id", "sub-component-id", "packet-size", "p-ts", "e-ts", "re-stream-creation-ts", "re-payload-get-ts"))
-	}*/
+	}
 
 	for {
 		ocData, err := stream.Recv()

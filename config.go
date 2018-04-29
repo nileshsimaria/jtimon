@@ -20,7 +20,6 @@ type config struct {
 	TLS      tlscfg
 	Influx   *influxCfg
 	Paths    []spath
-	CStats   statsT
 	Log      logT
 }
 
@@ -30,13 +29,9 @@ type logT struct {
 	PeriodicStats int  `json:"periodic-stats"`
 	DropCheck     bool `json:"drop-check"`
 	LatencyCheck  bool `json:"latency-check"`
+	CSVStats      bool `json:"csv-stats"`
 	handle        *os.File
 	loger         *log.Logger
-}
-
-type statsT struct {
-	pStats   int64
-	csvStats bool
 }
 
 type api struct {
@@ -63,8 +58,6 @@ type spath struct {
 func configInit(cfgFile string) (config, error) {
 	// parse config file
 	cfg, err := parseJSON(cfgFile)
-	cfg.CStats.csvStats = *csvStats
-
 	return cfg, err
 }
 

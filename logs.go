@@ -30,11 +30,15 @@ func logInit(jctx *JCtx) {
 		if *print {
 			fmt.Println("Both print and log options are specified, ignoring log")
 		} else {
-			f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+			f, err := os.OpenFile(file, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0666)
 			if err != nil {
 				fmt.Printf("Could not create log file(%s): %v\n", file, err)
 			} else {
-				jctx.cfg.Log.loger = log.New(f, "", log.LstdFlags)
+				flags := 0
+				if !jctx.cfg.Log.CSVStats {
+					flags = log.LstdFlags
+				}
+				jctx.cfg.Log.loger = log.New(f, "", flags)
 				jctx.cfg.Log.handle = f
 				fmt.Printf("logging in %s for %s:%d [periodic stats every %d seconds]\n",
 					jctx.cfg.Log.File, jctx.cfg.Host, jctx.cfg.Port, jctx.cfg.Log.PeriodicStats)

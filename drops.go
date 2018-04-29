@@ -3,8 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
-	"os"
 	"strconv"
 	"strings"
 
@@ -18,34 +16,25 @@ type dropData struct {
 }
 
 func dropInit(jctx *JCtx) {
-	// Create a map for key ComponentID
 	jctx.dMap = make(map[uint32]map[uint32]map[string]dropData)
 }
 
 func dropCheckCSV(jctx *JCtx) {
-	if !jctx.cfg.CStats.csvStats {
+	if !jctx.cfg.Log.CSVStats {
 		return
 	}
-
-	if jctx.cfg.Log.File == "" {
+	f := jctx.cfg.Log.handle
+	if jctx.cfg.Log.handle == nil {
 		return
 	}
-	if err := jctx.cfg.Log.handle.Close(); err != nil {
-		log.Fatalf("Could not close csv data log file(%s): %v\n", jctx.cfg.Log.File, err)
-	}
-
-	f, err := os.Open(jctx.cfg.Log.File)
-	if err != nil {
-		log.Fatalf("Could not open csv data log file(%s) for drop-check: %v\n", jctx.cfg.Log.File, err)
-	}
-	defer f.Close()
+	f.Seek(0, 0)
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !strings.HasPrefix(line, "sensor-path,sequence-number,component-id,sub-component-id,packet-size,p-ts,e-ts") {
 			tokens := strings.Split(line, ",")
-			//fmt.Printf("\n%s + %s + %s + %s + %s + %s + %s", tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6])
+			fmt.Printf("\n%s + %s + %s + %s + %s + %s + %s", tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6])
 			cid, _ := strconv.ParseUint(tokens[2], 10, 32)
 			scid, _ := strconv.ParseUint(tokens[3], 10, 32)
 			seqNum, _ := strconv.ParseUint(tokens[1], 10, 32)
@@ -63,19 +52,16 @@ func dropCheckWork(jctx *JCtx, cid uint32, scid uint32, path string, seq uint64)
 
 	_, ok = jctx.dMap[cid]
 	if ok == false {
-		// Create a map for key SubComponentID
 		jctx.dMap[cid] = make(map[uint32]map[string]dropData)
 	}
 
 	_, ok = jctx.dMap[cid][scid]
 	if ok == false {
-		// Create a map for key path (sensor)
 		jctx.dMap[cid][scid] = make(map[string]dropData)
 	}
 
 	last, ok = jctx.dMap[cid][scid][path]
 	if ok == false {
-		// A combination of (cid, scid, path) not found, create new dropData
 		new.seq = seq
 		new.received = 1
 		new.drop = 0

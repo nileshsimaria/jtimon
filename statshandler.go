@@ -56,7 +56,7 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 		h.jctx.st.totalInPayloadLength += uint64(s.(*stats.InPayload).Length)
 		h.jctx.st.totalInPayloadWireLength += uint64(s.(*stats.InPayload).WireLength)
 
-		if h.jctx.cfg.CStats.csvStats {
+		if h.jctx.cfg.Log.CSVStats {
 			switch v := (s.(*stats.InPayload).Payload).(type) {
 			case *na_pb.OpenConfigData:
 				updateStats(h.jctx, v, false)
@@ -174,8 +174,13 @@ func periodicStats(jctx *JCtx) {
 }
 
 func printSummary(jctx *JCtx) {
+	fmt.Println("printSummary")
 	gmutex.Lock()
 	defer gmutex.Unlock()
+
+	if jctx.cfg.Log.CSVStats && jctx.cfg.Log.DropCheck {
+		dropCheckCSV(jctx)
+	}
 
 	if jctx.cfg.Log.DropCheck == true {
 		printDropDS(jctx)

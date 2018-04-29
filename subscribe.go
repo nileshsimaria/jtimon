@@ -97,13 +97,15 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 		l(true, jctx, fmt.Sprintf("Failed to get header for stream: %v", errh))
 	}
 
-	gmutex.Lock()
-	l(false, jctx, fmt.Sprintf("gRPC headers from host %s:%d\n", jctx.cfg.Host, jctx.cfg.Port))
-	for k, v := range hdr {
-		l(false, jctx, fmt.Sprintf("  %s: %s\n", k, v))
+	if !jctx.cfg.Log.CSVStats {
+		gmutex.Lock()
+		l(false, jctx, fmt.Sprintf("gRPC headers from host %s:%d\n", jctx.cfg.Host, jctx.cfg.Port))
+		for k, v := range hdr {
+			l(false, jctx, fmt.Sprintf("  %s: %s\n", k, v))
+		}
+		l(false, jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.cfg.Host, jctx.cfg.Port))
+		gmutex.Unlock()
 	}
-	l(false, jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.cfg.Host, jctx.cfg.Port))
-	gmutex.Unlock()
 
 	// TODO: revisit csvStats stuff
 	/*if jctx.cfg.CStats.csvStats {
@@ -124,7 +126,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 
 		rtime := time.Now()
 
-		if jctx.cfg.Log.DropCheck && !jctx.cfg.CStats.csvStats {
+		if jctx.cfg.Log.DropCheck && !jctx.cfg.Log.CSVStats {
 			dropCheck(jctx, ocData)
 		}
 
@@ -132,7 +134,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 		handleOnePacket(ocData, jctx)
 		gmutex.Unlock()
 
-		if jctx.iFlux.influxc != nil && !jctx.cfg.CStats.csvStats {
+		if jctx.iFlux.influxc != nil && !jctx.cfg.Log.CSVStats {
 			go addIDB(ocData, jctx, rtime)
 		}
 

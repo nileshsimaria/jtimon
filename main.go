@@ -25,17 +25,15 @@ var (
 	gnmiEncoding = flag.String("gnmi-encoding", "proto", "gnmi encoding (proto | json | bytes | ascii | ietf-json")
 	gtrace       = flag.Bool("gtrace", false, "Collect GRPC traces")
 	verbose      = flag.Bool("verbose", false, "Dump packet contents if logging")
-
-	grpcHeaders = flag.Bool("grpc-headers", false, "Add grpc headers in DB")
-	ver         = flag.Bool("version", false, "Print version and build-time of the binary and exit")
-	gnmi        = flag.Bool("gnmi", false, "Use gnmi proto")
-	prometheus  = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
-	print       = flag.Bool("print", false, "Print Telemetry data")
-	prefixCheck = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
-	sleep       = flag.Int64("sleep", 0, "Sleep after each read (ms)")
-	mr          = flag.Int64("max-run", 0, "Max run time in seconds")
-	csvStats    = flag.Bool("csv-stats", false, "Capture size of each telemetry packet")
-	compression = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
+	grpcHeaders  = flag.Bool("grpc-headers", false, "Add grpc headers in DB")
+	ver          = flag.Bool("version", false, "Print version and build-time of the binary and exit")
+	gnmi         = flag.Bool("gnmi", false, "Use gnmi proto")
+	prometheus   = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
+	print        = flag.Bool("print", false, "Print Telemetry data")
+	prefixCheck  = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
+	sleep        = flag.Int64("sleep", 0, "Sleep after each read (ms)")
+	mr           = flag.Int64("max-run", 0, "Max run time in seconds")
+	compression  = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
 
 	version   = "version-not-available"
 	buildTime = "build-time-not-available"
@@ -229,10 +227,6 @@ func main() {
 		sigchan := make(chan os.Signal, 10)
 		signal.Notify(sigchan, os.Interrupt)
 		<-sigchan
-		// TODO
-		//if *dcheck == true {
-		//	dropCheckCSV(jctx)
-		//}
 		for _, worker := range wList {
 			if worker.err == nil {
 				worker.ch <- false

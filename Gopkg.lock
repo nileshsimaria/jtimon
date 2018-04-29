@@ -8,6 +8,12 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/common-nighthawk/go-figure"
+  packages = ["."]
+  revision = "2d3c686981b48f9d6022181dc810381325b16b24"
+
+[[projects]]
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -165,6 +171,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bece9052eabc091d734621dfe1f981f4b60dcf65abe0d2e7af0308c09e1bfa5e"
+  inputs-digest = "815d8d109802ba94a1dcd9178fe0f6ec8546f43d50f42effc0155ea60f6351d7"
   solver-name = "gps-cdcl"
   solver-version = 1

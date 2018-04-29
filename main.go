@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	figure "github.com/common-nighthawk/go-figure"
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/net/context"
@@ -57,9 +58,12 @@ type JCtx struct {
 
 func main() {
 	flag.Parse()
+	startGtrace(*gtrace)
 
-	fmt.Println("Version:   ", version)
-	fmt.Println("BuildTime: ", buildTime)
+	fmt.Println("")
+	figure.NewFigure("J T I M O N", "linux", true).Print()
+	fmt.Printf("Version: %s BuildTime %s\n\n", version, buildTime)
+
 	if *ver {
 		return
 	}
@@ -70,7 +74,6 @@ func main() {
 		return
 	}
 	wg.Add(len(*cfgFile))
-	startGtrace(*gtrace)
 
 	for idx, file := range *cfgFile {
 		fmt.Printf("Starting go-routine for %s[%d]\n", file, idx)

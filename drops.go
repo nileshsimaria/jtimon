@@ -27,16 +27,16 @@ func dropCheckCSV(jctx *JCtx) {
 		return
 	}
 
-	if jctx.cfg.Log.LogFileName == "" {
+	if jctx.cfg.Log.File == "" {
 		return
 	}
 	if err := jctx.cfg.Log.FileHandle.Close(); err != nil {
-		log.Fatalf("Could not close csv data log file(%s): %v\n", jctx.cfg.Log.LogFileName, err)
+		log.Fatalf("Could not close csv data log file(%s): %v\n", jctx.cfg.Log.File, err)
 	}
 
-	f, err := os.Open(jctx.cfg.Log.LogFileName)
+	f, err := os.Open(jctx.cfg.Log.File)
 	if err != nil {
-		log.Fatalf("Could not open csv data log file(%s) for drop-check: %v\n", jctx.cfg.Log.LogFileName, err)
+		log.Fatalf("Could not open csv data log file(%s) for drop-check: %v\n", jctx.cfg.Log.File, err)
 	}
 	defer f.Close()
 

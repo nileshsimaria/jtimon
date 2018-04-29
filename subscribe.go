@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
-	"os/signal"
 	"strings"
 	"time"
 
@@ -14,47 +12,47 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func handleOneTelemetryPkt(ocData *na_pb.OpenConfigData, jctx *JCtx) {
+func printPacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 	updateStats(jctx, ocData, true)
 
-	emitLog(fmt.Sprintf("system_id: %s\n", ocData.SystemId))
-	emitLog(fmt.Sprintf("component_id: %d\n", ocData.ComponentId))
-	emitLog(fmt.Sprintf("sub_component_id: %d\n", ocData.SubComponentId))
-	emitLog(fmt.Sprintf("path: %s\n", ocData.Path))
-	emitLog(fmt.Sprintf("sequence_number: %d\n", ocData.SequenceNumber))
-	emitLog(fmt.Sprintf("timestamp: %d\n", ocData.Timestamp))
-	emitLog(fmt.Sprintf("sync_response: %v\n", ocData.SyncResponse))
+	emitLog(jctx, fmt.Sprintf("system_id: %s\n", ocData.SystemId))
+	emitLog(jctx, fmt.Sprintf("component_id: %d\n", ocData.ComponentId))
+	emitLog(jctx, fmt.Sprintf("sub_component_id: %d\n", ocData.SubComponentId))
+	emitLog(jctx, fmt.Sprintf("path: %s\n", ocData.Path))
+	emitLog(jctx, fmt.Sprintf("sequence_number: %d\n", ocData.SequenceNumber))
+	emitLog(jctx, fmt.Sprintf("timestamp: %d\n", ocData.Timestamp))
+	emitLog(jctx, fmt.Sprintf("sync_response: %v\n", ocData.SyncResponse))
 	if ocData.SyncResponse {
 		fmt.Printf("Received sync_response\n")
 	}
 
 	del := ocData.GetDelete()
 	for _, d := range del {
-		emitLog(fmt.Sprintf("Delete: %s\n", d.GetPath()))
+		emitLog(jctx, fmt.Sprintf("Delete: %s\n", d.GetPath()))
 	}
 
 	prefixSeen := false
 	for _, kv := range ocData.Kv {
 		updateStatsKV(jctx, true)
 
-		emitLog(fmt.Sprintf("  key: %s\n", kv.Key))
+		emitLog(jctx, fmt.Sprintf("  key: %s\n", kv.Key))
 		switch value := kv.Value.(type) {
 		case *na_pb.KeyValue_DoubleValue:
-			emitLog(fmt.Sprintf("  double_value: %v\n", value.DoubleValue))
+			emitLog(jctx, fmt.Sprintf("  double_value: %v\n", value.DoubleValue))
 		case *na_pb.KeyValue_IntValue:
-			emitLog(fmt.Sprintf("  int_value: %d\n", value.IntValue))
+			emitLog(jctx, fmt.Sprintf("  int_value: %d\n", value.IntValue))
 		case *na_pb.KeyValue_UintValue:
-			emitLog(fmt.Sprintf("  uint_value: %d\n", value.UintValue))
+			emitLog(jctx, fmt.Sprintf("  uint_value: %d\n", value.UintValue))
 		case *na_pb.KeyValue_SintValue:
-			emitLog(fmt.Sprintf("  sint_value: %d\n", value.SintValue))
+			emitLog(jctx, fmt.Sprintf("  sint_value: %d\n", value.SintValue))
 		case *na_pb.KeyValue_BoolValue:
-			emitLog(fmt.Sprintf("  bool_value: %v\n", value.BoolValue))
+			emitLog(jctx, fmt.Sprintf("  bool_value: %v\n", value.BoolValue))
 		case *na_pb.KeyValue_StrValue:
-			emitLog(fmt.Sprintf("  str_value: %s\n", value.StrValue))
+			emitLog(jctx, fmt.Sprintf("  str_value: %s\n", value.StrValue))
 		case *na_pb.KeyValue_BytesValue:
-			emitLog(fmt.Sprintf("  bytes_value: %s\n", value.BytesValue))
+			emitLog(jctx, fmt.Sprintf("  bytes_value: %s\n", value.BytesValue))
 		default:
-			emitLog(fmt.Sprintf("  default: %v\n", value))
+			emitLog(jctx, fmt.Sprintf("  default: %v\n", value))
 		}
 
 		if kv.Key == "__prefix__" {
@@ -96,32 +94,12 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 	for k, v := range hdr {
 		fmt.Printf("  %s: %s\n", k, v)
 	}
-	if jctx.cfg.Log.LogFileName != "" {
-		fmt.Printf("\nlogging Junos Telemetry data in %s ...", jctx.cfg.Log.LogFileName)
-		fmt.Printf("\nto stop receiving, press CTRL+C \n")
-	}
 	gmutex.Unlock()
 
 	if jctx.cfg.CStats.csvStats {
-		emitLog(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
+		emitLog(jctx, fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
 			"sensor-path", "sequence-number", "component-id", "sub-component-id", "packet-size", "p-ts", "e-ts", "re-stream-creation-ts", "re-payload-get-ts"))
 	}
-
-	/*
-	 * The following for loop will run forever as long as server is up and
-	 * sending data in a stream. Setup signal handler to print summary when
-	 * user pressed ctrl-c
-	 */
-	go func() {
-		sigchan := make(chan os.Signal, 10)
-		signal.Notify(sigchan, os.Interrupt)
-		<-sigchan
-		if *dcheck == true {
-			dropCheckCSV(jctx)
-		}
-		printSummary(jctx, *pstats)
-		jctx.wg.Done()
-	}()
 
 	for {
 		ocData, err := stream.Recv()
@@ -131,7 +109,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 		}
 		if err != nil {
 			SafePrint(fmt.Sprintf("%v.TelemetrySubscribe(_) = _, %v", conn, err))
-			jctx.wg.Done()
+			return
 		}
 
 		rtime := time.Now()
@@ -140,9 +118,9 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 			dropCheck(jctx, ocData)
 		}
 
-		if !jctx.cfg.CStats.csvStats {
-			handleOneTelemetryPkt(ocData, jctx)
-		}
+		gmutex.Lock()
+		printPacket(ocData, jctx)
+		gmutex.Unlock()
 
 		if jctx.iFlux.influxc != nil && !jctx.cfg.CStats.csvStats {
 			go addIDB(ocData, jctx, rtime)

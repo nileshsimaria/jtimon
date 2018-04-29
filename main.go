@@ -24,18 +24,21 @@ var (
 	gnmiMode     = flag.String("gnmi-mode", "stream", "Mode of gnmi (stream | once | poll")
 	gnmiEncoding = flag.String("gnmi-encoding", "proto", "gnmi encoding (proto | json | bytes | ascii | ietf-json")
 	gtrace       = flag.Bool("gtrace", false, "Collect GRPC traces")
-	ver          = flag.Bool("version", false, "Print version and build-time of the binary and exit")
-	gnmi         = flag.Bool("gnmi", false, "Use gnmi proto")
-	dcheck       = flag.Bool("drop-check", false, "Check for packet drops")
-	lcheck       = flag.Bool("latency-check", false, "Check for latency")
-	prometheus   = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
-	print        = flag.Bool("print", false, "Print Telemetry data")
-	prefixCheck  = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
-	sleep        = flag.Int64("sleep", 0, "Sleep after each read (ms)")
-	mr           = flag.Int64("max-run", 0, "Max run time in seconds")
-	pstats       = flag.Int64("stats", 0, "Print collected stats periodically")
-	csvStats     = flag.Bool("csv-stats", false, "Capture size of each telemetry packet")
-	compression  = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
+	verbose      = flag.Bool("verbose", false, "Dump packet contents if logging")
+
+	grpcHeaders = flag.Bool("grpc-headers", false, "Add grpc headers in DB")
+	ver         = flag.Bool("version", false, "Print version and build-time of the binary and exit")
+	gnmi        = flag.Bool("gnmi", false, "Use gnmi proto")
+	dcheck      = flag.Bool("drop-check", false, "Check for packet drops")
+	lcheck      = flag.Bool("latency-check", false, "Check for latency")
+	prometheus  = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
+	print       = flag.Bool("print", false, "Print Telemetry data")
+	prefixCheck = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
+	sleep       = flag.Int64("sleep", 0, "Sleep after each read (ms)")
+	mr          = flag.Int64("max-run", 0, "Max run time in seconds")
+	pstats      = flag.Int64("stats", 0, "Print collected stats periodically")
+	csvStats    = flag.Bool("csv-stats", false, "Capture size of each telemetry packet")
+	compression = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
 
 	version   = "version-not-available"
 	buildTime = "build-time-not-available"
@@ -76,8 +79,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 	var err error
 	jctx.cfg, err = configInit(file)
 	if err != nil {
-		fmt.Printf("Config parsing error for %s[%d]: %v\n", file, idx, err)
-		wg.Done()
+		fmt.Printf("\nConfig parsing error for %s[%d]: %v\n", file, idx, err)
 		return ch, fmt.Errorf("config parsing error for %s[%d]: %v", file, idx, err)
 	}
 
@@ -88,11 +90,13 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 	dropInit(&jctx)
 	go apiInit(&jctx)
 
-	pmap := make(map[string]interface{})
-	for i := range jctx.cfg.Paths {
-		pmap["path"] = jctx.cfg.Paths[i].Path
-		pmap["reporting-rate"] = float64(jctx.cfg.Paths[i].Freq)
-		addGRPCHeader(&jctx, pmap)
+	if *grpcHeaders {
+		pmap := make(map[string]interface{})
+		for i := range jctx.cfg.Paths {
+			pmap["path"] = jctx.cfg.Paths[i].Path
+			pmap["reporting-rate"] = float64(jctx.cfg.Paths[i].Freq)
+			addGRPCHeader(&jctx, pmap)
+		}
 	}
 
 	go func() {
@@ -101,14 +105,10 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 			case ctrl := <-ch:
 				switch ctrl {
 				case false:
-					//call print summary and then ws.Done
 					printSummary(&jctx, *pstats)
 					jctx.wg.Done()
 				case true:
 					go func() {
-						// start work
-						SafePrint(fmt.Sprintf("Starting go-routine for config - %s[%d]\n", file, idx))
-
 						var opts []grpc.DialOption
 						if jctx.cfg.TLS.CA != "" {
 							certificate, err := tls.LoadX509KeyPair(jctx.cfg.TLS.ClientCrt, jctx.cfg.TLS.ClientKey)
@@ -116,15 +116,13 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 							certPool := x509.NewCertPool()
 							bs, err := ioutil.ReadFile(jctx.cfg.TLS.CA)
 							if err != nil {
-								SafePrint(fmt.Sprintf("[%d] Failed to read ca cert: %s\n", idx, err))
-								wg.Done()
+								l(true, &jctx, fmt.Sprintf("[%d] Failed to read ca cert: %s\n", idx, err))
 								return
 							}
 
 							ok := certPool.AppendCertsFromPEM(bs)
 							if !ok {
-								SafePrint(fmt.Sprintf("[%d] Failed to append certs\n", idx))
-								wg.Done()
+								l(true, &jctx, fmt.Sprintf("[%d] Failed to append certs\n", idx))
 								return
 							}
 
@@ -157,32 +155,22 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 						hostname := jctx.cfg.Host + ":" + strconv.Itoa(jctx.cfg.Port)
 						conn, err := grpc.Dial(hostname, opts...)
 						if err != nil {
-							gmutex.Lock()
-							fmt.Printf("[%d] Could not connect: %v\n", idx, err)
-							gmutex.Unlock()
-							wg.Done()
+							l(true, &jctx, fmt.Sprintf("[%d] Could not dial: %v\n", idx, err))
 							return
 						}
-						defer conn.Close()
 
 						if jctx.cfg.User != "" && jctx.cfg.Password != "" {
 							user := jctx.cfg.User
 							pass := jctx.cfg.Password
 							if jctx.cfg.Meta == false {
-								l := auth_pb.NewLoginClient(conn)
-								dat, err := l.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.cfg.Cid})
+								lc := auth_pb.NewLoginClient(conn)
+								dat, err := lc.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.cfg.Cid})
 								if err != nil {
-									gmutex.Lock()
-									fmt.Printf("[%d] Could not login: %v\n", idx, err)
-									gmutex.Unlock()
-									wg.Done()
+									l(true, &jctx, fmt.Sprintf("[%d] Could not login: %v\n", idx, err))
 									return
 								}
 								if dat.Result == false {
-									gmutex.Lock()
-									fmt.Printf("[%d] LoginCheck failed", idx)
-									gmutex.Unlock()
-									wg.Done()
+									l(true, &jctx, fmt.Sprintf("[%d] LoginCheck failed", idx))
 									return
 								}
 							}
@@ -193,8 +181,6 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 						} else {
 							subscribe(conn, &jctx)
 						}
-						wg.Done()
-
 					}()
 				}
 			default:
@@ -209,14 +195,12 @@ func main() {
 	flag.Parse()
 	startGtrace(*gtrace)
 
-	fmt.Println("")
-	figure.NewFigure("J T I M O N", "linux", true).Print()
-	fmt.Printf("Version: %s BuildTime %s\n\n", version, buildTime)
-
 	if *ver {
+		figure.NewFigure("J T I M O N", "linux", true).Print()
+		fmt.Printf("Version: %s BuildTime %s\n", version, buildTime)
 		return
 	}
-
+	fmt.Printf("Version: %s BuildTime %s\n", version, buildTime)
 	n := len(*cfgFile)
 	if n == 0 {
 		fmt.Println("Can not run without any config file")
@@ -229,6 +213,9 @@ func main() {
 
 	for idx, file := range *cfgFile {
 		ch, err := worker(file, idx, &wg)
+		if err != nil {
+			wg.Done()
+		}
 		wList[idx] = &winfo{
 			ch:  ch,
 			err: err,
@@ -268,7 +255,6 @@ func main() {
 			}
 		}
 	}()
-
 	wg.Wait()
 	fmt.Printf("All done ... exiting!\n")
 }

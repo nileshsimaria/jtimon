@@ -77,7 +77,7 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 									rePGetTS = nextnextKV.GetUintValue()
 								}
 							}
-							emitLog(h.jctx, fmt.Sprintf("%s,%d,%d,%d,%d,%d,%d,%d,%d\n",
+							l(true, h.jctx, fmt.Sprintf("%s,%d,%d,%d,%d,%d,%d,%d,%d\n",
 								v.Path, v.SequenceNumber, v.ComponentId, v.SubComponentId, s.(*stats.InPayload).Length, v.Timestamp, kvvalue.UintValue, reCTS, rePGetTS))
 						}
 					}

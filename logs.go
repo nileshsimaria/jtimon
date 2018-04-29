@@ -6,9 +6,19 @@ import (
 	"os"
 )
 
-func emitLog(jctx *JCtx, s string) {
+// Log it, each go routine collecting JTI data has its own log file so its concurrency safe.
+// In case of print, caller has to guarantee safety.
+func l(safe bool, jctx *JCtx, s string) {
 	if *print {
-		fmt.Printf(s)
+		switch safe {
+		case true:
+			gmutex.Lock()
+			fmt.Printf(s)
+			gmutex.Unlock()
+
+		case false:
+			fmt.Printf(s)
+		}
 	} else if jctx.cfg.Log.Logger != nil {
 		jctx.cfg.Log.Logger.Printf(s)
 	}
@@ -17,15 +27,17 @@ func emitLog(jctx *JCtx, s string) {
 func logInit(jctx *JCtx) {
 	file := jctx.cfg.Log.File
 	if file != "" {
-		f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0666)
-		if err != nil {
-			fmt.Printf("Could not create log file(%s): %v\n", file, err)
+		if *print {
+			fmt.Println("Both print and log options are specified, ignoring log")
 		} else {
-			jctx.cfg.Log.Logger = log.New(f, "", log.LstdFlags|log.Lshortfile)
-			jctx.cfg.Log.FileHandle = f
-			fmt.Printf("\nlogging Telemetry data from %s:%d in file %s\n", jctx.cfg.Host, jctx.cfg.Port, jctx.cfg.Log.File)
+			f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+			if err != nil {
+				fmt.Printf("Could not create log file(%s): %v\n", file, err)
+			} else {
+				jctx.cfg.Log.Logger = log.New(f, "", log.LstdFlags)
+				jctx.cfg.Log.FileHandle = f
+				fmt.Printf("logging in %s for %s:%d\n", jctx.cfg.Log.File, jctx.cfg.Host, jctx.cfg.Port)
+			}
 		}
-	} else if *print == true {
-		log.SetOutput(os.Stdout)
 	}
 }

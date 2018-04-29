@@ -99,7 +99,7 @@ func updateStats(jctx *JCtx, ocData *na_pb.OpenConfigData, needLock bool) {
 
 	jctx.st.totalIn++
 
-	if *lcheck {
+	if jctx.cfg.Log.LatencyCheck {
 		now := time.Now()
 		nanos := now.UnixNano()
 		millis := nanos / 1000000
@@ -118,7 +118,8 @@ func updateStatsKV(jctx *JCtx, needLock bool) {
 	jctx.st.totalKV++
 }
 
-func periodicStats(jctx *JCtx, pstats int64) {
+func periodicStats(jctx *JCtx) {
+	pstats := jctx.cfg.Log.PeriodicStats
 	if pstats == 0 {
 		return
 	}
@@ -129,51 +130,54 @@ func periodicStats(jctx *JCtx, pstats int64) {
 		<-tickChan
 
 		// Do nothing if we haven't heard back anything from the device
+		gmutex.Lock()
 		jctx.st.Lock()
 		if jctx.st.totalIn == 0 {
 			jctx.st.Unlock()
+			gmutex.Unlock()
 			continue
 		}
 		jctx.st.Unlock()
 
 		// print header
 		if i%100 == 0 {
-			if *lcheck {
-				fmt.Printf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+-----------------+\n")
-				fmt.Printf("%s", "|         Timestamp            |        KV          |      Packets       |       Bytes        |     Bytes(wire)    | Average Latency |\n")
-				fmt.Printf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+-----------------+\n")
+			if jctx.cfg.Log.LatencyCheck {
+				l(false, jctx, fmt.Sprintf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+-----------------+\n"))
+				l(false, jctx, fmt.Sprintf("%s", "|         Timestamp            |        KV          |      Packets       |       Bytes        |     Bytes(wire)    | Average Latency |\n"))
+				l(false, jctx, fmt.Sprintf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+-----------------+\n"))
 			} else {
-				fmt.Printf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+\n")
-				fmt.Printf("%s", "|         Timestamp            |        KV          |      Packets       |       Bytes        |     Bytes(wire)    |\n")
-				fmt.Printf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+\n")
+				l(false, jctx, fmt.Sprintf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+\n"))
+				l(false, jctx, fmt.Sprintf("%s", "|         Timestamp            |        KV          |      Packets       |       Bytes        |     Bytes(wire)    |\n"))
+				l(false, jctx, fmt.Sprintf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+\n"))
 			}
 		}
 
 		jctx.st.Lock()
-		if *lcheck && jctx.st.totalLatencyPkt != 0 {
-			fmt.Printf("| %s | %18v | %18v | %18v | %18v | %15v |\n", time.Now().Format(time.UnixDate),
+		if jctx.cfg.Log.LatencyCheck && jctx.st.totalLatencyPkt != 0 {
+			l(false, jctx, fmt.Sprintf("| %s | %18v | %18v | %18v | %18v | %15v |\n", time.Now().Format(time.UnixDate),
 				jctx.st.totalKV,
 				jctx.st.totalIn,
 				jctx.st.totalInPayloadLength,
 				jctx.st.totalInPayloadWireLength,
-				jctx.st.totalLatency/jctx.st.totalLatencyPkt)
+				jctx.st.totalLatency/jctx.st.totalLatencyPkt))
 		} else {
-			fmt.Printf("| %s | %18v | %18v | %18v | %18v |\n", time.Now().Format(time.UnixDate),
+			l(false, jctx, fmt.Sprintf("| %s | %18v | %18v | %18v | %18v |\n", time.Now().Format(time.UnixDate),
 				jctx.st.totalKV,
 				jctx.st.totalIn,
 				jctx.st.totalInPayloadLength,
-				jctx.st.totalInPayloadWireLength)
+				jctx.st.totalInPayloadWireLength))
 		}
 		jctx.st.Unlock()
+		gmutex.Unlock()
 		i++
 	}
 }
 
-func printSummary(jctx *JCtx, pstats int64) {
+func printSummary(jctx *JCtx) {
 	gmutex.Lock()
 	defer gmutex.Unlock()
 
-	if *dcheck == true {
+	if jctx.cfg.Log.DropCheck == true {
 		printDropDS(jctx)
 	}
 
@@ -198,7 +202,7 @@ func printSummary(jctx *JCtx, pstats int64) {
 		stmap["throughput"] = float64(jctx.st.totalInPayloadLength / uint64(endTime.Seconds()))
 	}
 
-	if *lcheck && jctx.st.totalLatencyPkt != 0 {
+	if jctx.cfg.Log.LatencyCheck && jctx.st.totalLatencyPkt != 0 {
 		s += fmt.Sprintf("%-12v : latency sample packets\n", jctx.st.totalLatencyPkt)
 		stmap["latency-sample-packets"] = float64(jctx.st.totalLatencyPkt)
 		s += fmt.Sprintf("%-12v : latency (ms)\n", jctx.st.totalLatency)
@@ -207,7 +211,7 @@ func printSummary(jctx *JCtx, pstats int64) {
 		stmap["average-latency"] = float64(jctx.st.totalLatency / jctx.st.totalLatencyPkt)
 	}
 
-	if *dcheck == true {
+	if jctx.cfg.Log.DropCheck {
 		s += fmt.Sprintf("%-12v : total packet drops\n", jctx.st.totalDdrops)
 		stmap["total-drops"] = float64(jctx.st.totalDdrops)
 	}

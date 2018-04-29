@@ -29,14 +29,11 @@ var (
 	grpcHeaders = flag.Bool("grpc-headers", false, "Add grpc headers in DB")
 	ver         = flag.Bool("version", false, "Print version and build-time of the binary and exit")
 	gnmi        = flag.Bool("gnmi", false, "Use gnmi proto")
-	dcheck      = flag.Bool("drop-check", false, "Check for packet drops")
-	lcheck      = flag.Bool("latency-check", false, "Check for latency")
 	prometheus  = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
 	print       = flag.Bool("print", false, "Print Telemetry data")
 	prefixCheck = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
 	sleep       = flag.Int64("sleep", 0, "Sleep after each read (ms)")
 	mr          = flag.Int64("max-run", 0, "Max run time in seconds")
-	pstats      = flag.Int64("stats", 0, "Print collected stats periodically")
 	csvStats    = flag.Bool("csv-stats", false, "Capture size of each telemetry packet")
 	compression = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
 
@@ -85,7 +82,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 
 	logInit(&jctx)
 	go prometheusHandler(*prometheus)
-	go periodicStats(&jctx, *pstats)
+	go periodicStats(&jctx)
 	jctx.iFlux.influxc = influxInit(jctx.cfg)
 	dropInit(&jctx)
 	go apiInit(&jctx)
@@ -105,7 +102,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 			case ctrl := <-ch:
 				switch ctrl {
 				case false:
-					printSummary(&jctx, *pstats)
+					printSummary(&jctx)
 					jctx.wg.Done()
 				case true:
 					go func() {

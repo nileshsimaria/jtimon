@@ -19,8 +19,8 @@ func l(safe bool, jctx *JCtx, s string) {
 		case false:
 			fmt.Printf(s)
 		}
-	} else if jctx.cfg.Log.Logger != nil {
-		jctx.cfg.Log.Logger.Printf(s)
+	} else if jctx.cfg.Log.loger != nil {
+		jctx.cfg.Log.loger.Printf(s)
 	}
 }
 
@@ -34,9 +34,10 @@ func logInit(jctx *JCtx) {
 			if err != nil {
 				fmt.Printf("Could not create log file(%s): %v\n", file, err)
 			} else {
-				jctx.cfg.Log.Logger = log.New(f, "", log.LstdFlags)
-				jctx.cfg.Log.FileHandle = f
-				fmt.Printf("logging in %s for %s:%d\n", jctx.cfg.Log.File, jctx.cfg.Host, jctx.cfg.Port)
+				jctx.cfg.Log.loger = log.New(f, "", log.LstdFlags)
+				jctx.cfg.Log.handle = f
+				fmt.Printf("logging in %s for %s:%d [periodic stats every %d seconds]\n",
+					jctx.cfg.Log.File, jctx.cfg.Host, jctx.cfg.Port, jctx.cfg.Log.PeriodicStats)
 			}
 		}
 	}

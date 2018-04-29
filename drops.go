@@ -30,7 +30,7 @@ func dropCheckCSV(jctx *JCtx) {
 	if jctx.cfg.Log.File == "" {
 		return
 	}
-	if err := jctx.cfg.Log.FileHandle.Close(); err != nil {
+	if err := jctx.cfg.Log.handle.Close(); err != nil {
 		log.Fatalf("Could not close csv data log file(%s): %v\n", jctx.cfg.Log.File, err)
 	}
 

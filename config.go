@@ -25,10 +25,13 @@ type config struct {
 }
 
 type logT struct {
-	File       string
-	FileHandle *os.File
-	Logger     *log.Logger
-	Verbose    bool
+	File          string
+	Verbose       bool
+	PeriodicStats int  `json:"periodic-stats"`
+	DropCheck     bool `json:"drop-check"`
+	LatencyCheck  bool `json:"latency-check"`
+	handle        *os.File
+	loger         *log.Logger
 }
 
 type statsT struct {
@@ -60,7 +63,6 @@ type spath struct {
 func configInit(cfgFile string) (config, error) {
 	// parse config file
 	cfg, err := parseJSON(cfgFile)
-	cfg.CStats.pStats = *pstats
 	cfg.CStats.csvStats = *csvStats
 
 	return cfg, err

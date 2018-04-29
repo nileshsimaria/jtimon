@@ -114,7 +114,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 	for {
 		ocData, err := stream.Recv()
 		if err == io.EOF {
-			printSummary(jctx, *pstats)
+			printSummary(jctx)
 			break
 		}
 		if err != nil {
@@ -124,7 +124,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 
 		rtime := time.Now()
 
-		if *dcheck == true && !jctx.cfg.CStats.csvStats {
+		if jctx.cfg.Log.DropCheck && !jctx.cfg.CStats.csvStats {
 			dropCheck(jctx, ocData)
 		}
 

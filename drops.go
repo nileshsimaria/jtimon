@@ -98,21 +98,22 @@ func dropCheck(jctx *JCtx, ocData *na_pb.OpenConfigData) {
 
 func printDropDS(jctx *JCtx) {
 	jctx.st.Lock()
-	fmt.Printf("\n Drops Distribution")
-	fmt.Printf("\n+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
-	fmt.Printf("\n| CID |SCID| Drops | Received | %-120s|", "Sensor Path")
-	fmt.Printf("\n+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
-	fmt.Printf("\n")
+	s := fmt.Sprintf("\nDrops Distribution for %s:%d", jctx.cfg.Host, jctx.cfg.Port)
+	s += fmt.Sprintf("\n+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
+	s += fmt.Sprintf("\n| CID |SCID| Drops | Received | %-120s|", "Sensor Path")
+	s += fmt.Sprintf("\n+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
+	s += fmt.Sprintf("\n")
 	for cid, sdMap := range jctx.dMap {
 		for scid, pathM := range sdMap {
 			for path, dData := range pathM {
 				if path != "" {
-					fmt.Printf("|%5v|%4v| %6v| %8v | %-120s| \n", cid, scid, dData.drop, dData.received, path)
+					s += fmt.Sprintf("|%5v|%4v| %6v| %8v | %-120s| \n", cid, scid, dData.drop, dData.received, path)
 					jctx.st.totalDdrops += dData.drop
 				}
 			}
 		}
 	}
-	fmt.Printf("+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
+	s += fmt.Sprintf("+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
+	l(false, jctx, s)
 	jctx.st.Unlock()
 }

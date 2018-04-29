@@ -180,7 +180,7 @@ func printSummary(jctx *JCtx, pstats int64) {
 	endTime := time.Since(jctx.st.startTime)
 	stmap := make(map[string]interface{})
 
-	s := fmt.Sprintf("\nCollector Stats for %s[%d] (Run time : %s)\n", jctx.file, jctx.idx, endTime)
+	s := fmt.Sprintf("\nCollector Stats for %s:%d (Run time : %s)\n", jctx.cfg.Host, jctx.cfg.Port, endTime)
 	stmap["run-time"] = float64(endTime)
 	s += fmt.Sprintf("%-12v : in-packets\n", jctx.st.totalIn)
 	stmap["in-packets"] = float64(jctx.st.totalIn)
@@ -213,7 +213,7 @@ func printSummary(jctx *JCtx, pstats int64) {
 	}
 
 	s += fmt.Sprintf("\n")
-	fmt.Printf("\n%s\n", s)
+	l(false, jctx, fmt.Sprintf("\n%s\n", s))
 
 	addIDBSummary(jctx, stmap)
 }

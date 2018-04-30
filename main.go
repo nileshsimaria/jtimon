@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	figure "github.com/common-nighthawk/go-figure"
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/net/context"
@@ -193,12 +192,11 @@ func main() {
 	flag.Parse()
 	startGtrace(*gtrace)
 
+	fmt.Printf("Version: %s BuildTime %s\n", version, buildTime)
 	if *ver {
-		figure.NewFigure("J T I M O N", "linux", true).Print()
-		fmt.Printf("Version: %s BuildTime %s\n", version, buildTime)
 		return
 	}
-	fmt.Printf("Version: %s BuildTime %s\n", version, buildTime)
+
 	n := len(*cfgFile)
 	if n == 0 {
 		fmt.Println("Can not run without any config file")

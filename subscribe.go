@@ -13,7 +13,6 @@ import (
 )
 
 func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
-	fmt.Println("handleOnePacket")
 	updateStats(jctx, ocData, true)
 
 	if *print || (jctx.cfg.Log.Verbose && !*print) {

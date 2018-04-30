@@ -144,10 +144,11 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 							compressionOpts := grpc.Decompressor(dc)
 							opts = append(opts, grpc.WithDecompressor(compressionOpts))
 						}
-
-						if jctx.cfg.Grpc.Ws != 0 {
-							opts = append(opts, grpc.WithInitialWindowSize(jctx.cfg.Grpc.Ws))
+						ws := jctx.cfg.Grpc.Ws
+						if ws == 0 {
+							ws = 1048576
 						}
+						opts = append(opts, grpc.WithInitialWindowSize(ws))
 
 						hostname := jctx.cfg.Host + ":" + strconv.Itoa(jctx.cfg.Port)
 						conn, err := grpc.Dial(hostname, opts...)

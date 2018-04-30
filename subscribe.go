@@ -13,6 +13,7 @@ import (
 )
 
 func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
+	fmt.Println("handleOnePacket")
 	updateStats(jctx, ocData, true)
 
 	if *print || (jctx.cfg.Log.Verbose && !*print) {
@@ -129,29 +130,29 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 			dropCheck(jctx, ocData)
 		}
 
-		gmutex.Lock()
-		handleOnePacket(ocData, jctx)
-		gmutex.Unlock()
+		if *print || *stateHandler || jctx.cfg.Log.Verbose {
+			gmutex.Lock()
+			handleOnePacket(ocData, jctx)
+			gmutex.Unlock()
+		}
 
-		if jctx.iFlux.influxc != nil && !jctx.cfg.Log.CSVStats {
+		if jctx.iFlux.influxc != nil {
 			go addIDB(ocData, jctx, rtime)
 		}
 
-		if *sleep != 0 {
-			time.Sleep(time.Duration(*sleep) * time.Millisecond)
-		}
-
-		select {
-		case pfor := <-jctx.pause.pch:
-			l(true, jctx, fmt.Sprintf("Pausing for %v seconds\n", pfor))
-			t := time.NewTimer(time.Second * time.Duration(pfor))
+		if *apiControl {
 			select {
-			case <-t.C:
-				l(true, jctx, fmt.Sprintf("Done pausing for %v seconds\n", pfor))
-			case <-jctx.pause.upch:
-				t.Stop()
+			case pfor := <-jctx.pause.pch:
+				l(true, jctx, fmt.Sprintf("Pausing for %v seconds\n", pfor))
+				t := time.NewTimer(time.Second * time.Duration(pfor))
+				select {
+				case <-t.C:
+					l(true, jctx, fmt.Sprintf("Done pausing for %v seconds\n", pfor))
+				case <-jctx.pause.upch:
+					t.Stop()
+				}
+			default:
 			}
-		default:
 		}
 	}
 }

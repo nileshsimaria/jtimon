@@ -24,13 +24,14 @@ var (
 	gnmiMode     = flag.String("gnmi-mode", "stream", "Mode of gnmi (stream | once | poll")
 	gnmiEncoding = flag.String("gnmi-encoding", "proto", "gnmi encoding (proto | json | bytes | ascii | ietf-json")
 	gtrace       = flag.Bool("gtrace", false, "Collect GRPC traces")
+	stateHandler = flag.Bool("stats-handler", false, "Use GRPC statshandler")
 	grpcHeaders  = flag.Bool("grpc-headers", false, "Add grpc headers in DB")
 	ver          = flag.Bool("version", false, "Print version and build-time of the binary and exit")
 	gnmi         = flag.Bool("gnmi", false, "Use gnmi proto")
 	prometheus   = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
 	print        = flag.Bool("print", false, "Print Telemetry data")
 	prefixCheck  = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
-	sleep        = flag.Int64("sleep", 0, "Sleep after each read (ms)")
+	apiControl   = flag.Bool("api", false, "Receive HTTP commands when running")
 	mr           = flag.Int64("max-run", 0, "Max run time in seconds")
 	compression  = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
 
@@ -130,7 +131,9 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 							opts = append(opts, grpc.WithInsecure())
 						}
 
-						opts = append(opts, grpc.WithStatsHandler(&statshandler{jctx: &jctx}))
+						if *stateHandler {
+							opts = append(opts, grpc.WithStatsHandler(&statshandler{jctx: &jctx}))
+						}
 						if *compression != "" {
 							var dc grpc.Decompressor
 							if *compression == "gzip" {

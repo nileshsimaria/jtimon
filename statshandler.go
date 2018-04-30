@@ -92,6 +92,9 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 }
 
 func updateStats(jctx *JCtx, ocData *na_pb.OpenConfigData, needLock bool) {
+	if !*stateHandler {
+		return
+	}
 	if needLock {
 		jctx.st.Lock()
 		defer jctx.st.Unlock()
@@ -111,6 +114,10 @@ func updateStats(jctx *JCtx, ocData *na_pb.OpenConfigData, needLock bool) {
 }
 
 func updateStatsKV(jctx *JCtx, needLock bool) {
+	if !*stateHandler {
+		return
+	}
+
 	if needLock {
 		jctx.st.Lock()
 		defer jctx.st.Unlock()
@@ -119,6 +126,9 @@ func updateStatsKV(jctx *JCtx, needLock bool) {
 }
 
 func periodicStats(jctx *JCtx) {
+	if !*stateHandler {
+		return
+	}
 	pstats := jctx.cfg.Log.PeriodicStats
 	if pstats == 0 {
 		return
@@ -174,6 +184,10 @@ func periodicStats(jctx *JCtx) {
 }
 
 func printSummary(jctx *JCtx) {
+	if !*stateHandler {
+		return
+	}
+
 	gmutex.Lock()
 	defer gmutex.Unlock()
 

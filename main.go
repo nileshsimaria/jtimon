@@ -180,7 +180,6 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 						}
 					}()
 				}
-			default:
 			}
 		}
 	}()

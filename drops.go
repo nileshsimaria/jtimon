@@ -34,7 +34,7 @@ func dropCheckCSV(jctx *JCtx) {
 		line := scanner.Text()
 		if !strings.HasPrefix(line, "sensor-path,sequence-number,component-id,sub-component-id,packet-size,p-ts,e-ts") {
 			tokens := strings.Split(line, ",")
-			fmt.Printf("\n%s + %s + %s + %s + %s + %s + %s", tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6])
+			//fmt.Printf("\n%s + %s + %s + %s + %s + %s + %s", tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6])
 			cid, _ := strconv.ParseUint(tokens[2], 10, 32)
 			scid, _ := strconv.ParseUint(tokens[3], 10, 32)
 			seqNum, _ := strconv.ParseUint(tokens[1], 10, 32)

@@ -15,12 +15,19 @@ func l(safe bool, jctx *JCtx, s string) {
 			gmutex.Lock()
 			fmt.Printf(s)
 			gmutex.Unlock()
-
 		case false:
 			fmt.Printf(s)
 		}
 	} else if jctx.cfg.Log.loger != nil {
-		jctx.cfg.Log.loger.Printf(s)
+		switch safe {
+		case true:
+			gmutex.Lock()
+			jctx.cfg.Log.loger.Printf(s)
+			gmutex.Unlock()
+
+		case false:
+			jctx.cfg.Log.loger.Printf(s)
+		}
 	}
 }
 

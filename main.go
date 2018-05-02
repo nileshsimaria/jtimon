@@ -80,7 +80,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 	logInit(&jctx)
 	go prometheusHandler(*prometheus)
 	go periodicStats(&jctx)
-	jctx.iFlux.influxc = influxInit(jctx.cfg)
+	influxInit(&jctx)
 	dropInit(&jctx)
 	go apiInit(&jctx)
 

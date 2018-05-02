@@ -13,25 +13,78 @@ import (
 	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 )
 
+var (
+	// DefaultBatchSize to use if user has not provided in the config
+	DefaultBatchSize = 1 * 1024 * 1024
+	//DefaultBatchFreq is 2 seconds
+	DefaultBatchFreq = 2
+)
+
 type iFluxCtx struct {
 	sync.Mutex
 	influxc *client.Client
+	batchCh chan *client.Point
 }
 
 type influxCfg struct {
-	Server      string
-	Port        int
-	Dbname      string
-	User        string
-	Password    string
-	Recreate    bool
-	Measurement string
-	Diet        bool
+	Server         string
+	Port           int
+	Dbname         string
+	User           string
+	Password       string
+	Recreate       bool
+	Measurement    string
+	Diet           bool
+	BatchSize      int
+	BatchFrequency int
 }
 
 type timeDiff struct {
 	field string
 	tags  map[string]string
+}
+
+func setupBatchWriteIDB(jctx *JCtx) {
+	batchSize := jctx.cfg.Influx.BatchSize
+	if batchSize == 0 {
+		batchSize = DefaultBatchSize
+	}
+
+	batchCh := make(chan *client.Point, batchSize)
+	jctx.iFlux.batchCh = batchCh
+
+	// wake up periodically and perform batch write into InfluxDB
+	bFreq := jctx.cfg.Influx.BatchFrequency
+	if bFreq == 0 {
+		bFreq = DefaultBatchFreq
+	}
+
+	l(true, jctx, fmt.Sprintln("batch-size :", batchSize, "batch-freq", bFreq))
+	ticker := time.NewTicker(time.Duration(bFreq) * time.Second)
+	go func() {
+		for range ticker.C {
+			n := len(batchCh)
+			l(true, jctx, fmt.Sprintln("Total available points for batching: ", n))
+			if n != 0 {
+				bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+					Database:  jctx.cfg.Influx.Dbname,
+					Precision: "us",
+				})
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				for i := 0; i < n; i++ {
+					bp.AddPoint(<-batchCh)
+				}
+
+				if err := (*jctx.iFlux.influxc).Write(bp); err != nil {
+					log.Fatal(err)
+				}
+				l(true, jctx, fmt.Sprintln("Batch write sucessful! Post batch write available points: ", len(batchCh)))
+			}
+		}
+	}()
 }
 
 // Takes in XML path with predicates and returns list of tags+values
@@ -135,39 +188,29 @@ func addIDBSummary(jctx *JCtx, stmap map[string]interface{}) {
 // A go routine to add one telemetry packet in to InfluxDB
 func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	cfg := jctx.cfg
-
 	if jctx.iFlux.influxc == nil {
 		return
 	}
 
-	jctx.iFlux.Lock()
-	defer jctx.iFlux.Unlock()
 	prefix := ""
-
-	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  cfg.Influx.Dbname,
-		Precision: "us",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	for _, v := range ocData.Kv {
 		kv := make(map[string]interface{})
-		kv["platency"] = rtime.UnixNano()/1000000 - int64(ocData.Timestamp)
-		if v.Key == "__timestamp__" {
-			if rtime.UnixNano()/1000000 < int64(v.GetUintValue()) {
-				kv["elatency"] = 0
-			} else {
-				kv["elatency"] = rtime.UnixNano()/1000000 - int64(v.GetUintValue())
+		if *stateHandler {
+			kv["platency"] = rtime.UnixNano()/1000000 - int64(ocData.Timestamp)
+			if v.Key == "__timestamp__" {
+				if rtime.UnixNano()/1000000 < int64(v.GetUintValue()) {
+					kv["elatency"] = 0
+				} else {
+					kv["elatency"] = rtime.UnixNano()/1000000 - int64(v.GetUintValue())
+				}
+				kv["ilatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
 			}
-			kv["ilatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
-		}
-		if v.Key == "__agentd_rx_timestamp__" {
-			kv["arxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
-		}
-		if v.Key == "__agentd_tx_timestamp__" {
-			kv["atxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
+			if v.Key == "__agentd_rx_timestamp__" {
+				kv["arxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
+			}
+			if v.Key == "__agentd_tx_timestamp__" {
+				kv["atxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
+			}
 		}
 
 		if v.Key == "__prefix__" {
@@ -221,12 +264,11 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			bp.AddPoint(pt)
+			if jctx.cfg.Log.Verbose {
+				l(true, jctx, fmt.Sprintln(pt.String()))
+			}
+			jctx.iFlux.batchCh <- pt
 		}
-	}
-
-	if err := (*jctx.iFlux.influxc).Write(bp); err != nil {
-		log.Fatal(err)
 	}
 }
 
@@ -263,7 +305,8 @@ func queryIDB(clnt client.Client, cmd string, db string) (res []client.Result, e
 	return res, nil
 }
 
-func influxInit(cfg config) *client.Client {
+func influxInit(jctx *JCtx) {
+	cfg := jctx.cfg
 	c := getInfluxClient(cfg)
 
 	if cfg.Influx != nil && cfg.Influx.Recreate == true && c != nil {
@@ -276,5 +319,10 @@ func influxInit(cfg config) *client.Client {
 			log.Fatal(err)
 		}
 	}
-	return c
+	jctx.iFlux.influxc = c
+	if cfg.Influx != nil && c != nil {
+		setupBatchWriteIDB(jctx)
+	}
+
+	l(true, jctx, "Successfully initialized InfluxDB Client")
 }

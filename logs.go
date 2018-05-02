@@ -6,8 +6,12 @@ import (
 	"os"
 )
 
-// Log it, each go routine collecting JTI data has its own log file so its concurrency safe.
-// In case of print, caller has to guarantee safety.
+/*
+	Log it, each go routine collecting JTI data has its own log file but user can
+	specify common log file to log for all devices so we need protection.
+	We also need protection for printing on terminal. Caller can control it using
+	boolean safe argument.
+*/
 func l(safe bool, jctx *JCtx, s string) {
 	if *print {
 		switch safe {

@@ -140,15 +140,13 @@ func periodicStats(jctx *JCtx) {
 		<-tickChan
 
 		// Do nothing if we haven't heard back anything from the device
-		gmutex.Lock()
 		jctx.st.Lock()
 		if jctx.st.totalIn == 0 {
 			jctx.st.Unlock()
-			gmutex.Unlock()
 			continue
 		}
-		jctx.st.Unlock()
 
+		gmutex.Lock()
 		// print header
 		if i%100 == 0 {
 			if jctx.cfg.Log.LatencyCheck {
@@ -162,7 +160,6 @@ func periodicStats(jctx *JCtx) {
 			}
 		}
 
-		jctx.st.Lock()
 		if jctx.cfg.Log.LatencyCheck && jctx.st.totalLatencyPkt != 0 {
 			l(false, jctx, fmt.Sprintf("| %s | %18v | %18v | %18v | %18v | %15v |\n", time.Now().Format(time.UnixDate),
 				jctx.st.totalKV,
@@ -177,8 +174,8 @@ func periodicStats(jctx *JCtx) {
 				jctx.st.totalInPayloadLength,
 				jctx.st.totalInPayloadWireLength))
 		}
-		jctx.st.Unlock()
 		gmutex.Unlock()
+		jctx.st.Unlock()
 		i++
 	}
 }
@@ -187,9 +184,6 @@ func printSummary(jctx *JCtx) {
 	if !*stateHandler {
 		return
 	}
-
-	gmutex.Lock()
-	defer gmutex.Unlock()
 
 	if jctx.cfg.Log.CSVStats && jctx.cfg.Log.DropCheck {
 		dropCheckCSV(jctx)
@@ -235,7 +229,7 @@ func printSummary(jctx *JCtx) {
 	}
 
 	s += fmt.Sprintf("\n")
-	l(false, jctx, fmt.Sprintf("\n%s\n", s))
+	l(true, jctx, fmt.Sprintf("\n%s\n", s))
 
 	addIDBSummary(jctx, stmap)
 }

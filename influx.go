@@ -109,7 +109,7 @@ func spitTagsNPath(xmlpath string) (string, map[string]string) {
 	return xmlpath, tags
 }
 
-func mName(ocData *na_pb.OpenConfigData, cfg config) string {
+func mName(ocData *na_pb.OpenConfigData, cfg Config) string {
 	if cfg.Influx.Measurement != "" {
 		return cfg.Influx.Measurement
 	}
@@ -272,8 +272,8 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	}
 }
 
-func getInfluxClient(cfg config) *client.Client {
-	if cfg.Influx == nil {
+func getInfluxClient(cfg Config) *client.Client {
+	if cfg.Influx.Server == "" {
 		return nil
 	}
 	addr := fmt.Sprintf("http://%v:%v", cfg.Influx.Server, cfg.Influx.Port)
@@ -309,7 +309,7 @@ func influxInit(jctx *JCtx) {
 	cfg := jctx.cfg
 	c := getInfluxClient(cfg)
 
-	if cfg.Influx != nil && cfg.Influx.Recreate == true && c != nil {
+	if cfg.Influx.Server != "" && cfg.Influx.Recreate == true && c != nil {
 		_, err := queryIDB(*c, fmt.Sprintf("DROP DATABASE \"%s\"", cfg.Influx.Dbname), cfg.Influx.Dbname)
 		if err != nil {
 			log.Fatal(err)
@@ -320,7 +320,7 @@ func influxInit(jctx *JCtx) {
 		}
 	}
 	jctx.iFlux.influxc = c
-	if cfg.Influx != nil && c != nil {
+	if cfg.Influx.Server != "" && c != nil {
 		setupBatchWriteIDB(jctx)
 	}
 

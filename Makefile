@@ -13,7 +13,7 @@ BUILD_DIR=${GOPATH}/src/github.com/${GITHUB_USERNAME}/${BINARY}
 CURRENT_DIR=$(shell pwd)
 BUILD_DIR_LINK=$(shell readlink ${BUILD_DIR})
 
-all: clean linux darwin windows
+all: clean linux darwin windows test
 
 clean:
 	-rm -f ${BINARY}-*
@@ -43,5 +43,8 @@ docker-run: build
 docker-sh: 
 	docker run -ti --rm -v ${PWD}:/root --entrypoint=/bin/sh jtimon
 
-.PHONY: linux darwin windows docker docker-run docker-sh
+test:
+	go test -v
+
+.PHONY: linux darwin windows docker docker-run docker-sh test
 

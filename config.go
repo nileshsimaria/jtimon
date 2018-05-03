@@ -7,7 +7,8 @@ import (
 	"os"
 )
 
-type config struct {
+// Config struct
+type Config struct {
 	Host     string
 	Port     int
 	User     string
@@ -18,7 +19,7 @@ type config struct {
 	API      api
 	Grpc     grpccfg
 	TLS      tlscfg
-	Influx   *influxCfg
+	Influx   influxCfg
 	Paths    []spath
 	Log      logT
 }
@@ -55,21 +56,23 @@ type spath struct {
 	Mode string
 }
 
-func configInit(cfgFile string) (config, error) {
+// NewJTIMONConfig to return config object
+func NewJTIMONConfig(file string) (Config, error) {
 	// parse config file
-	cfg, err := parseJSON(cfgFile)
-	return cfg, err
+	config, err := ParseJSON(file)
+	return config, err
 }
 
-func parseJSON(cfgFile string) (config, error) {
-	var cfg config
+// ParseJSON parses JSON encoded config of JTIMON
+func ParseJSON(file string) (Config, error) {
+	var config Config
 
-	file, err := ioutil.ReadFile(cfgFile)
+	f, err := ioutil.ReadFile(file)
 	if err != nil {
-		return cfg, err
+		return config, err
 	}
-	if err := json.Unmarshal(file, &cfg); err != nil {
-		return cfg, err
+	if err := json.Unmarshal(f, &config); err != nil {
+		return config, err
 	}
-	return cfg, nil
+	return config, nil
 }

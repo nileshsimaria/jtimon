@@ -2,6 +2,6 @@
 jtimon
 jtimon-darwin-amd64
 jtimon-linux-amd64
-*.json
 *.log
 .*
+debug.test

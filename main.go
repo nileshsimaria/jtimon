@@ -41,7 +41,7 @@ var (
 
 // JCtx is JTIMON Context
 type JCtx struct {
-	cfg   config
+	cfg   Config
 	file  string
 	idx   int
 	wg    *sync.WaitGroup
@@ -71,7 +71,9 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 	}
 
 	var err error
-	jctx.cfg, err = configInit(file)
+	jctx.cfg, err = NewJTIMONConfig(file)
+	fmt.Printf("%+v\n", jctx.cfg)
+	os.Exit(0)
 	if err != nil {
 		fmt.Printf("\nConfig parsing error for %s[%d]: %v\n", file, idx, err)
 		return ch, fmt.Errorf("config parsing error for %s[%d]: %v", file, idx, err)

@@ -1,0 +1,20 @@
+{
+    "host": "10.102.178.208",
+    "port": 32767,
+    "influx" : {
+        "server" : "127.0.0.1",
+        "port" : 8086,
+        "dbname" : "TEST",
+        "measurement" : "R0",
+        "recreate" : false,
+        "user" : "influx",
+        "password" : "influxdb"
+    },
+    "log" : {
+        "file" : "tests/data/r0edge.log"
+    },
+    "paths": [{
+        "path": "/interfaces",
+        "freq": 4000
+    }]
+}

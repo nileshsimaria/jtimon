@@ -27,16 +27,16 @@ type iFluxCtx struct {
 }
 
 type influxCfg struct {
-	Server         string
-	Port           int
-	Dbname         string
-	User           string
-	Password       string
-	Recreate       bool
-	Measurement    string
-	Diet           bool
-	BatchSize      int
-	BatchFrequency int
+	Server         string `json:"server"`
+	Port           int    `json:"port"`
+	Dbname         string `json:"dbname"`
+	User           string `json:"user"`
+	Password       string `json:"password"`
+	Recreate       bool   `json:"recreate"`
+	Measurement    string `json:"measurement"`
+	Diet           bool   `json:"diet"`
+	BatchSize      int    `json:"batchsize"`
+	BatchFrequency int    `json:"batchfrequency"`
 }
 
 type timeDiff struct {
@@ -79,9 +79,10 @@ func setupBatchWriteIDB(jctx *JCtx) {
 				}
 
 				if err := (*jctx.iFlux.influxc).Write(bp); err != nil {
-					log.Fatal(err)
+					l(true, jctx, fmt.Sprintf("DB write failed: %s", err.Error()))
+				} else {
+					l(true, jctx, fmt.Sprintln("Batch write sucessful! Post batch write available points: ", len(batchCh)))
 				}
-				l(true, jctx, fmt.Sprintln("Batch write sucessful! Post batch write available points: ", len(batchCh)))
 			}
 		}
 	}()

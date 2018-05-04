@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -72,14 +73,18 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 
 	var err error
 	jctx.cfg, err = NewJTIMONConfig(file)
-	fmt.Printf("%+v\n", jctx.cfg)
-	os.Exit(0)
 	if err != nil {
 		fmt.Printf("\nConfig parsing error for %s[%d]: %v\n", file, idx, err)
-		return ch, fmt.Errorf("config parsing error for %s[%d]: %v", file, idx, err)
+		return ch, fmt.Errorf("config parsing (json Unmarshal) error for %s[%d]: %v", file, idx, err)
 	}
 
 	logInit(&jctx)
+	b, err := json.MarshalIndent(jctx.cfg, "", "    ")
+	if err != nil {
+		return ch, fmt.Errorf("Config parsing error (json Marshal) for %s[%d]: %v", file, idx, err)
+	}
+	l(true, &jctx, fmt.Sprintf("\nRunning config of JTIMON:\n %s\n", string(b)))
+
 	go prometheusHandler(*prometheus)
 	go periodicStats(&jctx)
 	influxInit(&jctx)

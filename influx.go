@@ -58,8 +58,8 @@ func setupBatchWriteIDB(jctx *JCtx) {
 	go func() {
 		for range ticker.C {
 			n := len(batchCh)
-			l(true, jctx, fmt.Sprintln("Total available points for batching: ", n))
 			if n != 0 {
+				l(true, jctx, fmt.Sprintln("Total available points for batching: ", n))
 				bp, err := client.NewBatchPoints(client.BatchPointsConfig{
 					Database:  jctx.config.Influx.Dbname,
 					Precision: "us",

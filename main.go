@@ -116,7 +116,9 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 					jctx.wg.Done()
 				case true:
 					go func() {
+						var retry bool
 						var opts []grpc.DialOption
+
 						if jctx.config.TLS.CA != "" {
 							certificate, err := tls.LoadX509KeyPair(jctx.config.TLS.ClientCrt, jctx.config.TLS.ClientKey)
 
@@ -146,6 +148,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 						if *stateHandler {
 							opts = append(opts, grpc.WithStatsHandler(&statshandler{jctx: &jctx}))
 						}
+
 						if *compression != "" {
 							var dc grpc.Decompressor
 							if *compression == "gzip" {
@@ -156,10 +159,17 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 							compressionOpts := grpc.Decompressor(dc)
 							opts = append(opts, grpc.WithDecompressor(compressionOpts))
 						}
+
 						ws := jctx.config.GRPC.WS
 						opts = append(opts, grpc.WithInitialWindowSize(ws))
 
 						hostname := jctx.config.Host + ":" + strconv.Itoa(jctx.config.Port)
+					connect:
+						if retry {
+							l(true, &jctx, fmt.Sprintf("Reconnecting to %s", hostname))
+						} else {
+							l(true, &jctx, fmt.Sprintf("Connecting to %s", hostname))
+						}
 						conn, err := grpc.Dial(hostname, opts...)
 						if err != nil {
 							l(true, &jctx, fmt.Sprintf("[%d] Could not dial: %v\n", idx, err))
@@ -188,6 +198,11 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 						} else {
 							subscribe(conn, &jctx)
 						}
+						// If we are here we must try to reconnect again.
+						// Reconnect after 10 seconds.
+						time.Sleep(10 * time.Second)
+						retry = true
+						goto connect
 					}()
 				}
 			}

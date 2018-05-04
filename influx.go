@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -14,10 +13,10 @@ import (
 )
 
 var (
-	// DefaultBatchSize to use if user has not provided in the config
-	DefaultBatchSize = 1 * 1024 * 1024
-	//DefaultBatchFreq is 2 seconds
-	DefaultBatchFreq = 2
+	// DefaultIDBBatchSize to use if user has not provided in the config
+	DefaultIDBBatchSize = 1024 * 1024 * 1024
+	//DefaultIDBBatchFreq is 2 seconds
+	DefaultIDBBatchFreq = 2000
 )
 
 // InfluxCtx is run time info of InfluxDB data structures
@@ -48,21 +47,14 @@ type timeDiff struct {
 
 func setupBatchWriteIDB(jctx *JCtx) {
 	batchSize := jctx.config.Influx.BatchSize
-	if batchSize == 0 {
-		batchSize = DefaultBatchSize
-	}
-
 	batchCh := make(chan *client.Point, batchSize)
 	jctx.influxCtx.batchWCh = batchCh
 
 	// wake up periodically and perform batch write into InfluxDB
 	bFreq := jctx.config.Influx.BatchFrequency
-	if bFreq == 0 {
-		bFreq = DefaultBatchFreq
-	}
 
 	l(true, jctx, fmt.Sprintln("batch-size :", batchSize, "batch-freq", bFreq))
-	ticker := time.NewTicker(time.Duration(bFreq) * time.Second)
+	ticker := time.NewTicker(time.Duration(bFreq) * time.Millisecond)
 	go func() {
 		for range ticker.C {
 			n := len(batchCh)
@@ -112,12 +104,22 @@ func spitTagsNPath(xmlpath string) (string, map[string]string) {
 	return xmlpath, tags
 }
 
+// SubscriptionPathFromPath to extract subscription path from path
+func SubscriptionPathFromPath(path string) string {
+	tokens := strings.Split(path, ":")
+	if len(tokens) == 4 {
+		return tokens[2]
+	}
+	return ""
+}
+
 func mName(ocData *na_pb.OpenConfigData, cfg Config) string {
+	if ocData != nil {
+		path := ocData.Path
+		return SubscriptionPathFromPath(path)
+	}
 	if cfg.Influx.Measurement != "" {
 		return cfg.Influx.Measurement
-	}
-	if ocData != nil {
-		return ocData.SystemId
 	}
 	return ""
 }
@@ -234,29 +236,25 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 		if cfg.Influx.Diet == false {
 			switch v.Value.(type) {
 			case *na_pb.KeyValue_StrValue:
-				if val, err := strconv.ParseInt(v.GetStrValue(), 10, 64); err == nil {
-					kv[xmlpath+"-int"] = val
-				} else {
-					kv[xmlpath] = v.GetStrValue()
-				}
+				kv[xmlpath] = v.GetStrValue()
 				break
 			case *na_pb.KeyValue_DoubleValue:
-				kv[xmlpath+"-float"] = float64(v.GetDoubleValue())
+				kv[xmlpath] = float64(v.GetDoubleValue())
 				break
 			case *na_pb.KeyValue_IntValue:
-				kv[xmlpath+"-float"] = float64(v.GetIntValue())
+				kv[xmlpath] = float64(v.GetIntValue())
 				break
 			case *na_pb.KeyValue_UintValue:
-				kv[xmlpath+"-float"] = float64(v.GetUintValue())
+				kv[xmlpath] = float64(v.GetUintValue())
 				break
 			case *na_pb.KeyValue_SintValue:
-				kv[xmlpath+"-float"] = float64(v.GetSintValue())
+				kv[xmlpath] = float64(v.GetSintValue())
 				break
 			case *na_pb.KeyValue_BoolValue:
-				kv[xmlpath+"-bool"] = v.GetBoolValue()
+				kv[xmlpath] = v.GetBoolValue()
 				break
 			case *na_pb.KeyValue_BytesValue:
-				kv[xmlpath+"-bytes"] = v.GetBytesValue()
+				kv[xmlpath] = v.GetBytesValue()
 				break
 			default:
 			}

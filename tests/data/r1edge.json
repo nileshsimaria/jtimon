@@ -8,7 +8,8 @@
         "measurement" : "R1",
         "recreate" : false,
         "user" : "influx",
-        "password" : "influxdb"
+        "password" : "influxdb",
+        "batchfrequency": 4000
     },
     "log" : {
         "file" : "tests/data/r1edge.log"

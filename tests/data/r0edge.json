@@ -15,6 +15,12 @@
     },
     "paths": [{
         "path": "/interfaces",
-        "freq": 4000
+        "freq": 2000
+    }, {
+        "path": "/lldp",
+        "freq": 2000
+    }, {
+        "path": "/components",
+        "freq": 2000
     }]
 }

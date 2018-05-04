@@ -19,6 +19,11 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+const (
+	// DefaultGRPCWindowSize is the default GRPC Window Size
+	DefaultGRPCWindowSize = 1048576
+)
+
 var (
 	cfgFile      = flag.StringSlice("config", make([]string, 0, 0), "Config file name(s)")
 	gnmiMode     = flag.String("gnmi-mode", "stream", "Mode of gnmi (stream | once | poll")

@@ -18,7 +18,7 @@ func TestNewJTIMONConfig(t *testing.T) {
 	for _, file := range files {
 		_, err := NewJTIMONConfig(file.name)
 		if err != nil && !file.error {
-			t.Errorf("NewJTIMONConfig failed, got: %v, want %v", err, xerr)
+			t.Errorf("NewJTIMONConfig failed, got: %v, want: %v", err, xerr)
 		}
 		if err == nil && file.error {
 			t.Errorf("NewJTIMONConfig failed, got: %v, want error", err)

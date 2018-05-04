@@ -68,6 +68,19 @@ func NewJTIMONConfig(file string) (Config, error) {
 	return config, err
 }
 
+func fillupDefaults(config *Config) {
+	// fill up defaults
+	if config.GRPC.WS == 0 {
+		config.GRPC.WS = DefaultGRPCWindowSize
+	}
+	if config.Influx.BatchFrequency == 0 {
+		config.Influx.BatchFrequency = DefaultIDBBatchFreq
+	}
+	if config.Influx.BatchSize == 0 {
+		config.Influx.BatchSize = DefaultIDBBatchSize
+	}
+}
+
 // ParseJSON parses JSON encoded config of JTIMON
 func ParseJSON(file string) (Config, error) {
 	var config Config
@@ -80,10 +93,7 @@ func ParseJSON(file string) (Config, error) {
 		return config, err
 	}
 
-	// fill up defaults
-	if config.GRPC.WS == 0 {
-		config.GRPC.WS = 1048576
-	}
+	fillupDefaults(&config)
 
 	return config, nil
 }

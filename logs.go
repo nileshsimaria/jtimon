@@ -22,21 +22,21 @@ func l(safe bool, jctx *JCtx, s string) {
 		case false:
 			fmt.Printf(s)
 		}
-	} else if jctx.cfg.Log.loger != nil {
+	} else if jctx.config.Log.loger != nil {
 		switch safe {
 		case true:
 			gmutex.Lock()
-			jctx.cfg.Log.loger.Printf(s)
+			jctx.config.Log.loger.Printf(s)
 			gmutex.Unlock()
 
 		case false:
-			jctx.cfg.Log.loger.Printf(s)
+			jctx.config.Log.loger.Printf(s)
 		}
 	}
 }
 
 func logInit(jctx *JCtx) {
-	file := jctx.cfg.Log.File
+	file := jctx.config.Log.File
 	if file != "" {
 		if *print {
 			fmt.Println("Both print and log options are specified, ignoring log")
@@ -46,13 +46,13 @@ func logInit(jctx *JCtx) {
 				fmt.Printf("Could not create log file(%s): %v\n", file, err)
 			} else {
 				flags := 0
-				if !jctx.cfg.Log.CSVStats {
+				if !jctx.config.Log.CSVStats {
 					flags = log.LstdFlags
 				}
-				jctx.cfg.Log.loger = log.New(f, "", flags)
-				jctx.cfg.Log.handle = f
+				jctx.config.Log.loger = log.New(f, "", flags)
+				jctx.config.Log.handle = f
 				fmt.Printf("logging in %s for %s:%d [periodic stats every %d seconds]\n",
-					jctx.cfg.Log.File, jctx.cfg.Host, jctx.cfg.Port, jctx.cfg.Log.PeriodicStats)
+					jctx.config.Log.File, jctx.config.Host, jctx.config.Port, jctx.config.Log.PeriodicStats)
 			}
 		}
 	}

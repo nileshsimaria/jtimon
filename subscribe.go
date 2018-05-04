@@ -15,7 +15,7 @@ import (
 func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 	updateStats(jctx, ocData, true)
 
-	if *print || (jctx.cfg.Log.Verbose && !*print) {
+	if *print || (jctx.config.Log.Verbose && !*print) {
 		l(false, jctx, fmt.Sprintf("system_id: %s\n", ocData.SystemId))
 		l(false, jctx, fmt.Sprintf("component_id: %d\n", ocData.ComponentId))
 		l(false, jctx, fmt.Sprintf("sub_component_id: %d\n", ocData.SubComponentId))
@@ -24,14 +24,14 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 		l(false, jctx, fmt.Sprintf("timestamp: %d\n", ocData.Timestamp))
 		l(false, jctx, fmt.Sprintf("sync_response: %v\n", ocData.SyncResponse))
 		if ocData.SyncResponse {
-			if *print || (jctx.cfg.Log.Verbose && !*print) {
+			if *print || (jctx.config.Log.Verbose && !*print) {
 				l(false, jctx, "Received sync_response\n")
 			}
 		}
 
 		del := ocData.GetDelete()
 		for _, d := range del {
-			if *print || (jctx.cfg.Log.Verbose && !*print) {
+			if *print || (jctx.config.Log.Verbose && !*print) {
 				l(false, jctx, fmt.Sprintf("Delete: %s\n", d.GetPath()))
 			}
 		}
@@ -41,7 +41,7 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 	for _, kv := range ocData.Kv {
 		updateStatsKV(jctx, true)
 
-		if *print || (jctx.cfg.Log.Verbose && !*print) {
+		if *print || (jctx.config.Log.Verbose && !*print) {
 			l(false, jctx, fmt.Sprintf("  key: %s\n", kv.Key))
 			switch value := kv.Value.(type) {
 			case *na_pb.KeyValue_DoubleValue:
@@ -78,8 +78,8 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.SubscriptionRequest) {
 	var ctx context.Context
 	c := na_pb.NewOpenConfigTelemetryClient(conn)
-	if jctx.cfg.Meta == true {
-		md := metadata.New(map[string]string{"username": jctx.cfg.User, "password": jctx.cfg.Password})
+	if jctx.config.Meta == true {
+		md := metadata.New(map[string]string{"username": jctx.config.User, "password": jctx.config.Password})
 		ctx = metadata.NewOutgoingContext(context.Background(), md)
 	} else {
 		ctx = context.Background()
@@ -97,17 +97,17 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 		l(true, jctx, fmt.Sprintf("Failed to get header for stream: %v", errh))
 	}
 
-	if !jctx.cfg.Log.CSVStats {
+	if !jctx.config.Log.CSVStats {
 		gmutex.Lock()
-		l(false, jctx, fmt.Sprintf("gRPC headers from host %s:%d\n", jctx.cfg.Host, jctx.cfg.Port))
+		l(false, jctx, fmt.Sprintf("gRPC headers from host %s:%d\n", jctx.config.Host, jctx.config.Port))
 		for k, v := range hdr {
 			l(false, jctx, fmt.Sprintf("  %s: %s\n", k, v))
 		}
-		l(false, jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.cfg.Host, jctx.cfg.Port))
+		l(false, jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
 		gmutex.Unlock()
 	}
 
-	if jctx.cfg.Log.CSVStats {
+	if jctx.config.Log.CSVStats {
 		l(true, jctx, fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
 			"sensor-path", "sequence-number", "component-id", "sub-component-id", "packet-size", "p-ts", "e-ts", "re-stream-creation-ts", "re-payload-get-ts"))
 	}
@@ -125,17 +125,17 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 
 		rtime := time.Now()
 
-		if jctx.cfg.Log.DropCheck && !jctx.cfg.Log.CSVStats {
+		if jctx.config.Log.DropCheck && !jctx.config.Log.CSVStats {
 			dropCheck(jctx, ocData)
 		}
 
-		if *print || *stateHandler || jctx.cfg.Log.Verbose {
+		if *print || *stateHandler || jctx.config.Log.Verbose {
 			gmutex.Lock()
 			handleOnePacket(ocData, jctx)
 			gmutex.Unlock()
 		}
 
-		if jctx.iFlux.influxc != nil {
+		if jctx.influxCtx.influxClient != nil {
 			go addIDB(ocData, jctx, rtime)
 		}
 
@@ -159,7 +159,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 func subscribe(conn *grpc.ClientConn, jctx *JCtx) {
 	var subReqM na_pb.SubscriptionRequest
 	var additionalConfigM na_pb.SubscriptionAdditionalConfig
-	cfg := jctx.cfg
+	cfg := jctx.config
 
 	for i := range cfg.Paths {
 		var pathM na_pb.Path
@@ -168,7 +168,7 @@ func subscribe(conn *grpc.ClientConn, jctx *JCtx) {
 
 		subReqM.PathList = append(subReqM.PathList, &pathM)
 	}
-	additionalConfigM.NeedEos = jctx.cfg.Eos
+	additionalConfigM.NeedEos = jctx.config.EOS
 	subReqM.AdditionalConfig = &additionalConfigM
 	subSendAndReceive(conn, jctx, subReqM)
 }

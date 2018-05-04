@@ -25,3 +25,24 @@ func TestNewJTIMONConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateConfig(t *testing.T) {
+	files := []struct {
+		name  string
+		error bool
+	}{
+		{"tests/data/noerror.json", false}, // no error
+		{"tests/data/error.jso", true},     // file does not exists
+		{"tests/data/error.json", true},    // syntax error in JSON file
+	}
+
+	for _, file := range files {
+		config, err := NewJTIMONConfig(file.name)
+		if err != nil {
+			configString, err := ValidateConfig(config)
+			if err != nil {
+				t.Errorf("TestValidateConfig failed. Error: %v\nConfig %s\n", err, configString)
+			}
+		}
+	}
+}

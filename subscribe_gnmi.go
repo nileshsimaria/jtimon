@@ -59,7 +59,7 @@ func getMode(mode string) gnmipb.SubscriptionList_Mode {
 }
 
 func subscribeGNMI(conn *grpc.ClientConn, jctx *JCtx) {
-	cfg := jctx.cfg
+	cfg := jctx.config
 
 	s := &gnmipb.SubscribeRequest_Subscribe{
 		Subscribe: &gnmipb.SubscriptionList{
@@ -114,8 +114,8 @@ func subSendAndReceiveGNMI(conn *grpc.ClientConn, jctx *JCtx, req *gnmipb.Subscr
 	var ctx context.Context
 	c := gnmipb.NewGNMIClient(conn)
 
-	if jctx.cfg.Meta == true {
-		md := metadata.New(map[string]string{"username": jctx.cfg.User, "password": jctx.cfg.Password})
+	if jctx.config.Meta == true {
+		md := metadata.New(map[string]string{"username": jctx.config.User, "password": jctx.config.Password})
 		ctx = metadata.NewOutgoingContext(context.Background(), md)
 	} else {
 		ctx = context.Background()

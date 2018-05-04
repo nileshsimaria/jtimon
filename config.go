@@ -9,22 +9,23 @@ import (
 
 // Config struct
 type Config struct {
-	Host     string    `json:"host"`
-	Port     int       `json:"port"`
-	User     string    `json:"user"`
-	Password string    `json:"password"`
-	Meta     bool      `json:"meta"`
-	Eos      bool      `json:"eos"`
-	Cid      string    `json:"cid"`
-	API      api       `json:"api"`
-	Grpc     grpccfg   `json:"grpc"`
-	TLS      tlscfg    `json:"tls"`
-	Influx   influxCfg `json:"influx"`
-	Paths    []spath   `json:"paths"`
-	Log      logT      `json:"log"`
+	Host     string        `json:"host"`
+	Port     int           `json:"port"`
+	User     string        `json:"user"`
+	Password string        `json:"password"`
+	Meta     bool          `json:"meta"`
+	EOS      bool          `json:"eos"`
+	CID      string        `json:"cid"`
+	API      APIConfig     `json:"api"`
+	GRPC     GRPCConfig    `json:"grpc"`
+	TLS      TLSConfig     `json:"tls"`
+	Influx   InfluxConfig  `json:"influx"`
+	Paths    []PathsConfig `json:"paths"`
+	Log      LogConfig     `json:"log"`
 }
 
-type logT struct {
+//LogConfig is config struct for logging
+type LogConfig struct {
 	File          string `json:"file"`
 	Verbose       bool   `json:"verbose"`
 	PeriodicStats int    `json:"periodic-stats"`
@@ -35,22 +36,26 @@ type logT struct {
 	loger         *log.Logger
 }
 
-type api struct {
+// APIConfig is config struct for API Server
+type APIConfig struct {
 	Port int `json:"port"`
 }
 
-type grpccfg struct {
-	Ws int32 `json:"ws"`
+//GRPCConfig is to specify GRPC params
+type GRPCConfig struct {
+	WS int32 `json:"ws"`
 }
 
-type tlscfg struct {
+// TLSConfig is to specify TLS params
+type TLSConfig struct {
 	ClientCrt  string `json:"clientcrt"`
 	ClientKey  string `json:"clientkey"`
 	CA         string `json:"ca"`
 	ServerName string `json:"servername"`
 }
 
-type spath struct {
+// PathsConfig to specify subscription path, reporting-interval (freq), etc,.
+type PathsConfig struct {
 	Path string `json:"path"`
 	Freq uint64 `json:"freq"`
 	Mode string `json:"mode"`
@@ -74,5 +79,21 @@ func ParseJSON(file string) (Config, error) {
 	if err := json.Unmarshal(f, &config); err != nil {
 		return config, err
 	}
+
+	// fill up defaults
+	if config.GRPC.WS == 0 {
+		config.GRPC.WS = 1048576
+	}
+
 	return config, nil
+}
+
+// ValidateConfig for config validation
+func ValidateConfig(config Config) (string, error) {
+	b, err := json.MarshalIndent(config, "", "    ")
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+
 }

@@ -40,46 +40,47 @@ var (
 	gmutex    = &sync.Mutex{}
 )
 
-// JCtx is JTIMON Context
+// JCtx is JTIMON run time context
 type JCtx struct {
-	cfg   Config
-	file  string
-	idx   int
-	wg    *sync.WaitGroup
-	dMap  map[uint32]map[uint32]map[string]dropData
-	iFlux iFluxCtx
-	st    statsType
-	pause struct {
+	config    Config
+	file      string
+	index     int
+	wg        *sync.WaitGroup
+	dMap      map[uint32]map[uint32]map[string]dropData
+	influxCtx InfluxCtx
+	stats     statsCtx
+	pause     struct {
 		pch  chan int64
 		upch chan struct{}
 	}
 }
 
-type winfo struct {
+type workerCtx struct {
 	ch  chan bool
 	err error
 }
 
+// A worker function is the one who gets job done.
 func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 	ch := make(chan bool)
 	jctx := JCtx{
-		file: file,
-		idx:  idx,
-		wg:   wg,
-		st: statsType{
+		file:  file,
+		index: idx,
+		wg:    wg,
+		stats: statsCtx{
 			startTime: time.Now(),
 		},
 	}
 
 	var err error
-	jctx.cfg, err = NewJTIMONConfig(file)
+	jctx.config, err = NewJTIMONConfig(file)
 	if err != nil {
 		fmt.Printf("\nConfig parsing error for %s[%d]: %v\n", file, idx, err)
 		return ch, fmt.Errorf("config parsing (json Unmarshal) error for %s[%d]: %v", file, idx, err)
 	}
 
 	logInit(&jctx)
-	b, err := json.MarshalIndent(jctx.cfg, "", "    ")
+	b, err := json.MarshalIndent(jctx.config, "", "    ")
 	if err != nil {
 		return ch, fmt.Errorf("Config parsing error (json Marshal) for %s[%d]: %v", file, idx, err)
 	}
@@ -93,9 +94,9 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 
 	if *grpcHeaders {
 		pmap := make(map[string]interface{})
-		for i := range jctx.cfg.Paths {
-			pmap["path"] = jctx.cfg.Paths[i].Path
-			pmap["reporting-rate"] = float64(jctx.cfg.Paths[i].Freq)
+		for i := range jctx.config.Paths {
+			pmap["path"] = jctx.config.Paths[i].Path
+			pmap["reporting-rate"] = float64(jctx.config.Paths[i].Freq)
 			addGRPCHeader(&jctx, pmap)
 		}
 	}
@@ -111,11 +112,11 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 				case true:
 					go func() {
 						var opts []grpc.DialOption
-						if jctx.cfg.TLS.CA != "" {
-							certificate, err := tls.LoadX509KeyPair(jctx.cfg.TLS.ClientCrt, jctx.cfg.TLS.ClientKey)
+						if jctx.config.TLS.CA != "" {
+							certificate, err := tls.LoadX509KeyPair(jctx.config.TLS.ClientCrt, jctx.config.TLS.ClientKey)
 
 							certPool := x509.NewCertPool()
-							bs, err := ioutil.ReadFile(jctx.cfg.TLS.CA)
+							bs, err := ioutil.ReadFile(jctx.config.TLS.CA)
 							if err != nil {
 								l(true, &jctx, fmt.Sprintf("[%d] Failed to read ca cert: %s\n", idx, err))
 								return
@@ -129,7 +130,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 
 							transportCreds := credentials.NewTLS(&tls.Config{
 								Certificates: []tls.Certificate{certificate},
-								ServerName:   jctx.cfg.TLS.ServerName,
+								ServerName:   jctx.config.TLS.ServerName,
 								RootCAs:      certPool,
 							})
 							opts = append(opts, grpc.WithTransportCredentials(transportCreds))
@@ -150,25 +151,22 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 							compressionOpts := grpc.Decompressor(dc)
 							opts = append(opts, grpc.WithDecompressor(compressionOpts))
 						}
-						ws := jctx.cfg.Grpc.Ws
-						if ws == 0 {
-							ws = 1048576
-						}
+						ws := jctx.config.GRPC.WS
 						opts = append(opts, grpc.WithInitialWindowSize(ws))
 
-						hostname := jctx.cfg.Host + ":" + strconv.Itoa(jctx.cfg.Port)
+						hostname := jctx.config.Host + ":" + strconv.Itoa(jctx.config.Port)
 						conn, err := grpc.Dial(hostname, opts...)
 						if err != nil {
 							l(true, &jctx, fmt.Sprintf("[%d] Could not dial: %v\n", idx, err))
 							return
 						}
 
-						if jctx.cfg.User != "" && jctx.cfg.Password != "" {
-							user := jctx.cfg.User
-							pass := jctx.cfg.Password
-							if jctx.cfg.Meta == false {
+						if jctx.config.User != "" && jctx.config.Password != "" {
+							user := jctx.config.User
+							pass := jctx.config.Password
+							if jctx.config.Meta == false {
 								lc := auth_pb.NewLoginClient(conn)
-								dat, err := lc.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.cfg.Cid})
+								dat, err := lc.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.config.CID})
 								if err != nil {
 									l(true, &jctx, fmt.Sprintf("[%d] Could not login: %v\n", idx, err))
 									return
@@ -211,14 +209,14 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(n)
-	wList := make([]*winfo, n, n)
+	wList := make([]*workerCtx, n, n)
 
 	for idx, file := range *cfgFile {
 		ch, err := worker(file, idx, &wg)
 		if err != nil {
 			wg.Done()
 		}
-		wList[idx] = &winfo{
+		wList[idx] = &workerCtx{
 			ch:  ch,
 			err: err,
 		}

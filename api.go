@@ -11,11 +11,11 @@ import (
 
 func apiInit(jctx *JCtx) {
 
-	if jctx.cfg.API.Port == 0 {
+	if jctx.config.API.Port == 0 {
 		return
 	}
 
-	portstr := fmt.Sprintf(":%v", jctx.cfg.API.Port)
+	portstr := fmt.Sprintf(":%v", jctx.config.API.Port)
 
 	jctx.pause.pch = make(chan int64)
 	jctx.pause.upch = make(chan struct{})

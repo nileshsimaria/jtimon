@@ -20,11 +20,11 @@ func dropInit(jctx *JCtx) {
 }
 
 func dropCheckCSV(jctx *JCtx) {
-	if !jctx.cfg.Log.CSVStats {
+	if !jctx.config.Log.CSVStats {
 		return
 	}
-	f := jctx.cfg.Log.handle
-	if jctx.cfg.Log.handle == nil {
+	f := jctx.config.Log.handle
+	if jctx.config.Log.handle == nil {
 		return
 	}
 	f.Seek(0, 0)
@@ -83,8 +83,8 @@ func dropCheck(jctx *JCtx, ocData *na_pb.OpenConfigData) {
 }
 
 func printDropDS(jctx *JCtx) {
-	jctx.st.Lock()
-	s := fmt.Sprintf("\nDrops Distribution for %s:%d", jctx.cfg.Host, jctx.cfg.Port)
+	jctx.stats.Lock()
+	s := fmt.Sprintf("\nDrops Distribution for %s:%d", jctx.config.Host, jctx.config.Port)
 	s += fmt.Sprintf("\n+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
 	s += fmt.Sprintf("\n| CID |SCID| Drops | Received | %-120s|", "Sensor Path")
 	s += fmt.Sprintf("\n+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
@@ -94,7 +94,7 @@ func printDropDS(jctx *JCtx) {
 			for path, dData := range pathM {
 				if path != "" {
 					s += fmt.Sprintf("|%5v|%4v| %6v| %8v | %-120s| \n", cid, scid, dData.drop, dData.received, path)
-					jctx.st.totalDdrops += dData.drop
+					jctx.stats.totalDdrops += dData.drop
 				}
 			}
 		}
@@ -102,5 +102,5 @@ func printDropDS(jctx *JCtx) {
 	s += fmt.Sprintf("+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
 	// Log it. The caller printSummary() has already taken global mutex log so dont try to get it again here.
 	l(false, jctx, s)
-	jctx.st.Unlock()
+	jctx.stats.Unlock()
 }

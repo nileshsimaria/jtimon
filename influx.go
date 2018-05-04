@@ -323,7 +323,6 @@ func influxInit(jctx *JCtx) {
 	jctx.influxCtx.influxClient = c
 	if cfg.Influx.Server != "" && c != nil {
 		setupBatchWriteIDB(jctx)
+		l(true, jctx, "Successfully initialized InfluxDB Client")
 	}
-
-	l(true, jctx, "Successfully initialized InfluxDB Client")
 }

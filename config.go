@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -106,4 +107,18 @@ func ValidateConfig(config Config) (string, error) {
 	}
 	return string(b), nil
 
+}
+
+// ExploreConfig of JTIMON
+func ExploreConfig() {
+	var config Config
+	c := "{\"paths\": [{}]}"
+
+	if err := json.Unmarshal([]byte(c), &config); err == nil {
+		if b, err := json.MarshalIndent(config, "", "    "); err == nil {
+			fmt.Printf("\n%s\n", string(b))
+			return
+		}
+	}
+	fmt.Printf("\nSomething is very wrong - This should have not happened")
 }

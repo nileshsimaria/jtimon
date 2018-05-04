@@ -26,6 +26,7 @@ const (
 
 var (
 	cfgFile      = flag.StringSlice("config", make([]string, 0, 0), "Config file name(s)")
+	expConfig    = flag.Bool("explore-config", false, "Explore full config of JTIMON and exit")
 	gnmiMode     = flag.String("gnmi-mode", "stream", "Mode of gnmi (stream | once | poll")
 	gnmiEncoding = flag.String("gnmi-encoding", "proto", "gnmi encoding (proto | json | bytes | ascii | ietf-json")
 	gtrace       = flag.Bool("gtrace", false, "Collect GRPC traces")
@@ -164,6 +165,9 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 						opts = append(opts, grpc.WithInitialWindowSize(ws))
 
 						hostname := jctx.config.Host + ":" + strconv.Itoa(jctx.config.Port)
+						if hostname == ":0" {
+							return
+						}
 					connect:
 						if retry {
 							l(true, &jctx, fmt.Sprintf("Reconnecting to %s", hostname))
@@ -220,6 +224,11 @@ func main() {
 
 	fmt.Printf("Version: %s BuildTime %s\n", version, buildTime)
 	if *ver {
+		return
+	}
+
+	if *expConfig {
+		ExploreConfig()
 		return
 	}
 

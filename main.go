@@ -173,7 +173,9 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 						conn, err := grpc.Dial(hostname, opts...)
 						if err != nil {
 							l(true, &jctx, fmt.Sprintf("[%d] Could not dial: %v\n", idx, err))
-							return
+							time.Sleep(10 * time.Second)
+							retry = true
+							goto connect
 						}
 
 						if jctx.config.User != "" && jctx.config.Password != "" {

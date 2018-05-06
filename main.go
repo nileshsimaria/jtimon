@@ -228,7 +228,12 @@ func main() {
 	}
 
 	if *expConfig {
-		ExploreConfig()
+		config, err := ExploreConfig()
+		if err == nil {
+			fmt.Printf("\n%s\n", config)
+		} else {
+			fmt.Printf("Can not generate config\n")
+		}
 		return
 	}
 

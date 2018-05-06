@@ -46,3 +46,10 @@ func TestValidateConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestExploreConfig(t *testing.T) {
+	_, err := ExploreConfig()
+	if err != nil {
+		t.Errorf("ExploreConfig failed, Error: %v\n", err)
+	}
+}

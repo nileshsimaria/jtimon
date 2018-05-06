@@ -200,7 +200,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	prefix := ""
 	for _, v := range ocData.Kv {
 		kv := make(map[string]interface{})
-		if *stateHandler {
+		if *stateHandler && *latencyProfile {
 			kv["platency"] = rtime.UnixNano()/1000000 - int64(ocData.Timestamp)
 			if v.Key == "__timestamp__" {
 				if rtime.UnixNano()/1000000 < int64(v.GetUintValue()) {

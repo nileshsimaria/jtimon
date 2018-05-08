@@ -121,3 +121,11 @@ func ExploreConfig() (string, error) {
 	}
 	return "", errors.New("Something is very wrong - This should have not happened")
 }
+
+// IsVerboseLogging returns true if verbose logging is enabled, false otherwise
+func IsVerboseLogging(jctx *JCtx) bool {
+	if jctx.config.Log.Verbose {
+		return true
+	}
+	return false
+}

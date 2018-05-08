@@ -15,7 +15,7 @@ import (
 func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 	updateStats(jctx, ocData, true)
 
-	if *print || (jctx.config.Log.Verbose && !*print) {
+	if *print || (IsVerboseLogging(jctx) && !*print) {
 		l(false, jctx, fmt.Sprintf("system_id: %s\n", ocData.SystemId))
 		l(false, jctx, fmt.Sprintf("component_id: %d\n", ocData.ComponentId))
 		l(false, jctx, fmt.Sprintf("sub_component_id: %d\n", ocData.SubComponentId))
@@ -24,14 +24,14 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 		l(false, jctx, fmt.Sprintf("timestamp: %d\n", ocData.Timestamp))
 		l(false, jctx, fmt.Sprintf("sync_response: %v\n", ocData.SyncResponse))
 		if ocData.SyncResponse {
-			if *print || (jctx.config.Log.Verbose && !*print) {
+			if *print || (IsVerboseLogging(jctx) && !*print) {
 				l(false, jctx, "Received sync_response\n")
 			}
 		}
 
 		del := ocData.GetDelete()
 		for _, d := range del {
-			if *print || (jctx.config.Log.Verbose && !*print) {
+			if *print || (IsVerboseLogging(jctx) && !*print) {
 				l(false, jctx, fmt.Sprintf("Delete: %s\n", d.GetPath()))
 			}
 		}
@@ -41,7 +41,7 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 	for _, kv := range ocData.Kv {
 		updateStatsKV(jctx, true)
 
-		if *print || (jctx.config.Log.Verbose && !*print) {
+		if *print || (IsVerboseLogging(jctx) && !*print) {
 			l(false, jctx, fmt.Sprintf("  key: %s\n", kv.Key))
 			switch value := kv.Value.(type) {
 			case *na_pb.KeyValue_DoubleValue:
@@ -129,7 +129,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 			dropCheck(jctx, ocData)
 		}
 
-		if *print || *stateHandler || jctx.config.Log.Verbose {
+		if *print || *stateHandler || IsVerboseLogging(jctx) {
 			gmutex.Lock()
 			handleOnePacket(ocData, jctx)
 			gmutex.Unlock()

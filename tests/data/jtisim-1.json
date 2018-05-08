@@ -1,0 +1,21 @@
+{
+    "host": "127.0.0.1",
+    "port": 50051,
+    "influx" : {
+        "server" : "127.0.0.1",
+        "port" : 8086,
+        "dbname" : "TEST",
+        "measurement" : "jtisim",
+        "recreate" : true,
+        "user" : "influx",
+        "password" : "influxdb"
+    },
+    "log" : {
+        "file" : "tests/data/jtisim-1.log",
+        "verbose": false
+    },
+    "paths": [{
+        "path": "/interfaces",
+        "freq": 2000
+    }]
+}

@@ -5,17 +5,23 @@
         "server" : "127.0.0.1",
         "port" : 8086,
         "dbname" : "TEST",
-        "measurement" : "R1",
         "recreate" : false,
         "user" : "influx",
         "password" : "influxdb",
-        "batchfrequency": 4000
+        "batchfrequency": 1000
     },
     "log" : {
-        "file" : "tests/data/r1edge.log"
+        "file" : "tests/data/r1edge.log",
+        "verbose": false
     },
     "paths": [{
         "path": "/interfaces",
+        "freq": 2000
+    }, {
+        "path": "/lldp",
+        "freq": 2000
+    }, {
+        "path": "/components",
         "freq": 2000
     }]
 }

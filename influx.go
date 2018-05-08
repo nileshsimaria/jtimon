@@ -318,7 +318,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	if len(points) > 0 {
 		jctx.influxCtx.batchWCh <- points
 
-		if jctx.config.Log.Verbose {
+		if IsVerboseLogging(jctx) {
 			l(true, jctx, fmt.Sprintf("Sending %d points to batch channel for path: %s\n", len(points), ocData.Path))
 			for i := 0; i < len(points); i++ {
 				l(true, jctx, fmt.Sprintf("Tags: %+v\n", points[i].Tags()))

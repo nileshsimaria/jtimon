@@ -24,16 +24,12 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 		l(false, jctx, fmt.Sprintf("timestamp: %d\n", ocData.Timestamp))
 		l(false, jctx, fmt.Sprintf("sync_response: %v\n", ocData.SyncResponse))
 		if ocData.SyncResponse {
-			if *print || (IsVerboseLogging(jctx) && !*print) {
-				l(false, jctx, "Received sync_response\n")
-			}
+			l(false, jctx, "Received sync_response\n")
 		}
 
 		del := ocData.GetDelete()
 		for _, d := range del {
-			if *print || (IsVerboseLogging(jctx) && !*print) {
-				l(false, jctx, fmt.Sprintf("Delete: %s\n", d.GetPath()))
-			}
+			l(false, jctx, fmt.Sprintf("Delete: %s\n", d.GetPath()))
 		}
 	}
 

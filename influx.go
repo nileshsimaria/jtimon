@@ -228,16 +228,16 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 			}
 		}
 
-		switch v.Key {
-		case "__timestamp__":
-			continue
-		case "__prefix__":
+		switch {
+		case v.Key == "__prefix__":
 			prefix = v.GetStrValue()
+			continue
+		case strings.HasPrefix(v.Key, "__"):
 			continue
 		}
 
 		key := v.Key
-		if strings.HasPrefix(key, "/") == false {
+		if !strings.HasPrefix(key, "/") {
 			key = prefix + v.Key
 		}
 
@@ -245,7 +245,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 		tags["device"] = cfg.Host
 		tags["sensor"] = ocData.Path
 
-		if cfg.Influx.Diet == false {
+		if !cfg.Influx.Diet {
 			switch v.Value.(type) {
 			case *na_pb.KeyValue_StrValue:
 				kv[xmlpath] = v.GetStrValue()

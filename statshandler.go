@@ -140,13 +140,14 @@ func periodicStats(jctx *JCtx) {
 		<-tickChan
 
 		// Do nothing if we haven't heard back anything from the device
+		gmutex.Lock()
 		jctx.stats.Lock()
 		if jctx.stats.totalIn == 0 {
 			jctx.stats.Unlock()
+			gmutex.Unlock()
 			continue
 		}
 
-		gmutex.Lock()
 		// print header
 		if i%100 == 0 {
 			if jctx.config.Log.LatencyCheck {
@@ -174,8 +175,8 @@ func periodicStats(jctx *JCtx) {
 				jctx.stats.totalInPayloadLength,
 				jctx.stats.totalInPayloadWireLength))
 		}
-		gmutex.Unlock()
 		jctx.stats.Unlock()
+		gmutex.Unlock()
 		i++
 	}
 }

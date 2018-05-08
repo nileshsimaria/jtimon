@@ -136,7 +136,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 		}
 
 		if jctx.influxCtx.influxClient != nil {
-			addIDB(ocData, jctx, rtime)
+			go addIDB(ocData, jctx, rtime)
 		}
 
 		if *apiControl {

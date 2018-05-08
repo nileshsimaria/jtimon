@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -27,20 +30,23 @@ const (
 var (
 	cfgFile        = flag.StringSlice("config", make([]string, 0, 0), "Config file name(s)")
 	expConfig      = flag.Bool("explore-config", false, "Explore full config of JTIMON and exit")
+	print          = flag.Bool("print", false, "Print Telemetry data")
+	mr             = flag.Int64("max-run", 0, "Max run time in seconds")
+	stateHandler   = flag.Bool("stats-handler", false, "Use GRPC statshandler")
+	ver            = flag.Bool("version", false, "Print version and build-time of the binary and exit")
+	compression    = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
 	latencyProfile = flag.Bool("latency-profile", false, "Profile latencies. Place them in TSDB")
+	gnmi           = flag.Bool("gnmi", false, "Use gnmi proto")
 	gnmiMode       = flag.String("gnmi-mode", "stream", "Mode of gnmi (stream | once | poll")
 	gnmiEncoding   = flag.String("gnmi-encoding", "proto", "gnmi encoding (proto | json | bytes | ascii | ietf-json")
-	gtrace         = flag.Bool("gtrace", false, "Collect GRPC traces")
-	stateHandler   = flag.Bool("stats-handler", false, "Use GRPC statshandler")
-	grpcHeaders    = flag.Bool("grpc-headers", false, "Add grpc headers in DB")
-	ver            = flag.Bool("version", false, "Print version and build-time of the binary and exit")
-	gnmi           = flag.Bool("gnmi", false, "Use gnmi proto")
-	prometheus     = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
-	print          = flag.Bool("print", false, "Print Telemetry data")
+	prom           = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
+	promPort       = flag.Int32("prometheus-port", 8090, "Prometheus port")
 	prefixCheck    = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
 	apiControl     = flag.Bool("api", false, "Receive HTTP commands when running")
-	mr             = flag.Int64("max-run", 0, "Max run time in seconds")
-	compression    = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
+	pProf          = flag.Bool("pprof", false, "Profile JTIMON")
+	pProfPort      = flag.Int32("pprof-port", 6060, "Profile port")
+	gtrace         = flag.Bool("gtrace", false, "Collect GRPC traces")
+	grpcHeaders    = flag.Bool("grpc-headers", false, "Add grpc headers in DB")
 
 	version   = "version-not-available"
 	buildTime = "build-time-not-available"
@@ -93,7 +99,6 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 	}
 	l(true, &jctx, fmt.Sprintf("\nRunning config of JTIMON:\n %s\n", string(b)))
 
-	go prometheusHandler(*prometheus)
 	go periodicStats(&jctx)
 	influxInit(&jctx)
 	dropInit(&jctx)
@@ -221,6 +226,21 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 
 func main() {
 	flag.Parse()
+	if *pProf {
+		go func() {
+			addr := fmt.Sprintf("localhost:%d", *pProfPort)
+			fmt.Println(http.ListenAndServe(addr, nil))
+		}()
+	}
+
+	if *prom {
+		go func() {
+			addr := fmt.Sprintf("localhost:%d", promPort)
+			http.Handle("/metrics", promhttp.Handler())
+			fmt.Println(http.ListenAndServe(addr, nil))
+		}()
+
+	}
 	startGtrace(*gtrace)
 
 	fmt.Printf("Version: %s BuildTime %s\n", version, buildTime)

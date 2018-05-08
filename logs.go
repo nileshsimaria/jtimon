@@ -22,15 +22,15 @@ func l(safe bool, jctx *JCtx, s string) {
 		case false:
 			fmt.Printf(s)
 		}
-	} else if jctx.config.Log.loger != nil {
+	} else if jctx.config.Log.Logger != nil {
 		switch safe {
 		case true:
 			gmutex.Lock()
-			jctx.config.Log.loger.Printf(s)
+			jctx.config.Log.Logger.Printf(s)
 			gmutex.Unlock()
 
 		case false:
-			jctx.config.Log.loger.Printf(s)
+			jctx.config.Log.Logger.Printf(s)
 		}
 	}
 }
@@ -49,8 +49,8 @@ func logInit(jctx *JCtx) {
 				if !jctx.config.Log.CSVStats {
 					flags = log.LstdFlags
 				}
-				jctx.config.Log.loger = log.New(f, "", flags)
-				jctx.config.Log.handle = f
+				jctx.config.Log.Logger = log.New(f, "", flags)
+				jctx.config.Log.FileHandle = f
 				fmt.Printf("logging in %s for %s:%d [periodic stats every %d seconds]\n",
 					jctx.config.Log.File, jctx.config.Host, jctx.config.Port, jctx.config.Log.PeriodicStats)
 			}

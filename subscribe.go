@@ -15,21 +15,23 @@ import (
 func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 	updateStats(jctx, ocData, true)
 
+	s := ""
+
 	if *print || (IsVerboseLogging(jctx) && !*print) {
-		jLog(jctx, fmt.Sprintf("system_id: %s\n", ocData.SystemId))
-		jLog(jctx, fmt.Sprintf("component_id: %d\n", ocData.ComponentId))
-		jLog(jctx, fmt.Sprintf("sub_component_id: %d\n", ocData.SubComponentId))
-		jLog(jctx, fmt.Sprintf("path: %s\n", ocData.Path))
-		jLog(jctx, fmt.Sprintf("sequence_number: %d\n", ocData.SequenceNumber))
-		jLog(jctx, fmt.Sprintf("timestamp: %d\n", ocData.Timestamp))
-		jLog(jctx, fmt.Sprintf("sync_response: %v\n", ocData.SyncResponse))
+		s += fmt.Sprintf("system_id: %s\n", ocData.SystemId)
+		s += fmt.Sprintf("component_id: %d\n", ocData.ComponentId)
+		s += fmt.Sprintf("sub_component_id: %d\n", ocData.SubComponentId)
+		s += fmt.Sprintf("path: %s\n", ocData.Path)
+		s += fmt.Sprintf("sequence_number: %d\n", ocData.SequenceNumber)
+		s += fmt.Sprintf("timestamp: %d\n", ocData.Timestamp)
+		s += fmt.Sprintf("sync_response: %v\n", ocData.SyncResponse)
 		if ocData.SyncResponse {
-			jLog(jctx, "Received sync_response\n")
+			s += "Received sync_response\n"
 		}
 
 		del := ocData.GetDelete()
 		for _, d := range del {
-			jLog(jctx, fmt.Sprintf("Delete: %s\n", d.GetPath()))
+			s += fmt.Sprintf("Delete: %s\n", d.GetPath())
 		}
 	}
 
@@ -38,24 +40,24 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 		updateStatsKV(jctx, true)
 
 		if *print || (IsVerboseLogging(jctx) && !*print) {
-			jLog(jctx, fmt.Sprintf("  key: %s\n", kv.Key))
+			s += fmt.Sprintf("  key: %s\n", kv.Key)
 			switch value := kv.Value.(type) {
 			case *na_pb.KeyValue_DoubleValue:
-				jLog(jctx, fmt.Sprintf("  double_value: %v\n", value.DoubleValue))
+				s += fmt.Sprintf("  double_value: %v\n", value.DoubleValue)
 			case *na_pb.KeyValue_IntValue:
-				jLog(jctx, fmt.Sprintf("  int_value: %d\n", value.IntValue))
+				s += fmt.Sprintf("  int_value: %d\n", value.IntValue)
 			case *na_pb.KeyValue_UintValue:
-				jLog(jctx, fmt.Sprintf("  uint_value: %d\n", value.UintValue))
+				s += fmt.Sprintf("  uint_value: %d\n", value.UintValue)
 			case *na_pb.KeyValue_SintValue:
-				jLog(jctx, fmt.Sprintf("  sint_value: %d\n", value.SintValue))
+				s += fmt.Sprintf("  sint_value: %d\n", value.SintValue)
 			case *na_pb.KeyValue_BoolValue:
-				jLog(jctx, fmt.Sprintf("  bool_value: %v\n", value.BoolValue))
+				s += fmt.Sprintf("  bool_value: %v\n", value.BoolValue)
 			case *na_pb.KeyValue_StrValue:
-				jLog(jctx, fmt.Sprintf("  str_value: %s\n", value.StrValue))
+				s += fmt.Sprintf("  str_value: %s\n", value.StrValue)
 			case *na_pb.KeyValue_BytesValue:
-				jLog(jctx, fmt.Sprintf("  bytes_value: %s\n", value.BytesValue))
+				s += fmt.Sprintf("  bytes_value: %s\n", value.BytesValue)
 			default:
-				jLog(jctx, fmt.Sprintf("  default: %v\n", value))
+				s += fmt.Sprintf("  default: %v\n", value)
 			}
 		}
 
@@ -64,11 +66,12 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 		} else if !strings.HasPrefix(kv.Key, "__") {
 			if !prefixSeen && !strings.HasPrefix(kv.Key, "/") {
 				if *prefixCheck {
-					jLog(jctx, fmt.Sprintf("Missing prefix for sensor: %s\n", ocData.Path))
+					s += fmt.Sprintf("Missing prefix for sensor: %s\n", ocData.Path)
 				}
 			}
 		}
 	}
+	jLog(jctx, s)
 }
 
 func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.SubscriptionRequest) {

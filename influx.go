@@ -135,8 +135,6 @@ func mName(ocData *na_pb.OpenConfigData, cfg Config) string {
 // A go routine to add header of gRPC in to influxDB
 func addGRPCHeader(jctx *JCtx, hmap map[string]interface{}) {
 	cfg := jctx.config
-	jctx.influxCtx.Lock()
-	defer jctx.influxCtx.Unlock()
 
 	if jctx.influxCtx.influxClient == nil {
 		return
@@ -168,8 +166,6 @@ func addGRPCHeader(jctx *JCtx, hmap map[string]interface{}) {
 // A go routine to add summary of stats collection in to influxDB
 func addIDBSummary(jctx *JCtx, stmap map[string]interface{}) {
 	cfg := jctx.config
-	jctx.influxCtx.Lock()
-	defer jctx.influxCtx.Unlock()
 
 	if jctx.influxCtx.influxClient == nil {
 		return

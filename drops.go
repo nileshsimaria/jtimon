@@ -100,7 +100,6 @@ func printDropDS(jctx *JCtx) {
 		}
 	}
 	s += fmt.Sprintf("+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
-	// Log it. The caller printSummary() has already taken global mutex log so dont try to get it again here.
-	l(false, jctx, s)
+	jLog(jctx, s)
 	jctx.stats.Unlock()
 }

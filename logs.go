@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-func l(safe bool, jctx *JCtx, s string) {
-	jctx.config.Log.Logger.Printf(s)
+func jLog(jctx *JCtx, msg string) {
+	jctx.config.Log.Logger.Printf(msg)
 }
 
 func logInit(jctx *JCtx) {

@@ -178,7 +178,9 @@ func periodicStats(jctx *JCtx) {
 		}
 		jctx.stats.Unlock()
 		headerCounter++
-		jLog(jctx, fmt.Sprintf("%s\n", s))
+		if s != "" {
+			jLog(jctx, fmt.Sprintf("%s\n", s))
+		}
 	}
 }
 

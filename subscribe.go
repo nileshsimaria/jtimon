@@ -71,7 +71,9 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 			}
 		}
 	}
-	jLog(jctx, s)
+	if s != "" {
+		jLog(jctx, s)
+	}
 }
 
 func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.SubscriptionRequest) {

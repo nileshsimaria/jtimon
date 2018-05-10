@@ -7,7 +7,9 @@ import (
 )
 
 func jLog(jctx *JCtx, msg string) {
-	jctx.config.Log.Logger.Printf(msg)
+	if jctx.config.Log.Logger != nil {
+		jctx.config.Log.Logger.Printf(msg)
+	}
 }
 
 func logInit(jctx *JCtx) {
@@ -27,13 +29,16 @@ func logInit(jctx *JCtx) {
 		}
 	}
 
-	flags := 0
-	if !jctx.config.Log.CSVStats {
-		flags = log.LstdFlags
+	if out != nil {
+		flags := 0
+		if !jctx.config.Log.CSVStats {
+			flags = log.LstdFlags
+		}
+
+		jctx.config.Log.Logger = log.New(out, "", flags)
+		log.Printf("logging in %s for %s:%d [periodic stats every %d seconds]\n",
+			jctx.config.Log.File, jctx.config.Host, jctx.config.Port, jctx.config.Log.PeriodicStats)
+
 	}
 
-	jctx.config.Log.Logger = log.New(out, "", flags)
-
-	log.Printf("logging in %s for %s:%d [periodic stats every %d seconds]\n",
-		jctx.config.Log.File, jctx.config.Host, jctx.config.Port, jctx.config.Log.PeriodicStats)
 }

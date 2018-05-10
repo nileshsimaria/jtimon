@@ -82,7 +82,7 @@ func dbBatchWrite(jctx *JCtx) {
 				if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
 					jLog(jctx, fmt.Sprintf("Batch DB write failed: %v", err))
 				} else {
-					jLog(jctx, fmt.Sprintln("Batch write sucessful! Post batch write available points: ", len(batchCh)))
+					jLog(jctx, fmt.Sprintln("Batch write successful! Post batch write available points: ", len(batchCh)))
 				}
 			}
 		}

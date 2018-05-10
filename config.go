@@ -33,8 +33,8 @@ type LogConfig struct {
 	DropCheck     bool   `json:"drop-check"`
 	LatencyCheck  bool   `json:"latency-check"`
 	CSVStats      bool   `json:"csv-stats"`
-	handle        *os.File
-	loger         *log.Logger
+	FileHandle    *os.File
+	Logger        *log.Logger
 }
 
 // APIConfig is config struct for API Server

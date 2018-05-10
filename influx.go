@@ -53,7 +53,7 @@ func dbBatchWrite(jctx *JCtx) {
 
 	// wake up periodically and perform batch write into InfluxDB
 	bFreq := jctx.config.Influx.BatchFrequency
-	l(true, jctx, fmt.Sprintln("batch-size :", batchSize, "batch-freq", bFreq))
+	jLog(jctx, fmt.Sprintln("batch size:", batchSize, "batch frequency:", bFreq))
 
 	ticker := time.NewTicker(time.Duration(bFreq) * time.Millisecond)
 	go func() {
@@ -66,7 +66,7 @@ func dbBatchWrite(jctx *JCtx) {
 				})
 
 				if err != nil {
-					l(true, jctx, fmt.Sprintf("NewBatchPoints failed, error: %v\n", err))
+					jLog(jctx, fmt.Sprintf("NewBatchPoints failed, error: %v\n", err))
 					return
 				}
 
@@ -77,12 +77,12 @@ func dbBatchWrite(jctx *JCtx) {
 					}
 				}
 
-				l(true, jctx, fmt.Sprintf("Batch processing: #packets:%d #points:%d\n", n, len(bp.Points())))
+				jLog(jctx, fmt.Sprintf("Batch processing: #packets:%d #points:%d\n", n, len(bp.Points())))
 
 				if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
-					l(true, jctx, fmt.Sprintf("Batch DB write failed: %v", err))
+					jLog(jctx, fmt.Sprintf("Batch DB write failed: %v", err))
 				} else {
-					l(true, jctx, fmt.Sprintln("Batch write sucessful! Post batch write available points: ", len(batchCh)))
+					jLog(jctx, fmt.Sprintln("Batch write sucessful! Post batch write available points: ", len(batchCh)))
 				}
 			}
 		}
@@ -135,8 +135,6 @@ func mName(ocData *na_pb.OpenConfigData, cfg Config) string {
 // A go routine to add header of gRPC in to influxDB
 func addGRPCHeader(jctx *JCtx, hmap map[string]interface{}) {
 	cfg := jctx.config
-	jctx.influxCtx.Lock()
-	defer jctx.influxCtx.Unlock()
 
 	if jctx.influxCtx.influxClient == nil {
 		return
@@ -168,8 +166,6 @@ func addGRPCHeader(jctx *JCtx, hmap map[string]interface{}) {
 // A go routine to add summary of stats collection in to influxDB
 func addIDBSummary(jctx *JCtx, stmap map[string]interface{}) {
 	cfg := jctx.config
-	jctx.influxCtx.Lock()
-	defer jctx.influxCtx.Unlock()
 
 	if jctx.influxCtx.influxClient == nil {
 		return
@@ -280,7 +276,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 					// We can merge
 					lastKV, err := lastPoint.Fields()
 					if err != nil {
-						l(true, jctx, fmt.Sprintf("addIDB: Could not get fields of the last point: %v\n", err))
+						jLog(jctx, fmt.Sprintf("addIDB: Could not get fields of the last point: %v\n", err))
 						continue
 					}
 					// get the fields from last point for merging
@@ -289,7 +285,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 					}
 					pt, err := client.NewPoint(mName(ocData, jctx.config), tags, kv, rtime)
 					if err != nil {
-						l(true, jctx, fmt.Sprintf("addIDB: Could not get NewPoint (merging): %v\n", err))
+						jLog(jctx, fmt.Sprintf("addIDB: Could not get NewPoint (merging): %v\n", err))
 						continue
 					}
 					// Replace last point with new point having merged fields
@@ -298,7 +294,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 					// Could not merge as tags are different
 					pt, err := client.NewPoint(mName(ocData, jctx.config), tags, kv, rtime)
 					if err != nil {
-						l(true, jctx, fmt.Sprintf("addIDB: Could not get NewPoint (no merge): %v\n", err))
+						jLog(jctx, fmt.Sprintf("addIDB: Could not get NewPoint (no merge): %v\n", err))
 						continue
 					}
 					points = append(points, pt)
@@ -307,7 +303,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 				// First point for this sensor
 				pt, err := client.NewPoint(mName(ocData, jctx.config), tags, kv, rtime)
 				if err != nil {
-					l(true, jctx, fmt.Sprintf("addIDB: Could not get NewPoint (first point): %v\n", err))
+					jLog(jctx, fmt.Sprintf("addIDB: Could not get NewPoint (first point): %v\n", err))
 					continue
 				}
 				points = append(points, pt)
@@ -319,11 +315,11 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 		jctx.influxCtx.batchWCh <- points
 
 		if IsVerboseLogging(jctx) {
-			l(true, jctx, fmt.Sprintf("Sending %d points to batch channel for path: %s\n", len(points), ocData.Path))
+			jLog(jctx, fmt.Sprintf("Sending %d points to batch channel for path: %s\n", len(points), ocData.Path))
 			for i := 0; i < len(points); i++ {
-				l(true, jctx, fmt.Sprintf("Tags: %+v\n", points[i].Tags()))
+				jLog(jctx, fmt.Sprintf("Tags: %+v\n", points[i].Tags()))
 				if f, err := points[i].Fields(); err != nil {
-					l(true, jctx, fmt.Sprintf("KVs : %+v\n", f))
+					jLog(jctx, fmt.Sprintf("KVs : %+v\n", f))
 				}
 			}
 		}
@@ -380,6 +376,6 @@ func influxInit(jctx *JCtx) {
 	jctx.influxCtx.influxClient = c
 	if cfg.Influx.Server != "" && c != nil {
 		dbBatchWrite(jctx)
-		l(true, jctx, "Successfully initialized InfluxDB Client")
+		jLog(jctx, "Successfully initialized InfluxDB Client")
 	}
 }

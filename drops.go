@@ -23,8 +23,8 @@ func dropCheckCSV(jctx *JCtx) {
 	if !jctx.config.Log.CSVStats {
 		return
 	}
-	f := jctx.config.Log.handle
-	if jctx.config.Log.handle == nil {
+	f := jctx.config.Log.FileHandle
+	if jctx.config.Log.FileHandle == nil {
 		return
 	}
 	f.Seek(0, 0)
@@ -100,7 +100,6 @@ func printDropDS(jctx *JCtx) {
 		}
 	}
 	s += fmt.Sprintf("+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
-	// Log it. The caller printSummary() has already taken global mutex log so dont try to get it again here.
-	l(false, jctx, s)
+	jLog(jctx, s)
 	jctx.stats.Unlock()
 }

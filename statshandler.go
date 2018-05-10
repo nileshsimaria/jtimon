@@ -77,7 +77,7 @@ func (h *statshandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
 									rePGetTS = nextnextKV.GetUintValue()
 								}
 							}
-							l(true, h.jctx, fmt.Sprintf("%s,%d,%d,%d,%d,%d,%d,%d,%d\n",
+							jLog(h.jctx, fmt.Sprintf("%s,%d,%d,%d,%d,%d,%d,%d,%d\n",
 								v.Path, v.SequenceNumber, v.ComponentId, v.SubComponentId, s.(*stats.InPayload).Length, v.Timestamp, kvvalue.UintValue, reCTS, rePGetTS))
 						}
 					}
@@ -134,50 +134,53 @@ func periodicStats(jctx *JCtx) {
 		return
 	}
 
-	i := 0
+	headerCounter := 0
 	for {
 		tickChan := time.NewTicker(time.Second * time.Duration(pstats)).C
 		<-tickChan
 
 		// Do nothing if we haven't heard back anything from the device
-		gmutex.Lock()
+
 		jctx.stats.Lock()
 		if jctx.stats.totalIn == 0 {
 			jctx.stats.Unlock()
-			gmutex.Unlock()
 			continue
 		}
 
+		s := fmt.Sprintf("\n")
+
 		// print header
-		if i%100 == 0 {
+		if headerCounter%100 == 0 {
 			if jctx.config.Log.LatencyCheck {
-				l(false, jctx, fmt.Sprintf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+-----------------+\n"))
-				l(false, jctx, fmt.Sprintf("%s", "|         Timestamp            |        KV          |      Packets       |       Bytes        |     Bytes(wire)    | Average Latency |\n"))
-				l(false, jctx, fmt.Sprintf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+-----------------+\n"))
+				s += fmt.Sprintf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+-----------------+\n")
+				s += fmt.Sprintf("%s", "|         Timestamp            |        KV          |      Packets       |       Bytes        |     Bytes(wire)    | Average Latency |\n")
+				s += fmt.Sprintf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+-----------------+\n")
 			} else {
-				l(false, jctx, fmt.Sprintf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+\n"))
-				l(false, jctx, fmt.Sprintf("%s", "|         Timestamp            |        KV          |      Packets       |       Bytes        |     Bytes(wire)    |\n"))
-				l(false, jctx, fmt.Sprintf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+\n"))
+				s += fmt.Sprintf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+\n")
+				s += fmt.Sprintf("%s", "|         Timestamp            |        KV          |      Packets       |       Bytes        |     Bytes(wire)    |\n")
+				s += fmt.Sprintf("%s", "+------------------------------+--------------------+--------------------+--------------------+--------------------+\n")
 			}
 		}
 
 		if jctx.config.Log.LatencyCheck && jctx.stats.totalLatencyPkt != 0 {
-			l(false, jctx, fmt.Sprintf("| %s | %18v | %18v | %18v | %18v | %15v |\n", time.Now().Format(time.UnixDate),
+			s += fmt.Sprintf("| %s | %18v | %18v | %18v | %18v | %15v |\n", time.Now().Format(time.UnixDate),
 				jctx.stats.totalKV,
 				jctx.stats.totalIn,
 				jctx.stats.totalInPayloadLength,
 				jctx.stats.totalInPayloadWireLength,
-				jctx.stats.totalLatency/jctx.stats.totalLatencyPkt))
+				jctx.stats.totalLatency/jctx.stats.totalLatencyPkt)
 		} else {
-			l(false, jctx, fmt.Sprintf("| %s | %18v | %18v | %18v | %18v |\n", time.Now().Format(time.UnixDate),
+			s += fmt.Sprintf("| %s | %18v | %18v | %18v | %18v |\n", time.Now().Format(time.UnixDate),
 				jctx.stats.totalKV,
 				jctx.stats.totalIn,
 				jctx.stats.totalInPayloadLength,
-				jctx.stats.totalInPayloadWireLength))
+				jctx.stats.totalInPayloadWireLength)
 		}
 		jctx.stats.Unlock()
-		gmutex.Unlock()
-		i++
+		headerCounter++
+		if s != "" {
+			jLog(jctx, fmt.Sprintf("%s\n", s))
+		}
 	}
 }
 
@@ -230,7 +233,7 @@ func printSummary(jctx *JCtx) {
 	}
 
 	s += fmt.Sprintf("\n")
-	l(true, jctx, fmt.Sprintf("\n%s\n", s))
+	jLog(jctx, fmt.Sprintf("\n%s\n", s))
 
 	addIDBSummary(jctx, stmap)
 }

@@ -50,7 +50,6 @@ var (
 
 	version   = "version-not-available"
 	buildTime = "build-time-not-available"
-	gmutex    = &sync.Mutex{}
 )
 
 // JCtx is JTIMON run time context
@@ -97,7 +96,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 	if err != nil {
 		return ch, fmt.Errorf("Config parsing error (json Marshal) for %s[%d]: %v", file, idx, err)
 	}
-	l(true, &jctx, fmt.Sprintf("\nRunning config of JTIMON:\n %s\n", string(b)))
+	jLog(&jctx, fmt.Sprintf("\nRunning config of JTIMON:\n %s\n", string(b)))
 
 	go periodicStats(&jctx)
 	influxInit(&jctx)
@@ -132,13 +131,13 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 							certPool := x509.NewCertPool()
 							bs, err := ioutil.ReadFile(jctx.config.TLS.CA)
 							if err != nil {
-								l(true, &jctx, fmt.Sprintf("[%d] Failed to read ca cert: %s\n", idx, err))
+								jLog(&jctx, fmt.Sprintf("[%d] Failed to read ca cert: %s\n", idx, err))
 								return
 							}
 
 							ok := certPool.AppendCertsFromPEM(bs)
 							if !ok {
-								l(true, &jctx, fmt.Sprintf("[%d] Failed to append certs\n", idx))
+								jLog(&jctx, fmt.Sprintf("[%d] Failed to append certs\n", idx))
 								return
 							}
 
@@ -176,13 +175,13 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 						}
 					connect:
 						if retry {
-							l(true, &jctx, fmt.Sprintf("Reconnecting to %s", hostname))
+							jLog(&jctx, fmt.Sprintf("Reconnecting to %s", hostname))
 						} else {
-							l(true, &jctx, fmt.Sprintf("Connecting to %s", hostname))
+							jLog(&jctx, fmt.Sprintf("Connecting to %s", hostname))
 						}
 						conn, err := grpc.Dial(hostname, opts...)
 						if err != nil {
-							l(true, &jctx, fmt.Sprintf("[%d] Could not dial: %v\n", idx, err))
+							jLog(&jctx, fmt.Sprintf("[%d] Could not dial: %v\n", idx, err))
 							time.Sleep(10 * time.Second)
 							retry = true
 							goto connect
@@ -195,11 +194,11 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 								lc := auth_pb.NewLoginClient(conn)
 								dat, err := lc.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.config.CID})
 								if err != nil {
-									l(true, &jctx, fmt.Sprintf("[%d] Could not login: %v\n", idx, err))
+									jLog(&jctx, fmt.Sprintf("[%d] Could not login: %v\n", idx, err))
 									return
 								}
 								if dat.Result == false {
-									l(true, &jctx, fmt.Sprintf("[%d] LoginCheck failed", idx))
+									jLog(&jctx, fmt.Sprintf("[%d] LoginCheck failed", idx))
 									return
 								}
 							}

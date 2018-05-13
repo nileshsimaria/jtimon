@@ -2,32 +2,43 @@ package main
 
 import (
 	"fmt"
-	"github.com/influxdata/influxdb/client/v2"
-	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 	"log"
+	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/influxdata/influxdb/client/v2"
+	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 )
 
-type iFluxCtx struct {
+var (
+	// DefaultIDBBatchSize to use if user has not provided in the config
+	DefaultIDBBatchSize = 1024 * 1024
+	//DefaultIDBBatchFreq is 2 seconds
+	DefaultIDBBatchFreq = 2000
+)
+
+// InfluxCtx is run time info of InfluxDB data structures
+type InfluxCtx struct {
 	sync.Mutex
-	influxc *client.Client
-	tdm     map[string]timeDiff
+	influxClient *client.Client
+	batchWCh     chan []*client.Point
 }
 
-type influxCfg struct {
-	Server      string
-	Port        int
-	Dbname      string
-	User        string
-	Password    string
-	Recreate    bool
-	Measurement string
-	Flat        bool
-	Diet        bool
+// InfluxConfig is the config of InfluxDB
+type InfluxConfig struct {
+	Server         string `json:"server"`
+	Port           int    `json:"port"`
+	Dbname         string `json:"dbname"`
+	User           string `json:"user"`
+	Password       string `json:"password"`
+	Recreate       bool   `json:"recreate"`
+	Measurement    string `json:"measurement"`
+	Diet           bool   `json:"diet"`
+	BatchSize      int    `json:"batchsize"`
+	BatchFrequency int    `json:"batchfrequency"`
 }
 
 type timeDiff struct {
@@ -35,23 +46,47 @@ type timeDiff struct {
 	tags  map[string]string
 }
 
-func addTimeDiff(jctx *jcontext, sensor string, tags map[string]string, field string) {
-	jctx.iFlux.Lock()
-	defer jctx.iFlux.Unlock()
+func dbBatchWrite(jctx *JCtx) {
+	batchSize := jctx.config.Influx.BatchSize
+	batchCh := make(chan []*client.Point, batchSize)
+	jctx.influxCtx.batchWCh = batchCh
 
-	if jctx.iFlux.tdm == nil {
-		jctx.iFlux.tdm = make(map[string]timeDiff)
-	}
+	// wake up periodically and perform batch write into InfluxDB
+	bFreq := jctx.config.Influx.BatchFrequency
+	jLog(jctx, fmt.Sprintln("batch size:", batchSize, "batch frequency:", bFreq))
 
-	_, ok := jctx.iFlux.tdm[sensor]
-	if ok == false {
-		jctx.iFlux.tdm[sensor] = timeDiff{field, tags}
-		fmt.Printf("tdd-sensor: %s\n", sensor)
-		fmt.Printf("tdd-field : %s\n", field)
-		for tn, tv := range tags {
-			fmt.Printf("tdd-tag: name: %s value: %s\n", tn, tv)
+	ticker := time.NewTicker(time.Duration(bFreq) * time.Millisecond)
+	go func() {
+		for range ticker.C {
+			n := len(batchCh)
+			if n != 0 {
+				bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+					Database:  jctx.config.Influx.Dbname,
+					Precision: "us",
+				})
+
+				if err != nil {
+					jLog(jctx, fmt.Sprintf("NewBatchPoints failed, error: %v\n", err))
+					return
+				}
+
+				for i := 0; i < n; i++ {
+					packet := <-batchCh
+					for j := 0; j < len(packet); j++ {
+						bp.AddPoint(packet[j])
+					}
+				}
+
+				jLog(jctx, fmt.Sprintf("Batch processing: #packets:%d #points:%d\n", n, len(bp.Points())))
+
+				if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
+					jLog(jctx, fmt.Sprintf("Batch DB write failed: %v", err))
+				} else {
+					jLog(jctx, fmt.Sprintln("Batch write successful! Post batch write available points: ", len(batchCh)))
+				}
+			}
 		}
-	}
+	}()
 }
 
 // Takes in XML path with predicates and returns list of tags+values
@@ -76,101 +111,32 @@ func spitTagsNPath(xmlpath string) (string, map[string]string) {
 	return xmlpath, tags
 }
 
-func getMeasurementName(ocData *na_pb.OpenConfigData, cfg config) string {
+// SubscriptionPathFromPath to extract subscription path from path
+func SubscriptionPathFromPath(path string) string {
+	tokens := strings.Split(path, ":")
+	if len(tokens) == 4 {
+		return tokens[2]
+	}
+	return ""
+}
+
+func mName(ocData *na_pb.OpenConfigData, cfg Config) string {
 	if cfg.Influx.Measurement != "" {
 		return cfg.Influx.Measurement
 	}
+
 	if ocData != nil {
-		return ocData.SystemId
-	} else {
-		return ""
+		path := ocData.Path
+		return SubscriptionPathFromPath(path)
 	}
-}
-
-// A go routine to add one telemetry packet in to InfluxDB (flat schema)
-func addIDBFlat(jctx *jcontext, ocData *na_pb.OpenConfigData, rtime time.Time) {
-	cfg := jctx.cfg
-
-	jctx.iFlux.Lock()
-	defer jctx.iFlux.Unlock()
-	prefix := ""
-
-	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  cfg.Influx.Dbname,
-		Precision: "us",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	rs := uint64(0)
-	for _, kv := range ocData.Kv {
-		tags := make(map[string]string)
-		fields := make(map[string]interface{})
-
-		if kv.Key == "__prefix__" {
-			switch value := kv.Value.(type) {
-			case *na_pb.KeyValue_StrValue:
-				prefix = value.StrValue
-			}
-			continue
-		} else if kv.Key == "__junos_re_stream_creation_timestamp__" {
-			switch value := kv.Value.(type) {
-			case *na_pb.KeyValue_UintValue:
-				rs = value.UintValue
-			}
-			tags["jkey"] = kv.Key
-		} else {
-			tags["jkey"] = prefix + kv.Key
-		}
-
-		if rs == 0 {
-			rs = ocData.Timestamp
-		}
-
-		fields["__junos_re_stream_creation_timestamp__"] = rs
-		fields["system_id"] = ocData.SystemId
-		fields["component_id"] = ocData.ComponentId
-		fields["path"] = ocData.Path
-		fields["sequence_number"] = ocData.SequenceNumber
-		fields["timestamp"] = ocData.Timestamp
-
-		switch value := kv.Value.(type) {
-		case *na_pb.KeyValue_DoubleValue:
-			fields["jvalue"] = fmt.Sprintf("%v", value.DoubleValue)
-		case *na_pb.KeyValue_IntValue:
-			fields["jvalue"] = fmt.Sprintf("%v", value.IntValue)
-		case *na_pb.KeyValue_UintValue:
-			fields["jvalue"] = fmt.Sprintf("%v", value.UintValue)
-		case *na_pb.KeyValue_SintValue:
-			fields["jvalue"] = fmt.Sprintf("%v", value.SintValue)
-		case *na_pb.KeyValue_BoolValue:
-			fields["jvalue"] = fmt.Sprintf("%v", value.BoolValue)
-		case *na_pb.KeyValue_StrValue:
-			fields["jvalue"] = value.StrValue
-		}
-
-		if len(fields) != 0 {
-			pt, err := client.NewPoint(getMeasurementName(ocData, cfg), tags, fields, rtime)
-			if err != nil {
-				log.Fatal(err)
-			}
-			bp.AddPoint(pt)
-		}
-	}
-	// Write the batch
-	if err := (*jctx.iFlux.influxc).Write(bp); err != nil {
-		log.Fatal(err)
-	}
+	return ""
 }
 
 // A go routine to add header of gRPC in to influxDB
-func addGRPCHeader(jctx *jcontext, hmap map[string]interface{}) {
-	cfg := jctx.cfg
-	jctx.iFlux.Lock()
-	defer jctx.iFlux.Unlock()
+func addGRPCHeader(jctx *JCtx, hmap map[string]interface{}) {
+	cfg := jctx.config
 
-	if jctx.iFlux.influxc == nil {
+	if jctx.influxCtx.influxClient == nil {
 		return
 	}
 
@@ -183,26 +149,25 @@ func addGRPCHeader(jctx *jcontext, hmap map[string]interface{}) {
 	}
 
 	if len(hmap) != 0 {
-		st_measurement := getMeasurementName(nil, jctx.cfg)
+		m := mName(nil, jctx.config)
+		m = fmt.Sprintf("%s-%d-HDR", m, jctx.index)
 		tags := make(map[string]string)
-		pt, err := client.NewPoint(st_measurement+"-HDR", tags, hmap, time.Now())
+		pt, err := client.NewPoint(m, tags, hmap, time.Now())
 		if err != nil {
 			log.Fatal(err)
 		}
 		bp.AddPoint(pt)
-		if err := (*jctx.iFlux.influxc).Write(bp); err != nil {
+		if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
 			log.Fatal(err)
 		}
 	}
 }
 
 // A go routine to add summary of stats collection in to influxDB
-func addIDBSummary(jctx *jcontext, stmap map[string]interface{}) {
-	cfg := jctx.cfg
-	jctx.iFlux.Lock()
-	defer jctx.iFlux.Unlock()
+func addIDBSummary(jctx *JCtx, stmap map[string]interface{}) {
+	cfg := jctx.config
 
-	if jctx.iFlux.influxc == nil {
+	if jctx.influxCtx.influxClient == nil {
 		return
 	}
 
@@ -215,147 +180,154 @@ func addIDBSummary(jctx *jcontext, stmap map[string]interface{}) {
 	}
 
 	if len(stmap) != 0 {
-		st_measurement := getMeasurementName(nil, jctx.cfg)
+		m := mName(nil, jctx.config)
+		m = fmt.Sprintf("%s-%d-LOG", m, jctx.index)
 		tags := make(map[string]string)
-		pt, err := client.NewPoint(st_measurement+"-LOG", tags, stmap, time.Now())
+		pt, err := client.NewPoint(m, tags, stmap, time.Now())
 		if err != nil {
 			log.Fatal(err)
 		}
 		bp.AddPoint(pt)
-		if err := (*jctx.iFlux.influxc).Write(bp); err != nil {
+		if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
 			log.Fatal(err)
 		}
 	}
 }
 
 // A go routine to add one telemetry packet in to InfluxDB
-func addIDB(ocData *na_pb.OpenConfigData, jctx *jcontext, rtime time.Time) {
-	cfg := jctx.cfg
-
-	if jctx.iFlux.influxc == nil {
+func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
+	cfg := jctx.config
+	if jctx.influxCtx.influxClient == nil {
 		return
 	}
 
-	if cfg.Influx.Flat == true {
-		addIDBFlat(jctx, ocData, rtime)
-		return
-	}
-
-	jctx.iFlux.Lock()
-	defer jctx.iFlux.Unlock()
 	prefix := ""
-
-	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  cfg.Influx.Dbname,
-		Precision: "us",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
+	points := make([]*client.Point, 0, 0)
 
 	for _, v := range ocData.Kv {
 		kv := make(map[string]interface{})
-		kv["platency"] = rtime.UnixNano()/1000000 - int64(ocData.Timestamp)
-		if v.Key == "__timestamp__" {
-			if rtime.UnixNano()/1000000 < int64(v.GetUintValue()) {
-				kv["elatency"] = 0
-			} else {
-				kv["elatency"] = rtime.UnixNano()/1000000 - int64(v.GetUintValue())
+		if *stateHandler && *latencyProfile {
+			kv["platency"] = rtime.UnixNano()/1000000 - int64(ocData.Timestamp)
+			if v.Key == "__timestamp__" {
+				if rtime.UnixNano()/1000000 < int64(v.GetUintValue()) {
+					kv["elatency"] = 0
+				} else {
+					kv["elatency"] = rtime.UnixNano()/1000000 - int64(v.GetUintValue())
+				}
+				kv["ilatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
 			}
-			kv["ilatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
-		}
-		if v.Key == "__agentd_rx_timestamp__" {
-			kv["arxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
-		}
-		if v.Key == "__agentd_tx_timestamp__" {
-			kv["atxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
+			if v.Key == "__agentd_rx_timestamp__" {
+				kv["arxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
+			}
+			if v.Key == "__agentd_tx_timestamp__" {
+				kv["atxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
+			}
 		}
 
-		if v.Key == "__prefix__" {
+		switch {
+		case v.Key == "__prefix__":
 			prefix = v.GetStrValue()
+			continue
+		case strings.HasPrefix(v.Key, "__"):
+			continue
 		}
 
 		key := v.Key
-		if strings.HasPrefix(key, "/") == false {
+		if !strings.HasPrefix(key, "/") {
 			key = prefix + v.Key
 		}
 
 		xmlpath, tags := spitTagsNPath(key)
-		if *td == true {
-			if strings.HasPrefix(v.Key, "__") == false {
-				addTimeDiff(jctx, ocData.Path, tags, xmlpath)
-			}
-		}
 		tags["device"] = cfg.Host
 		tags["sensor"] = ocData.Path
-		kv["sequence_number"] = float64(ocData.SequenceNumber)
-		kv["component_id"] = ocData.ComponentId
 
-		if cfg.Influx.Diet == false {
+		if !cfg.Influx.Diet {
 			switch v.Value.(type) {
 			case *na_pb.KeyValue_StrValue:
-				if val, err := strconv.ParseInt(v.GetStrValue(), 10, 64); err == nil {
-					kv[xmlpath+"-int"] = val
-				} else {
-					kv[xmlpath] = v.GetStrValue()
-				}
+				kv[xmlpath] = v.GetStrValue()
 				break
 			case *na_pb.KeyValue_DoubleValue:
-				kv[xmlpath+"-float"] = float64(v.GetDoubleValue())
+				kv[xmlpath] = float64(v.GetDoubleValue())
 				break
 			case *na_pb.KeyValue_IntValue:
-				kv[xmlpath+"-float"] = float64(v.GetIntValue())
+				kv[xmlpath] = float64(v.GetIntValue())
 				break
 			case *na_pb.KeyValue_UintValue:
-				kv[xmlpath+"-float"] = float64(v.GetUintValue())
+				kv[xmlpath] = float64(v.GetUintValue())
 				break
 			case *na_pb.KeyValue_SintValue:
-				kv[xmlpath+"-float"] = float64(v.GetSintValue())
+				kv[xmlpath] = float64(v.GetSintValue())
 				break
 			case *na_pb.KeyValue_BoolValue:
-				kv[xmlpath+"-bool"] = v.GetBoolValue()
+				kv[xmlpath] = v.GetBoolValue()
 				break
 			case *na_pb.KeyValue_BytesValue:
-				kv[xmlpath+"-bytes"] = v.GetBytesValue()
+				kv[xmlpath] = v.GetBytesValue()
 				break
 			default:
 			}
 		}
 
 		if len(kv) != 0 {
-			pt, err := client.NewPoint(getMeasurementName(ocData, jctx.cfg), tags, kv, rtime)
-			if err != nil {
-				log.Fatal(err)
+			if len(points) != 0 {
+				lastPoint := points[len(points)-1]
+				eq := reflect.DeepEqual(tags, lastPoint.Tags())
+				if eq {
+					// We can merge
+					lastKV, err := lastPoint.Fields()
+					if err != nil {
+						jLog(jctx, fmt.Sprintf("addIDB: Could not get fields of the last point: %v\n", err))
+						continue
+					}
+					// get the fields from last point for merging
+					for k, v := range lastKV {
+						kv[k] = v
+					}
+					pt, err := client.NewPoint(mName(ocData, jctx.config), tags, kv, rtime)
+					if err != nil {
+						jLog(jctx, fmt.Sprintf("addIDB: Could not get NewPoint (merging): %v\n", err))
+						continue
+					}
+					// Replace last point with new point having merged fields
+					points[len(points)-1] = pt
+				} else {
+					// Could not merge as tags are different
+					pt, err := client.NewPoint(mName(ocData, jctx.config), tags, kv, rtime)
+					if err != nil {
+						jLog(jctx, fmt.Sprintf("addIDB: Could not get NewPoint (no merge): %v\n", err))
+						continue
+					}
+					points = append(points, pt)
+				}
+			} else {
+				// First point for this sensor
+				pt, err := client.NewPoint(mName(ocData, jctx.config), tags, kv, rtime)
+				if err != nil {
+					jLog(jctx, fmt.Sprintf("addIDB: Could not get NewPoint (first point): %v\n", err))
+					continue
+				}
+				points = append(points, pt)
 			}
-			bp.AddPoint(pt)
 		}
 	}
 
-	if err := (*jctx.iFlux.influxc).Write(bp); err != nil {
-		log.Fatal(err)
-	}
-}
+	if len(points) > 0 {
+		jctx.influxCtx.batchWCh <- points
 
-func influxDBQueryString(jctx *jcontext) {
-	jctx.iFlux.Lock()
-	defer jctx.iFlux.Unlock()
-
-	fmt.Println("influxDBQueryString()")
-
-	for sensor, timeDiff := range jctx.iFlux.tdm {
-		fmt.Printf("tdd-sensor: %s\n", sensor)
-		fmt.Printf("tdd-field : %s\n", timeDiff.field)
-		for tn, tv := range timeDiff.tags {
-			fmt.Printf("tdd-tag: name: %s value: %s\n", tn, tv)
+		if IsVerboseLogging(jctx) {
+			jLog(jctx, fmt.Sprintf("Sending %d points to batch channel for path: %s\n", len(points), ocData.Path))
+			for i := 0; i < len(points); i++ {
+				jLog(jctx, fmt.Sprintf("Tags: %+v\n", points[i].Tags()))
+				if f, err := points[i].Fields(); err != nil {
+					jLog(jctx, fmt.Sprintf("KVs : %+v\n", f))
+				}
+			}
 		}
 	}
-
-	//resp, err := queryIDB(*iFlux.influxc, fmt.Sprintf("DROP DATABASE %s", cfg.Influx.Dbname), cfg.Influx.Dbname)
-	//fmt.Printf("%v\n", resp)
-
 }
-func getInfluxClient(cfg config) *client.Client {
-	if cfg.Influx == nil {
+
+func getInfluxClient(cfg Config) *client.Client {
+	if cfg.Influx.Server == "" {
 		return nil
 	}
 	addr := fmt.Sprintf("http://%v:%v", cfg.Influx.Server, cfg.Influx.Port)
@@ -387,10 +359,11 @@ func queryIDB(clnt client.Client, cmd string, db string) (res []client.Result, e
 	return res, nil
 }
 
-func influxInit(cfg config) *client.Client {
+func influxInit(jctx *JCtx) {
+	cfg := jctx.config
 	c := getInfluxClient(cfg)
 
-	if cfg.Influx != nil && cfg.Influx.Recreate == true && c != nil {
+	if cfg.Influx.Server != "" && cfg.Influx.Recreate == true && c != nil {
 		_, err := queryIDB(*c, fmt.Sprintf("DROP DATABASE \"%s\"", cfg.Influx.Dbname), cfg.Influx.Dbname)
 		if err != nil {
 			log.Fatal(err)
@@ -400,5 +373,9 @@ func influxInit(cfg config) *client.Client {
 			log.Fatal(err)
 		}
 	}
-	return c
+	jctx.influxCtx.influxClient = c
+	if cfg.Influx.Server != "" && c != nil {
+		dbBatchWrite(jctx)
+		jLog(jctx, "Successfully initialized InfluxDB Client")
+	}
 }

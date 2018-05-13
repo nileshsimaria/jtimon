@@ -1,127 +1,131 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"log"
 	"os"
 )
 
-type config struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	Meta     bool
-	Eos      bool
-	Cid      string
-	Api      api
-	Grpc     grpccfg
-	Tls      tlscfg
-	Influx   *influxCfg
-	Paths    []spath
-	CStats   statsT
-	Log      logT
+// Config struct
+type Config struct {
+	Host     string        `json:"host"`
+	Port     int           `json:"port"`
+	User     string        `json:"user"`
+	Password string        `json:"password"`
+	Meta     bool          `json:"meta"`
+	EOS      bool          `json:"eos"`
+	CID      string        `json:"cid"`
+	API      APIConfig     `json:"api"`
+	GRPC     GRPCConfig    `json:"grpc"`
+	TLS      TLSConfig     `json:"tls"`
+	Influx   InfluxConfig  `json:"influx"`
+	Paths    []PathsConfig `json:"paths"`
+	Log      LogConfig     `json:"log"`
 }
 
-type logT struct {
-	LogFileName string
-	FileHandle  *os.File
+//LogConfig is config struct for logging
+type LogConfig struct {
+	File          string `json:"file"`
+	Verbose       bool   `json:"verbose"`
+	PeriodicStats int    `json:"periodic-stats"`
+	DropCheck     bool   `json:"drop-check"`
+	LatencyCheck  bool   `json:"latency-check"`
+	CSVStats      bool   `json:"csv-stats"`
+	FileHandle    *os.File
+	Logger        *log.Logger
 }
 
-type statsT struct {
-	pstats    int64
-	csv_stats bool
+// APIConfig is config struct for API Server
+type APIConfig struct {
+	Port int `json:"port"`
 }
 
-type api struct {
-	Port int
+//GRPCConfig is to specify GRPC params
+type GRPCConfig struct {
+	WS int32 `json:"ws"`
 }
 
-type grpccfg struct {
-	Ws int32
+// TLSConfig is to specify TLS params
+type TLSConfig struct {
+	ClientCrt  string `json:"clientcrt"`
+	ClientKey  string `json:"clientkey"`
+	CA         string `json:"ca"`
+	ServerName string `json:"servername"`
 }
 
-type tlscfg struct {
-	ClientCrt  string
-	ClientKey  string
-	Ca         string
-	ServerName string
+// PathsConfig to specify subscription path, reporting-interval (freq), etc,.
+type PathsConfig struct {
+	Path string `json:"path"`
+	Freq uint64 `json:"freq"`
+	Mode string `json:"mode"`
 }
 
-type spath struct {
-	Path string
-	Freq uint64
-	Mode string
+// NewJTIMONConfig to return config object
+func NewJTIMONConfig(file string) (Config, error) {
+	// parse config file
+	config, err := ParseJSON(file)
+	return config, err
 }
 
-func configInit(cfgFile string) config {
-	if cfgFile == "" {
-		fmt.Printf("Enter config file name: ")
-		r := bufio.NewScanner(os.Stdin)
-		r.Scan()
-		cfgFile = r.Text()
+func fillupDefaults(config *Config) {
+	// fill up defaults
+	if config.GRPC.WS == 0 {
+		config.GRPC.WS = DefaultGRPCWindowSize
+	}
+	if config.Influx.BatchFrequency == 0 {
+		config.Influx.BatchFrequency = DefaultIDBBatchFreq
+	}
+	if config.Influx.BatchSize == 0 {
+		config.Influx.BatchSize = DefaultIDBBatchSize
+	}
+}
+
+// ParseJSON parses JSON encoded config of JTIMON
+func ParseJSON(file string) (Config, error) {
+	var config Config
+
+	f, err := ioutil.ReadFile(file)
+	if err != nil {
+		return config, err
+	}
+	if err := json.Unmarshal(f, &config); err != nil {
+		return config, err
 	}
 
-	// parse config file
-	cfg := parseJSON(cfgFile)
+	fillupDefaults(&config)
 
-	//logJSON(cfg)
-
-	return cfg
+	return config, nil
 }
 
-func configValidation(jctx *jcontext) {
-	if jctx.cfg.CStats.csv_stats {
-		if *dcheck {
-			if jctx.cfg.Log.LogFileName == "" {
-				log.Fatalf("Can't use --drop-check when cvs data log file is not used")
-			}
+// ValidateConfig for config validation
+func ValidateConfig(config Config) (string, error) {
+	b, err := json.MarshalIndent(config, "", "    ")
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+
+}
+
+// ExploreConfig of JTIMON
+func ExploreConfig() (string, error) {
+	var config Config
+	c := "{\"paths\": [{}]}"
+
+	if err := json.Unmarshal([]byte(c), &config); err == nil {
+		if b, err := json.MarshalIndent(config, "", "    "); err == nil {
+			return string(b), nil
 		}
 	}
+	return "", errors.New("Something is very wrong - This should have not happened")
 }
 
-func parseJSON(cfgFile string) config {
-	var cfg config
-
-	file, e := ioutil.ReadFile(cfgFile)
-	if e != nil {
-		log.Fatalf("File error: %v\n", e)
-		os.Exit(1)
+// IsVerboseLogging returns true if verbose logging is enabled, false otherwise
+func IsVerboseLogging(jctx *JCtx) bool {
+	if jctx.config.Log.Verbose {
+		return true
 	}
-	if err := json.Unmarshal(file, &cfg); err != nil {
-		panic(err)
-	}
-	return cfg
-}
-
-func logJSON(cfg config) {
-	emitLog(fmt.Sprintf("Processing json config\n"))
-	emitLog(fmt.Sprintf("Host: %v\n", cfg.Host))
-	emitLog(fmt.Sprintf("Port: %v\n", cfg.Port))
-	emitLog(fmt.Sprintf("CID:  %v\n", cfg.Cid))
-	emitLog(fmt.Sprintf("API-Port: %v\n", cfg.Api.Port))
-	emitLog(fmt.Sprintf("gRPC window-size: %v\n", cfg.Grpc.Ws))
-
-	emitLog(fmt.Sprintf("TLS Client-CRT: %v\n", cfg.Tls.ClientCrt))
-	emitLog(fmt.Sprintf("TLS Client-KEY: %v\n", cfg.Tls.ClientKey))
-	emitLog(fmt.Sprintf("TLS CA: %v\n", cfg.Tls.Ca))
-	emitLog(fmt.Sprintf("TLS Server-Name: %v\n", cfg.Tls.ServerName))
-
-	for i := range cfg.Paths {
-		emitLog(fmt.Sprintf("Path: %v Freq: %v Subscription-Mode: %v\n", cfg.Paths[i].Path, cfg.Paths[i].Freq, cfg.Paths[i].Mode))
-	}
-	if cfg.Influx != nil {
-		emitLog(fmt.Sprintf("Server : %v\n", cfg.Influx.Server))
-		emitLog(fmt.Sprintf("Port: %v\n", cfg.Influx.Port))
-		emitLog(fmt.Sprintf("DBName: %v\n", cfg.Influx.Dbname))
-		emitLog(fmt.Sprintf("Measurement: %v\n", cfg.Influx.Measurement))
-		emitLog(fmt.Sprintf("Recreate DB: %v\n", cfg.Influx.Recreate))
-		emitLog(fmt.Sprintf("User: %v\n", cfg.Influx.User))
-		emitLog(fmt.Sprintf("Password: %v\n", cfg.Influx.Password))
-		emitLog(fmt.Sprintf("Flat Schema: %v\n", cfg.Influx.Flat))
-		emitLog(fmt.Sprintf("Diet Influx: %v\n", cfg.Influx.Diet))
-	}
+	return false
 }

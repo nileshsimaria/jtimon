@@ -11,18 +11,23 @@ import (
 	gnmipb "github.com/nileshsimaria/jtimon/gnmi"
 )
 
+//PathType of gnmi
 type PathType int64
 
 const (
+	//StructuredPath of gnmi
 	StructuredPath PathType = iota
+	//StringSlicePath of gnmi
 	StringSlicePath
 )
 
+//PathToString - convert gnmi path to string
 func PathToString(path *gnmipb.Path) (string, error) {
 	s, err := PathToStrings(path)
 	return "/" + stdpath.Join(s...), err
 }
 
+//PathToStrings -- convert gnmi Path to []string
 func PathToStrings(path *gnmipb.Path) ([]string, error) {
 	var p []string
 	if path.Element != nil {
@@ -75,6 +80,7 @@ func elemToString(name string, kv map[string]string) (string, error) {
 	return name, nil
 }
 
+// StringToPath - convert string into gnmi path
 func StringToPath(path string, pathTypes ...PathType) (*gnmipb.Path, error) {
 	var errs Errors
 	if len(pathTypes) == 0 {
@@ -108,6 +114,7 @@ func StringToPath(path string, pathTypes ...PathType) (*gnmipb.Path, error) {
 	return pmsg, nil
 }
 
+// StringToStringSlicePath - convert path to gnmi path
 func StringToStringSlicePath(path string) (*gnmipb.Path, error) {
 	parts := pathStringToElements(path)
 	gpath := new(gnmipb.Path)
@@ -126,6 +133,7 @@ func StringToStringSlicePath(path string) (*gnmipb.Path, error) {
 	return gpath, nil
 }
 
+// StringToStructuredPath - convert string into gnmi structured path
 func StringToStructuredPath(path string) (*gnmipb.Path, error) {
 	parts := pathStringToElements(path)
 

@@ -1,2 +1,7 @@
 .ash_history
 jtimon
+jtimon-darwin-amd64
+jtimon-linux-amd64
+*.log
+.*
+debug.test

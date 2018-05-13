@@ -3,11 +3,10 @@ package main
 import (
 	"bufio"
 	"fmt"
-	na_pb "github.com/nileshsimaria/jtimon/telemetry"
-	"log"
-	"os"
 	"strconv"
 	"strings"
+
+	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 )
 
 type dropData struct {
@@ -16,28 +15,19 @@ type dropData struct {
 	drop     uint64
 }
 
-func dropInit(jctx *jcontext) {
-	// Create a map for key ComponentID
+func dropInit(jctx *JCtx) {
 	jctx.dMap = make(map[uint32]map[uint32]map[string]dropData)
 }
 
-func dropCheckCSV(jctx *jcontext) {
-	if !jctx.cfg.CStats.csv_stats {
+func dropCheckCSV(jctx *JCtx) {
+	if !jctx.config.Log.CSVStats {
 		return
 	}
-
-	if jctx.cfg.Log.LogFileName == "" {
+	f := jctx.config.Log.FileHandle
+	if jctx.config.Log.FileHandle == nil {
 		return
 	}
-	if err := jctx.cfg.Log.FileHandle.Close(); err != nil {
-		log.Fatalf("Could not close csv data log file(%s): %v\n", jctx.cfg.Log.LogFileName, err)
-	}
-
-	f, err := os.Open(jctx.cfg.Log.LogFileName)
-	if err != nil {
-		log.Fatalf("Could not open csv data log file(%s) for drop-check: %v\n", jctx.cfg.Log.LogFileName, err)
-	}
-	defer f.Close()
+	f.Seek(0, 0)
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -47,34 +37,31 @@ func dropCheckCSV(jctx *jcontext) {
 			//fmt.Printf("\n%s + %s + %s + %s + %s + %s + %s", tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5], tokens[6])
 			cid, _ := strconv.ParseUint(tokens[2], 10, 32)
 			scid, _ := strconv.ParseUint(tokens[3], 10, 32)
-			seq_num, _ := strconv.ParseUint(tokens[1], 10, 32)
+			seqNum, _ := strconv.ParseUint(tokens[1], 10, 32)
 
-			dropCheckWork(jctx, uint32(cid), uint32(scid), tokens[0], seq_num)
+			dropCheckWork(jctx, uint32(cid), uint32(scid), tokens[0], seqNum)
 		}
 
 	}
 }
 
-func dropCheckWork(jctx *jcontext, cid uint32, scid uint32, path string, seq uint64) {
+func dropCheckWork(jctx *JCtx, cid uint32, scid uint32, path string, seq uint64) {
 	var last dropData
 	var new dropData
 	var ok bool
 
 	_, ok = jctx.dMap[cid]
 	if ok == false {
-		// Create a map for key SubComponentID
 		jctx.dMap[cid] = make(map[uint32]map[string]dropData)
 	}
 
 	_, ok = jctx.dMap[cid][scid]
 	if ok == false {
-		// Create a map for key path (sensor)
 		jctx.dMap[cid][scid] = make(map[string]dropData)
 	}
 
 	last, ok = jctx.dMap[cid][scid][path]
 	if ok == false {
-		// A combination of (cid, scid, path) not found, create new dropData
 		new.seq = seq
 		new.received = 1
 		new.drop = 0
@@ -91,27 +78,28 @@ func dropCheckWork(jctx *jcontext, cid uint32, scid uint32, path string, seq uin
 	}
 }
 
-func dropCheck(jctx *jcontext, ocData *na_pb.OpenConfigData) {
+func dropCheck(jctx *JCtx, ocData *na_pb.OpenConfigData) {
 	dropCheckWork(jctx, ocData.ComponentId, ocData.SubComponentId, ocData.Path, ocData.SequenceNumber)
 }
 
-func printDropDS(jctx *jcontext) {
-	st.Lock()
-	fmt.Printf("\n Drops Distribution")
-	fmt.Printf("\n+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
-	fmt.Printf("\n| CID |SCID| Drops | Received | %-120s|", "Sensor Path")
-	fmt.Printf("\n+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
-	fmt.Printf("\n")
+func printDropDS(jctx *JCtx) {
+	jctx.stats.Lock()
+	s := fmt.Sprintf("\nDrops Distribution for %s:%d", jctx.config.Host, jctx.config.Port)
+	s += fmt.Sprintf("\n+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
+	s += fmt.Sprintf("\n| CID |SCID| Drops | Received | %-120s|", "Sensor Path")
+	s += fmt.Sprintf("\n+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
+	s += fmt.Sprintf("\n")
 	for cid, sdMap := range jctx.dMap {
 		for scid, pathM := range sdMap {
 			for path, dData := range pathM {
 				if path != "" {
-					fmt.Printf("|%5v|%4v| %6v| %8v | %-120s| \n", cid, scid, dData.drop, dData.received, path)
-					st.totalDdrops += dData.drop
+					s += fmt.Sprintf("|%5v|%4v| %6v| %8v | %-120s| \n", cid, scid, dData.drop, dData.received, path)
+					jctx.stats.totalDdrops += dData.drop
 				}
 			}
 		}
 	}
-	fmt.Printf("+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
-	st.Unlock()
+	s += fmt.Sprintf("+----+-----+-------+----------+%s+", strings.Repeat("-", 121))
+	jLog(jctx, s)
+	jctx.stats.Unlock()
 }

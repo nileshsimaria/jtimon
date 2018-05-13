@@ -1,0 +1,12 @@
+{
+    "host": "127.0.0.1",
+    "port": 50051,
+    "cid": "my-client-id",
+    "log" : {
+        "file" : "/tmp/jtisim-b.log"
+    }
+    "paths": [{
+        "path": "/interfaces",
+        "freq": 4000
+    }]
+}

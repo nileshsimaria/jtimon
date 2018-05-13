@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"google.golang.org/grpc"
 	"log"
 	"net"
 	"net/http"
+
+	"google.golang.org/grpc"
 )
 
-func start_gtrace(gtrace bool) {
+func startGtrace(gtrace bool) {
 	if gtrace == true {
 		/*
 		 * Turn on grpc trace - for the same turn on http server to

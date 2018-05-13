@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"strings"
+
 	gnmipb "github.com/nileshsimaria/jtimon/gnmi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"log"
-	"os"
-	"strings"
 )
 
 func getEncoding(encoding string) gnmipb.Encoding {
@@ -57,8 +58,8 @@ func getMode(mode string) gnmipb.SubscriptionList_Mode {
 	return gnmipb.SubscriptionList_STREAM
 }
 
-func subscribe_gnmi(conn *grpc.ClientConn, jctx *jcontext) {
-	cfg := jctx.cfg
+func subscribeGNMI(conn *grpc.ClientConn, jctx *JCtx) {
+	cfg := jctx.config
 
 	s := &gnmipb.SubscribeRequest_Subscribe{
 		Subscribe: &gnmipb.SubscriptionList{
@@ -70,7 +71,7 @@ func subscribe_gnmi(conn *grpc.ClientConn, jctx *jcontext) {
 
 	for i := range cfg.Paths {
 		fmt.Printf("ocPath: %s\n", cfg.Paths[i].Path)
-		gpath, err := xpath_to_gnmi_path(cfg.Paths[i].Path)
+		gpath, err := xpathToGNMIPath(cfg.Paths[i].Path)
 		if err != nil {
 			log.Fatalf("%v\n", err)
 		}
@@ -98,7 +99,7 @@ func processGNMIResponse(resp *gnmipb.SubscribeResponse) {
 	if notif := resp.GetUpdate(); notif != nil {
 		//fmt.Printf("update: %q\n", notif)
 	}
-	if sync_resp := resp.GetSyncResponse(); sync_resp {
+	if syncResp := resp.GetSyncResponse(); syncResp {
 		fmt.Printf("Received sync-response\n")
 		if false {
 			os.Exit(0)
@@ -109,12 +110,12 @@ func processGNMIResponse(resp *gnmipb.SubscribeResponse) {
 	}
 }
 
-func subSendAndReceiveGNMI(conn *grpc.ClientConn, jctx *jcontext, req *gnmipb.SubscribeRequest) {
+func subSendAndReceiveGNMI(conn *grpc.ClientConn, jctx *JCtx, req *gnmipb.SubscribeRequest) {
 	var ctx context.Context
 	c := gnmipb.NewGNMIClient(conn)
 
-	if jctx.cfg.Meta == true {
-		md := metadata.New(map[string]string{"username": jctx.cfg.User, "password": jctx.cfg.Password})
+	if jctx.config.Meta == true {
+		md := metadata.New(map[string]string{"username": jctx.config.User, "password": jctx.config.Password})
 		ctx = metadata.NewOutgoingContext(context.Background(), md)
 	} else {
 		ctx = context.Background()
@@ -138,7 +139,7 @@ func subSendAndReceiveGNMI(conn *grpc.ClientConn, jctx *jcontext, req *gnmipb.Su
 	}
 }
 
-func xpath_to_gnmi_path(input string) ([]string, error) {
+func xpathToGNMIPath(input string) ([]string, error) {
 	path := strings.Trim(input, "/")
 	var buf []rune
 	inKey := false

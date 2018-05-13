@@ -2,19 +2,20 @@ package main
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
-func apiInit(jctx *jcontext) {
+func apiInit(jctx *JCtx) {
 
-	if jctx.cfg.Api.Port == 0 {
+	if jctx.config.API.Port == 0 {
 		return
 	}
 
-	portstr := fmt.Sprintf(":%v", jctx.cfg.Api.Port)
+	portstr := fmt.Sprintf(":%v", jctx.config.API.Port)
 
 	jctx.pause.pch = make(chan int64)
 	jctx.pause.upch = make(chan struct{})
@@ -26,7 +27,7 @@ func apiInit(jctx *jcontext) {
 	log.Fatal(http.ListenAndServe(portstr, router))
 }
 
-func (jctx *jcontext) pauseHandler(w http.ResponseWriter, r *http.Request) {
+func (jctx *JCtx) pauseHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	pauseTime := vars["pauseTime"]
 	fmt.Printf("Pause Time: %v\n", pauseTime)
@@ -38,7 +39,7 @@ func (jctx *jcontext) pauseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (jctx *jcontext) upauseHandler(w http.ResponseWriter, r *http.Request) {
+func (jctx *JCtx) upauseHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Request for unpause\n")
 	jctx.pause.upch <- struct{}{}
 }

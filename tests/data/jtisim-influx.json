@@ -8,7 +8,8 @@
         "measurement" : "jtisim",
         "recreate" : false,
         "user" : "influx",
-        "password" : "influxdb"
+        "password" : "influxdb",
+        "batchfrequency" : 1000
     },
     "log" : {
         "file" : "tests/data/jtisim-influx.log",

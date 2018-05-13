@@ -25,6 +25,7 @@ type InfluxCtx struct {
 	sync.Mutex
 	influxClient *client.Client
 	batchWCh     chan []*client.Point
+	re           *regexp.Regexp
 }
 
 // InfluxConfig is the config of InfluxDB
@@ -91,9 +92,8 @@ func dbBatchWrite(jctx *JCtx) {
 
 // Takes in XML path with predicates and returns list of tags+values
 // along with a final XML path without predicates
-func spitTagsNPath(xmlpath string) (string, map[string]string) {
-	re := regexp.MustCompile("\\/([^\\/]*)\\[([A-Za-z0-9\\-\\/]*)\\=([^\\[]*)\\]")
-	subs := re.FindAllStringSubmatch(xmlpath, -1)
+func spitTagsNPath(jctx *JCtx, xmlpath string) (string, map[string]string) {
+	subs := jctx.influxCtx.re.FindAllStringSubmatch(xmlpath, -1)
 	tags := make(map[string]string)
 
 	// Given XML path, this will spit out final path without predicates
@@ -237,7 +237,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 			key = prefix + v.Key
 		}
 
-		xmlpath, tags := spitTagsNPath(key)
+		xmlpath, tags := spitTagsNPath(jctx, key)
 		tags["device"] = cfg.Host
 		tags["sensor"] = ocData.Path
 
@@ -374,6 +374,7 @@ func influxInit(jctx *JCtx) {
 		}
 	}
 	jctx.influxCtx.influxClient = c
+	jctx.influxCtx.re = regexp.MustCompile("\\/([^\\/]*)\\[([A-Za-z0-9\\-\\/]*)\\=([^\\[]*)\\]")
 	if cfg.Influx.Server != "" && c != nil {
 		dbBatchWrite(jctx)
 		jLog(jctx, "Successfully initialized InfluxDB Client")

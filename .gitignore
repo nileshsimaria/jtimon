@@ -5,3 +5,4 @@ jtimon-linux-amd64
 *.log
 .*
 debug.test
+jtimon-windows-amd64.exe

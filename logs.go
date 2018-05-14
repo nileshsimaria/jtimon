@@ -1,18 +1,28 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
 )
 
 func jLog(jctx *JCtx, msg string) {
+	if *logMux {
+		log.Printf(fmt.Sprintf("[%s]:%s", jctx.config.Host, msg))
+		return
+	}
+
 	if jctx.config.Log.Logger != nil {
 		jctx.config.Log.Logger.Printf(msg)
 	}
 }
 
 func logInit(jctx *JCtx) {
+	if *logMux {
+		return
+	}
+
 	file := jctx.config.Log.File
 	var out io.Writer
 
@@ -40,5 +50,4 @@ func logInit(jctx *JCtx) {
 			jctx.config.Log.File, jctx.config.Host, jctx.config.Port, jctx.config.Log.PeriodicStats)
 
 	}
-
 }

@@ -30,16 +30,17 @@ type InfluxCtx struct {
 
 // InfluxConfig is the config of InfluxDB
 type InfluxConfig struct {
-	Server         string `json:"server"`
-	Port           int    `json:"port"`
-	Dbname         string `json:"dbname"`
-	User           string `json:"user"`
-	Password       string `json:"password"`
-	Recreate       bool   `json:"recreate"`
-	Measurement    string `json:"measurement"`
-	Diet           bool   `json:"diet"`
-	BatchSize      int    `json:"batchsize"`
-	BatchFrequency int    `json:"batchfrequency"`
+	Server          string `json:"server"`
+	Port            int    `json:"port"`
+	Dbname          string `json:"dbname"`
+	User            string `json:"user"`
+	Password        string `json:"password"`
+	Recreate        bool   `json:"recreate"`
+	Measurement     string `json:"measurement"`
+	Diet            bool   `json:"diet"`
+	BatchSize       int    `json:"batchsize"`
+	BatchFrequency  int    `json:"batchfrequency"`
+	RetentionPolicy string `json:"retention-policy"`
 }
 
 type timeDiff struct {
@@ -62,8 +63,9 @@ func dbBatchWrite(jctx *JCtx) {
 			n := len(batchCh)
 			if n != 0 {
 				bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-					Database:  jctx.config.Influx.Dbname,
-					Precision: "us",
+					Database:        jctx.config.Influx.Dbname,
+					Precision:       "us",
+					RetentionPolicy: jctx.config.Influx.RetentionPolicy,
 				})
 
 				if err != nil {

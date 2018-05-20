@@ -74,6 +74,7 @@ Usage of ./jtimon:
       --stats-handler           Use GRPC statshandler
       --version                 Print version and build-time of the binary and exit
 pflag: help requested
+</pre>
 
 # Config
 <pre>

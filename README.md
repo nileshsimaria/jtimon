@@ -53,24 +53,27 @@ Enter config file name: bla.json
 <pre>
 $ ./jtimon --help
 Usage of ./jtimon:
-      --compression string     Enable HTTP/2 compression (gzip, deflate)
-      --config string          Config file name
-      --csv-stats              Capture size of each telemetry packet
-      --drop-check             Check for packet drops
-      --gnmi                   Use gnmi proto
-      --gnmi-encoding string   gnmi encoding (proto | json | bytes | ascii | ietf-json (default "proto")
-      --gnmi-mode string       Mode of gnmi (stream | once | poll (default "stream")
-      --gtrace                 Collect GRPC traces
-      --latency-check          Check for latency
-      --log string             Log file name
-      --max-kv uint            Max kv
-      --max-run int            Max run time in seconds
-      --prefix-check           Report missing __prefix__ in telemetry packet
-      --print                  Print Telemetry data
-      --prometheus             Stats for prometheus monitoring system
-      --sleep int              Sleep after each read (ms)
-      --stats int              Print collected stats periodically
-      --time-diff              Time Diff for sensor analysis using InfluxDB</pre>      
+      --api                     Receive HTTP commands when running
+      --compression string      Enable HTTP/2 compression (gzip, deflate)
+      --config strings          Config file name(s)
+      --explore-config          Explore full config of JTIMON and exit
+      --gnmi                    Use gnmi proto
+      --gnmi-encoding string    gnmi encoding (proto | json | bytes | ascii | ietf-json (default "proto")
+      --gnmi-mode string        Mode of gnmi (stream | once | poll (default "stream")
+      --grpc-headers            Add grpc headers in DB
+      --gtrace                  Collect GRPC traces
+      --latency-profile         Profile latencies. Place them in TSDB
+      --log-mux-stdout          All logs to stdout
+      --max-run int             Max run time in seconds
+      --pprof                   Profile JTIMON
+      --pprof-port int32        Profile port (default 6060)
+      --prefix-check            Report missing __prefix__ in telemetry packet
+      --print                   Print Telemetry data
+      --prometheus              Stats for prometheus monitoring system
+      --prometheus-port int32   Prometheus port (default 8090)
+      --stats-handler           Use GRPC statshandler
+      --version                 Print version and build-time of the binary and exit
+pflag: help requested
 
 # Config
 <pre>

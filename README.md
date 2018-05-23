@@ -10,9 +10,18 @@ OR
 
 $ git clone https://github.com/nileshsimaria/jtimon.git
 $ cd jtimon
-$ go build
-$ ./jtimon --help
+$ go build or make (see Makefile for all possible targets)
+$ ./jtimon --help 
+
+Please note that if you use make to build source, it will produce binary with GOOS and GOARCH names 
+e.g. jtimon-darwin-amd64, jtimon-linux-amd64 etc). Building the source using make is recommended as 
+it will insert git-revision, build-time info in the binary.
+
 </pre>
+
+## Note
+If you are cloning the source and building it, please make sure you have environment variable GOPATH is set correctly. 
+https://golang.org/doc/code.html#GOPATH
 
 # Docker container
 

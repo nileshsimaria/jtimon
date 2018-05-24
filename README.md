@@ -71,6 +71,7 @@ Usage of ./jtimon:
       --gnmi-mode string        Mode of gnmi (stream | once | poll (default "stream")
       --grpc-headers            Add grpc headers in DB
       --gtrace                  Collect GRPC traces
+      --json                    Convert telemetry packet into JSON
       --latency-profile         Profile latencies. Place them in TSDB
       --log-mux-stdout          All logs to stdout
       --max-run int             Max run time in seconds

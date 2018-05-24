@@ -31,6 +31,7 @@ var (
 	cfgFile        = flag.StringSlice("config", make([]string, 0, 0), "Config file name(s)")
 	expConfig      = flag.Bool("explore-config", false, "Explore full config of JTIMON and exit")
 	print          = flag.Bool("print", false, "Print Telemetry data")
+	outJSON        = flag.Bool("json", false, "Convert telemetry packet into JSON")
 	logMux         = flag.Bool("log-mux-stdout", false, "All logs to stdout")
 	mr             = flag.Int64("max-run", 0, "Max run time in seconds")
 	stateHandler   = flag.Bool("stats-handler", false, "Use GRPC statshandler")

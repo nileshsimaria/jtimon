@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
+
 	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -124,6 +126,12 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 
 		if jctx.config.Log.DropCheck && !jctx.config.Log.CSVStats {
 			dropCheck(jctx, ocData)
+		}
+
+		if *outJSON {
+			if b, err := json.MarshalIndent(ocData, "", "  "); err == nil {
+				jLog(jctx, fmt.Sprintf("%s\n", b))
+			}
 		}
 
 		if *print || *stateHandler || IsVerboseLogging(jctx) {

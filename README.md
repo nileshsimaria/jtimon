@@ -86,12 +86,16 @@ pflag: help requested
 </pre>
 
 # Config
+
+To explore what can go in config, please use --explore-config option. 
+
+Except connection details like host, port, etc no other part of the config is mandatory e.g. do not 
+use influx in your config if you dont want to insert data into it. 
+
 <pre>
 
-To explore what can go in config, please use --explore-config option. Except connection details like host, port, etc no other part of the config is mandatory e.g. do not use influx in your config if you dont want to insert data into it. 
-
-$ ./jtimon --explore-config
-Version: version-not-available BuildTime build-time-not-available
+$ ./jtimon-darwin-amd64 --explore-config
+Version: 0ba993049ca2ac9690b0440df88ae4f5c3d26d37-master BuildTime 2018-05-23T23:47:27-0700
 
 {
     "host": "",
@@ -144,5 +148,24 @@ Version: version-not-available BuildTime build-time-not-available
         "Logger": null
     }
 }
+
 </pre>
 
+I am explaining some config options which are not self explanatory.
+<pre>
+meta : send username and password over gRPC meta instead of invoking LoginCheck() RPC for authentication. 
+Please use SSL/TLS for security. For more details on how to use SSL/TLS, please refer wiki
+https://github.com/nileshsimaria/jtimon/wiki/SSL
+</pre>
+
+<pre>
+cid : client id. Junos expects unique client ids if multiple clients are subscribing to telemetry streams.
+</pre>
+
+<pre>
+eos : end of sync. Tell Junos to send end of sync for on-change subscriptions.
+</pre>
+
+<pre>
+grpc/ws : window size of grpc for slower clients
+</pre>

@@ -38,9 +38,6 @@ var (
 	ver            = flag.Bool("version", false, "Print version and build-time of the binary and exit")
 	compression    = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
 	latencyProfile = flag.Bool("latency-profile", false, "Profile latencies. Place them in TSDB")
-	gnmi           = flag.Bool("gnmi", false, "Use gnmi proto")
-	gnmiMode       = flag.String("gnmi-mode", "stream", "Mode of gnmi (stream | once | poll")
-	gnmiEncoding   = flag.String("gnmi-encoding", "proto", "gnmi encoding (proto | json | bytes | ascii | ietf-json")
 	prom           = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
 	promPort       = flag.Int32("prometheus-port", 8090, "Prometheus port")
 	prefixCheck    = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
@@ -206,11 +203,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 							}
 						}
 
-						if *gnmi {
-							subscribeGNMI(conn, &jctx)
-						} else {
-							subscribe(conn, &jctx)
-						}
+						subscribe(conn, &jctx)
 						// If we are here we must try to reconnect again.
 						// Reconnect after 10 seconds.
 						time.Sleep(10 * time.Second)

@@ -379,7 +379,7 @@ func influxInit(jctx *JCtx) {
 	}
 
 	jctx.influxCtx.influxClient = c
-	jctx.influxCtx.re = regexp.MustCompile("\\/([^\\/]*)\\[([A-Za-z0-9\\-\\/]*)\\=([^\\[]*)\\]")
+	jctx.influxCtx.re = regexp.MustCompile(MatchExpression)
 	if cfg.Influx.Server != "" && c != nil {
 		dbBatchWrite(jctx)
 		jLog(jctx, "Successfully initialized InfluxDB Client")

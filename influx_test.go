@@ -1,8 +1,62 @@
 package main
 
 import (
+	"reflect"
+	"regexp"
 	"testing"
 )
+
+func TestSpitTagsNPath(t *testing.T) {
+	jctx := &JCtx{
+		influxCtx: InfluxCtx{
+			re: regexp.MustCompile(MatchExpression),
+		},
+	}
+
+	data := []struct {
+		input   string
+		xmlpath string
+		tags    map[string]string
+	}{
+		{
+			"/path/without/tags",
+			"/path/without/tags",
+			map[string]string{},
+		},
+		{
+			"/interfaces/interface[name='ge-0/0/0']/state/admin-status/",
+			"/interfaces/interface/state/admin-status/",
+			map[string]string{
+				"/interfaces/interface/@name": "ge-0/0/0",
+			},
+		},
+		{
+			"/interfaces/interface[name='ge-0/0/0']/subinterfaces/subinterface[index='9']/state/admin-status",
+			"/interfaces/interface/subinterfaces/subinterface/state/admin-status",
+			map[string]string{
+				"/interfaces/interface/@name":                             "ge-0/0/0",
+				"/interfaces/interface/subinterfaces/subinterface/@index": "9",
+			},
+		},
+		{
+			"/junos/chassis/cmerror/counters[name='/fpc/1/pfe/0/cm/0/CM0/0/CM_CMERROR_FABRIC_REMOTE_PFE_RATE']/error",
+			"/junos/chassis/cmerror/counters/error",
+			map[string]string{
+				"/junos/chassis/cmerror/counters/@name": "/fpc/1/pfe/0/cm/0/CM0/0/CM_CMERROR_FABRIC_REMOTE_PFE_RATE",
+			},
+		},
+	}
+
+	for _, d := range data {
+		gotxmlpath, gottags := spitTagsNPath(jctx, d.input)
+		if gotxmlpath != d.xmlpath {
+			t.Errorf("splitTagsNPath xmlpath failed, got: %s, want: %s", gotxmlpath, d.xmlpath)
+		}
+		if !reflect.DeepEqual(gottags, d.tags) {
+			t.Errorf("splitTagsNPath tags failed, got: %v, want: %v", gottags, d.tags)
+		}
+	}
+}
 
 func TestSubscriptionPathFromPath(t *testing.T) {
 	paths := []struct {

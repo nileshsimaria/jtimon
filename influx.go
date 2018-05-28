@@ -365,16 +365,19 @@ func influxInit(jctx *JCtx) {
 	cfg := jctx.config
 	c := getInfluxClient(cfg)
 
-	if cfg.Influx.Server != "" && cfg.Influx.Recreate == true && c != nil {
-		_, err := queryIDB(*c, fmt.Sprintf("DROP DATABASE \"%s\"", cfg.Influx.Dbname), cfg.Influx.Dbname)
-		if err != nil {
-			log.Fatal(err)
+	if cfg.Influx.Server != "" && c != nil {
+		if cfg.Influx.Recreate {
+			_, err := queryIDB(*c, fmt.Sprintf("DROP DATABASE \"%s\"", cfg.Influx.Dbname), cfg.Influx.Dbname)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
-		_, err = queryIDB(*c, fmt.Sprintf("CREATE DATABASE \"%s\"", cfg.Influx.Dbname), cfg.Influx.Dbname)
+		_, err := queryIDB(*c, fmt.Sprintf("CREATE DATABASE \"%s\"", cfg.Influx.Dbname), cfg.Influx.Dbname)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
+
 	jctx.influxCtx.influxClient = c
 	jctx.influxCtx.re = regexp.MustCompile("\\/([^\\/]*)\\[([A-Za-z0-9\\-\\/]*)\\=([^\\[]*)\\]")
 	if cfg.Influx.Server != "" && c != nil {

@@ -1,65 +1,71 @@
 # jtimon
+
 Junos Telemetry Interface client
 
-# Setup
-<pre>
-$ go get github.com/nileshsimaria/jtimon
-$ $GOPATH/bin/jtimon --help
+## Setup
+
+```sh
+go get github.com/nileshsimaria/jtimon
+$GOPATH/bin/jtimon --help
+```
 
 OR
 
-$ git clone https://github.com/nileshsimaria/jtimon.git
-$ cd jtimon
-$ go build or make (see Makefile for all possible targets)
-$ ./jtimon --help 
+```sh
+git clone https://github.com/nileshsimaria/jtimon.git
+cd jtimon
+go build or make
+./jtimon --help
+```
 
-Please note that if you use make to build source, it will produce binary with GOOS and GOARCH names 
-e.g. jtimon-darwin-amd64, jtimon-linux-amd64 etc). Building the source using make is recommended as 
-it will insert git-revision, build-time info in the binary.
+Please note that if you use make to build source, it will produce binary with GOOS and GOARCH names e.g. jtimon-darwin-amd64, jtimon-linux-amd64 etc. Building the source using make is recommended as it will insert git-revision, build-time info in the binary.
 
-</pre>
+To understand what targets are available in make, run the make help command as follows:
 
-## Note
-If you are cloning the source and building it, please make sure you have environment variable GOPATH is set correctly. 
+```sh
+make help
+```
+
+### Note
+
+If you are cloning the source and building it, please make sure you have environment variable GOPATH is set correctly.
 https://golang.org/doc/code.html#GOPATH
 
-# Docker container
+## Docker container
 
-Alternatively to building jtimon native, one can build a jtimon Docker container and
-run it dockerized while passing the local directory to the container to access the 
-json file.
+Alternatively to building jtimon native, one can build a jtimon Docker container and run it dockerized while passing the local directory to the container to access the json file.
 
 To build the container:
 
-<pre>
-$ make build
-</pre>
+```sh
+make docker
+```
 
 Check the resulting image:
 
-<pre>
+```sh
 $ docker images jtimon
 REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
 jtimon              latest              3b7622e1464f        6 minutes ago       174MB
-</pre>
+```
 
 Run it:
 
-<pre>
-$ docker run -ti --rm -v ${PWD}:/u:ro jtimon --help
-</pre>
+```sh
+docker run -ti --rm -v ${PWD}:/u:ro jtimon --help
+```
 
 Or simply by calling ./jtimon, which is a symlink to launch-docker-container.sh, capable of launching the container by name with the current directory mounted into /u:
 
-<pre>
+```sh
 $ ./jtimon
 Enter config file name: bla.json
 2018/03/02 13:53:44 File error: open bla.json: no such file or directory
-</pre>
+```
 
-# CLI Options
+## CLI Options
 
-<pre>
+```sh
 $ ./jtimon --help
 Usage of ./jtimon:
       --api                     Receive HTTP commands when running
@@ -84,17 +90,15 @@ Usage of ./jtimon:
       --stats-handler           Use GRPC statshandler
       --version                 Print version and build-time of the binary and exit
 pflag: help requested
-</pre>
+```
 
-# Config
+## Config
 
-To explore what can go in config, please use --explore-config option. 
+To explore what can go in config, please use --explore-config option.
 
-Except connection details like host, port, etc no other part of the config is mandatory e.g. do not 
-use influx in your config if you dont want to insert data into it. 
+Except connection details like host, port, etc no other part of the config is mandatory e.g. do not use influx in your config if you dont want to insert data into it.
 
-<pre>
-
+```sh
 $ ./jtimon-darwin-amd64 --explore-config
 Version: 0ba993049ca2ac9690b0440df88ae4f5c3d26d37-master BuildTime 2018-05-23T23:47:27-0700
 
@@ -149,10 +153,10 @@ Version: 0ba993049ca2ac9690b0440df88ae4f5c3d26d37-master BuildTime 2018-05-23T23
         "Logger": null
     }
 }
+```
 
-</pre>
+I am explaining some config options which are not self-explanatory.
 
-I am explaining some config options which are not self explanatory.
 <pre>
 meta : send username and password over gRPC meta instead of invoking LoginCheck() RPC for authentication. 
 Please use SSL/TLS for security. For more details on how to use SSL/TLS, please refer wiki

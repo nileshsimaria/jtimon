@@ -10,13 +10,13 @@ import (
 
 // Config struct
 type Config struct {
-	Host     string        `json:"host"`
 	Port     int           `json:"port"`
+	Host     string        `json:"host"`
 	User     string        `json:"user"`
 	Password string        `json:"password"`
+	CID      string        `json:"cid"`
 	Meta     bool          `json:"meta"`
 	EOS      bool          `json:"eos"`
-	CID      string        `json:"cid"`
 	API      APIConfig     `json:"api"`
 	GRPC     GRPCConfig    `json:"grpc"`
 	TLS      TLSConfig     `json:"tls"`
@@ -28,8 +28,8 @@ type Config struct {
 //LogConfig is config struct for logging
 type LogConfig struct {
 	File          string `json:"file"`
-	Verbose       bool   `json:"verbose"`
 	PeriodicStats int    `json:"periodic-stats"`
+	Verbose       bool   `json:"verbose"`
 	DropCheck     bool   `json:"drop-check"`
 	LatencyCheck  bool   `json:"latency-check"`
 	CSVStats      bool   `json:"csv-stats"`
@@ -96,6 +96,10 @@ func ParseJSON(file string) (Config, error) {
 
 	fillupDefaults(&config)
 
+	if _, err := ValidateConfig(config); err != nil {
+		log.Fatalf("Invalid config %v\n", err)
+	}
+
 	return config, nil
 }
 
@@ -124,8 +128,5 @@ func ExploreConfig() (string, error) {
 
 // IsVerboseLogging returns true if verbose logging is enabled, false otherwise
 func IsVerboseLogging(jctx *JCtx) bool {
-	if jctx.config.Log.Verbose {
-		return true
-	}
-	return false
+	return jctx.config.Log.Verbose
 }

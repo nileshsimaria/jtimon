@@ -27,7 +27,9 @@ func dropCheckCSV(jctx *JCtx) {
 	if jctx.config.Log.FileHandle == nil {
 		return
 	}
-	f.Seek(0, 0)
+	if _, err := f.Seek(0, 0); err != nil {
+		return
+	}
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -51,17 +53,17 @@ func dropCheckWork(jctx *JCtx, cid uint32, scid uint32, path string, seq uint64)
 	var ok bool
 
 	_, ok = jctx.dMap[cid]
-	if ok == false {
+	if !ok {
 		jctx.dMap[cid] = make(map[uint32]map[string]dropData)
 	}
 
 	_, ok = jctx.dMap[cid][scid]
-	if ok == false {
+	if !ok {
 		jctx.dMap[cid][scid] = make(map[string]dropData)
 	}
 
 	last, ok = jctx.dMap[cid][scid][path]
-	if ok == false {
+	if !ok {
 		new.seq = seq
 		new.received = 1
 		new.drop = 0

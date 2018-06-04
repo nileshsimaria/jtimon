@@ -30,7 +30,7 @@ const (
 )
 
 var (
-	cfgFile        = flag.StringSlice("config", make([]string, 0, 0), "Config file name(s)")
+	cfgFile        = flag.StringSlice("config", make([]string, 0), "Config file name(s)")
 	expConfig      = flag.Bool("explore-config", false, "Explore full config of JTIMON and exit")
 	print          = flag.Bool("print", false, "Print Telemetry data")
 	outJSON        = flag.Bool("json", false, "Convert telemetry packet into JSON")
@@ -127,7 +127,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 						var opts []grpc.DialOption
 
 						if jctx.config.TLS.CA != "" {
-							certificate, err := tls.LoadX509KeyPair(jctx.config.TLS.ClientCrt, jctx.config.TLS.ClientKey)
+							certificate, _ := tls.LoadX509KeyPair(jctx.config.TLS.ClientCrt, jctx.config.TLS.ClientKey)
 
 							certPool := x509.NewCertPool()
 							bs, err := ioutil.ReadFile(jctx.config.TLS.CA)
@@ -191,14 +191,14 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 						if jctx.config.User != "" && jctx.config.Password != "" {
 							user := jctx.config.User
 							pass := jctx.config.Password
-							if jctx.config.Meta == false {
+							if !jctx.config.Meta {
 								lc := auth_pb.NewLoginClient(conn)
 								dat, err := lc.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.config.CID})
 								if err != nil {
 									jLog(&jctx, fmt.Sprintf("[%d] Could not login: %v\n", idx, err))
 									return
 								}
-								if dat.Result == false {
+								if !dat.Result {
 									jLog(&jctx, fmt.Sprintf("[%d] LoginCheck failed", idx))
 									return
 								}
@@ -262,7 +262,7 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(n)
-	wList := make([]*workerCtx, n, n)
+	wList := make([]*workerCtx, n)
 
 	for idx, file := range *cfgFile {
 		ch, err := worker(file, idx, &wg)

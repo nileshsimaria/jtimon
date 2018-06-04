@@ -9,7 +9,7 @@ import (
 
 func jLog(jctx *JCtx, msg string) {
 	if *logMux {
-		log.Printf(fmt.Sprintf("[%s]:%s", jctx.config.Host, msg))
+		log.Print(fmt.Sprintf("[%s]:%s", jctx.config.Host, msg))
 		return
 	}
 
@@ -33,7 +33,7 @@ func logInit(jctx *JCtx) {
 		}
 	} else if file != "" {
 		var err error
-		out, err = os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+		out, err = os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 		if err != nil {
 			log.Printf("Could not create log file(%s): %v\n", file, err)
 		}

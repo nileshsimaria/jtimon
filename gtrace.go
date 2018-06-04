@@ -10,7 +10,7 @@ import (
 )
 
 func startGtrace(gtrace bool) {
-	if gtrace == true {
+	if gtrace {
 		/*
 		 * Turn on grpc trace - for the same turn on http server to
 		 * serve /debug/requests and /debug/events.

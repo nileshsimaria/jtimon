@@ -43,11 +43,6 @@ type InfluxConfig struct {
 	RetentionPolicy string `json:"retention-policy"`
 }
 
-type timeDiff struct {
-	field string
-	tags  map[string]string
-}
-
 func dbBatchWrite(jctx *JCtx) {
 	batchSize := jctx.config.Influx.BatchSize
 	batchCh := make(chan []*client.Point, batchSize)
@@ -204,7 +199,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	}
 
 	prefix := ""
-	points := make([]*client.Point, 0, 0)
+	points := make([]*client.Point, 0)
 
 	for _, v := range ocData.Kv {
 		kv := make(map[string]interface{})
@@ -247,25 +242,18 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 			switch v.Value.(type) {
 			case *na_pb.KeyValue_StrValue:
 				kv[xmlpath] = v.GetStrValue()
-				break
 			case *na_pb.KeyValue_DoubleValue:
-				kv[xmlpath] = float64(v.GetDoubleValue())
-				break
+				kv[xmlpath] = v.GetDoubleValue()
 			case *na_pb.KeyValue_IntValue:
 				kv[xmlpath] = float64(v.GetIntValue())
-				break
 			case *na_pb.KeyValue_UintValue:
 				kv[xmlpath] = float64(v.GetUintValue())
-				break
 			case *na_pb.KeyValue_SintValue:
 				kv[xmlpath] = float64(v.GetSintValue())
-				break
 			case *na_pb.KeyValue_BoolValue:
 				kv[xmlpath] = v.GetBoolValue()
-				break
 			case *na_pb.KeyValue_BytesValue:
 				kv[xmlpath] = v.GetBytesValue()
-				break
 			default:
 			}
 		}

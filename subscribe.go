@@ -81,7 +81,7 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.SubscriptionRequest) {
 	var ctx context.Context
 	c := na_pb.NewOpenConfigTelemetryClient(conn)
-	if jctx.config.Meta == true {
+	if jctx.config.Meta {
 		md := metadata.New(map[string]string{"username": jctx.config.User, "password": jctx.config.Password})
 		ctx = metadata.NewOutgoingContext(context.Background(), md)
 	} else {

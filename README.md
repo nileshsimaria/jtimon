@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/nileshsimaria/jtimon.svg?branch=master)](https://travis-ci.org/nileshsimaria/jtimon)
+
 # jtimon
 
 Junos Telemetry Interface client

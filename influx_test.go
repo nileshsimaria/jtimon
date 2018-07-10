@@ -9,7 +9,8 @@ import (
 func TestSpitTagsNPath(t *testing.T) {
 	jctx := &JCtx{
 		influxCtx: InfluxCtx{
-			re: regexp.MustCompile(MatchExpression),
+			reXpath: regexp.MustCompile(MatchExpressionXpath),
+			reKey:   regexp.MustCompile(MatchExpressionKey),
 		},
 	}
 
@@ -43,6 +44,16 @@ func TestSpitTagsNPath(t *testing.T) {
 			"/junos/chassis/cmerror/counters/error",
 			map[string]string{
 				"/junos/chassis/cmerror/counters/@name": "/fpc/1/pfe/0/cm/0/CM0/0/CM_CMERROR_FABRIC_REMOTE_PFE_RATE",
+			},
+		},
+		{
+			"/junos/events/event[id='SYSTEM' and type='3' and facility='5']/attributes[key='message']/",
+			"/junos/events/event/attributes/",
+			map[string]string{
+				"/junos/events/event/@id":             "SYSTEM",
+				"/junos/events/event/@type":           "3",
+				"/junos/events/event/@facility":       "5",
+				"/junos/events/event/attributes/@key": "message",
 			},
 		},
 	}

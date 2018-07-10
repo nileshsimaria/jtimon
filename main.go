@@ -25,8 +25,9 @@ import (
 const (
 	// DefaultGRPCWindowSize is the default GRPC Window Size
 	DefaultGRPCWindowSize = 1048576
-	// MatchExpression is for the patter matching
-	MatchExpression = "\\/([^\\/]*)\\[([A-Za-z0-9\\-\\/]*)\\=([^\\[]*)\\]"
+	// MatchExpression is for the pattern matching
+	MatchExpressionXpath = "\\/([^\\/]*)\\[(.*?)+?(?:\\])"
+	MatchExpressionKey   = "([A-Za-z0-9-/]*)=(.*?)?(?:and|$)+"
 )
 
 var (

@@ -23,9 +23,9 @@ var (
 // InfluxCtx is run time info of InfluxDB data structures
 type InfluxCtx struct {
 	sync.Mutex
-	influxClient *client.Client
-	batchWCh     chan []*client.Point
-	re           *regexp.Regexp
+	influxClient   *client.Client
+	batchWCh       chan []*client.Point
+	reXpath, reKey *regexp.Regexp
 }
 
 // InfluxConfig is the config of InfluxDB
@@ -90,17 +90,31 @@ func dbBatchWrite(jctx *JCtx) {
 // Takes in XML path with predicates and returns list of tags+values
 // along with a final XML path without predicates
 func spitTagsNPath(jctx *JCtx, xmlpath string) (string, map[string]string) {
-	subs := jctx.influxCtx.re.FindAllStringSubmatch(xmlpath, -1)
+	subs := jctx.influxCtx.reXpath.FindAllStringSubmatch(xmlpath, -1)
 	tags := make(map[string]string)
 
 	// Given XML path, this will spit out final path without predicates
 	if len(subs) > 0 {
 		for _, sub := range subs {
-			tagKey := strings.Split(xmlpath, sub[0])[0]
-			tagKey += "/" + strings.TrimSpace(sub[1]) + "/@" + strings.TrimSpace(sub[2])
-			tagValue := strings.Replace(sub[3], "'", "", -1)
+			tagKeyPrefix := strings.Split(xmlpath, sub[0])[0]
+			keyValues := jctx.influxCtx.reKey.FindAllStringSubmatch(sub[2], -1)
 
-			tags[tagKey] = tagValue
+			if len(keyValues) > 0 {
+				for _, keyValue := range keyValues {
+					tagKey := tagKeyPrefix + "/" + strings.TrimSpace(sub[1]) + "/@" +
+						strings.TrimSpace(keyValue[1])
+						//	tagValue := strings.TrimSpace(keyValue[2])
+
+					tagValue := strings.Replace(strings.TrimSpace(keyValue[2]), "'", "", -1)
+					tags[tagKey] = tagValue
+				}
+			}
+
+			/*
+				tagKey += "/" + strings.TrimSpace(sub[1]) + "/@" + strings.TrimSpace(sub[2])
+				tagValue := strings.Replace(sub[3], "'", "", -1)
+
+				tags[tagKey] = tagValue */
 			xmlpath = strings.Replace(xmlpath, sub[0], "/"+strings.TrimSpace(sub[1]), 1)
 		}
 	}
@@ -367,7 +381,8 @@ func influxInit(jctx *JCtx) {
 	}
 
 	jctx.influxCtx.influxClient = c
-	jctx.influxCtx.re = regexp.MustCompile(MatchExpression)
+	jctx.influxCtx.reXpath = regexp.MustCompile(MatchExpressionXpath)
+	jctx.influxCtx.reKey = regexp.MustCompile(MatchExpressionKey)
 	if cfg.Influx.Server != "" && c != nil {
 		dbBatchWrite(jctx)
 		jLog(jctx, "Successfully initialized InfluxDB Client")

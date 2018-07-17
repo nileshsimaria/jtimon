@@ -207,6 +207,8 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 						}
 
 						subscribe(conn, &jctx)
+						// Close the current connection and retry
+						conn.Close()
 						// If we are here we must try to reconnect again.
 						// Reconnect after 10 seconds.
 						time.Sleep(10 * time.Second)

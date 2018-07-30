@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
@@ -210,6 +211,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 
 						subscribe(conn, &jctx)
 						// Close the current connection and retry
+						fmt.Println("Closing Connection")
 						conn.Close()
 						// If we are here we must try to reconnect again.
 						// Reconnect after 10 seconds.
@@ -222,6 +224,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 		}
 	}()
 
+	fmt.Println("Returning from worker")
 	return ch, nil
 }
 
@@ -272,6 +275,7 @@ func main() {
 
 	for idx, file := range *cfgFile {
 		ch, err := worker(file, idx, &wg)
+		fmt.Printf("Returned status %v from worker\n", ch)
 		if err != nil {
 			wg.Done()
 		}
@@ -281,6 +285,7 @@ func main() {
 		}
 	}
 
+	// Start the Worked go routines which are waiting on the select loop
 	for _, worker := range wList {
 		if worker.err == nil {
 			worker.ch <- true
@@ -289,6 +294,7 @@ func main() {
 
 	go func() {
 		sigchan := make(chan os.Signal, 10)
+		fmt.Println("Waiting for signals")
 		signal.Notify(sigchan, os.Interrupt)
 		<-sigchan
 		for _, worker := range wList {
@@ -296,6 +302,19 @@ func main() {
 				worker.ch <- false
 			}
 		}
+		fmt.Printf("Handled sig int signal")
+	}()
+
+	go func() {
+		sigchan := make(chan os.Signal, 10)
+		signal.Notify(sigchan, syscall.SIGHUP)
+		<-sigchan
+		/*
+			for _, worker := range wList {
+				if worker.err == nil {
+					worker.ch <- false
+				}
+			} */
 	}()
 
 	go func() {

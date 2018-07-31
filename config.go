@@ -3,10 +3,16 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 )
+
+// ConfigFileList to get the list of config file names
+type ConfigFileList struct {
+	Filenames []string `json:"config_file_list"`
+}
 
 // Config struct
 type Config struct {
@@ -62,6 +68,13 @@ type PathsConfig struct {
 	Mode string `json:"mode"`
 }
 
+// NewJTIMONConfigFilelist to return configfilelist object
+func NewJTIMONConfigFilelist(file string) (ConfigFileList, error) {
+	// Parse config file
+	configfilelist, err := ParseJSONConfigFileList(file)
+	return configfilelist, err
+}
+
 // NewJTIMONConfig to return config object
 func NewJTIMONConfig(file string) (Config, error) {
 	// parse config file
@@ -80,6 +93,22 @@ func fillupDefaults(config *Config) {
 	if config.Influx.BatchSize == 0 {
 		config.Influx.BatchSize = DefaultIDBBatchSize
 	}
+}
+
+// ParseJSONConfigFileList parses JSON encoded string of JTIMON Config files
+func ParseJSONConfigFileList(file string) (ConfigFileList, error) {
+	var configfilelist ConfigFileList
+
+	f, err := ioutil.ReadFile(file)
+	if err != nil {
+		return configfilelist, err
+	}
+
+	if err := json.Unmarshal(f, &configfilelist); err != nil {
+		return configfilelist, err
+	}
+
+	return configfilelist, err
 }
 
 // ParseJSON parses JSON encoded config of JTIMON
@@ -129,4 +158,26 @@ func ExploreConfig() (string, error) {
 // IsVerboseLogging returns true if verbose logging is enabled, false otherwise
 func IsVerboseLogging(jctx *JCtx) bool {
 	return jctx.config.Log.Verbose
+}
+
+// GetConfigFiles to get the list of config files
+func GetConfigFiles(cfgFile *[]string, cfgFileList *string) error {
+	if len(*cfgFileList) != 0 {
+		configfilelist, err := NewJTIMONConfigFilelist(*cfgFileList)
+		if err != nil {
+			return fmt.Errorf("Error %v in %v", err, cfgFileList)
+		}
+		n := len(configfilelist.Filenames)
+		if n == 0 {
+
+			return fmt.Errorf("File list doesn't have any files in %v", *cfgFileList)
+		}
+		*cfgFile = configfilelist.Filenames
+	} else {
+		n := len(*cfgFile)
+		if n == 0 {
+			return fmt.Errorf("Can not run without any config file")
+		}
+	}
+	return nil
 }

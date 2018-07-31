@@ -26,6 +26,28 @@ func TestNewJTIMONConfig(t *testing.T) {
 	}
 }
 
+func TestNewJTIMONConfigFilelist(t *testing.T) {
+	var xerr error
+	files := []struct {
+		name  string
+		error bool
+	}{
+		{"tests/data/file_list.json", false},    // no error
+		{"tests/data/file_list.jso", true},      // file does not exists
+		{"tests/data/file_list_err.json", true}, // syntax error in JSON file
+	}
+
+	for _, file := range files {
+		_, err := NewJTIMONConfigFilelist(file.name)
+		if err != nil && !file.error {
+			t.Errorf("NewJTIMONConfig failed, got: %v, want: %v", err, xerr)
+		}
+		if err == nil && file.error {
+			t.Errorf("NewJTIMONConfig failed, got: %v, want error", err)
+		}
+	}
+}
+
 func TestValidateConfig(t *testing.T) {
 	files := []struct {
 		name  string

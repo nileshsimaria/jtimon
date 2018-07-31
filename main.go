@@ -25,12 +25,15 @@ import (
 const (
 	// DefaultGRPCWindowSize is the default GRPC Window Size
 	DefaultGRPCWindowSize = 1048576
-	// MatchExpression is for the patter matching
-	MatchExpression = "\\/([^\\/]*)\\[([A-Za-z0-9\\-\\/]*)\\=([^\\[]*)\\]"
+	// MatchExpressionXpath is for the pattern matching the xpath and key-value pairs
+	MatchExpressionXpath = "\\/([^\\/]*)\\[(.*?)+?(?:\\])"
+	// MatchExpressionKey is for pattern matching the single and multiple key value pairs
+	MatchExpressionKey = "([A-Za-z0-9-/]*)=(.*?)?(?:and|$)+"
 )
 
 var (
 	cfgFile        = flag.StringSlice("config", make([]string, 0), "Config file name(s)")
+	cfgFileList    = flag.String("config-file-list", "", "List of Config files")
 	expConfig      = flag.Bool("explore-config", false, "Explore full config of JTIMON and exit")
 	print          = flag.Bool("print", false, "Print Telemetry data")
 	outJSON        = flag.Bool("json", false, "Convert telemetry packet into JSON")
@@ -256,12 +259,13 @@ func main() {
 		return
 	}
 
-	n := len(*cfgFile)
-	if n == 0 {
-		fmt.Println("Can not run without any config file")
+	err := GetConfigFiles(cfgFile, cfgFileList)
+	if err != nil {
+		fmt.Printf("Config parsing error: %s \n", err)
 		return
 	}
 
+	n := len(*cfgFile)
 	var wg sync.WaitGroup
 	wg.Add(n)
 	wList := make([]*workerCtx, n)

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -18,6 +19,7 @@ import (
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	flag "github.com/spf13/pflag"
+	viper "github.com/spf13/viper"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -67,19 +69,66 @@ type JCtx struct {
 	influxCtx InfluxCtx
 	stats     statsCtx
 	pause     struct {
-		pch  chan int64
-		upch chan struct{}
+		pch   chan int64
+		upch  chan struct{}
+		subch chan bool
+		logch chan bool
 	}
 }
 
 type workerCtx struct {
-	ch  chan bool
-	err error
+	signalch chan os.Signal
+	err      error
+}
+
+func configRead(jctx *JCtx, init bool) error {
+	var err error
+	viper.SetConfigFile(jctx.file)
+	viper.SetConfigType("json")
+
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("Error reading config file, %s", err)
+	}
+	err = viper.Unmarshal(&jctx.config)
+	if err != nil {
+		fmt.Printf("\nConfig parsing error for %s: %v\n", jctx.file, err)
+		return fmt.Errorf("config parsing (json Unmarshal) error for %s[%d]: %v", jctx.file, jctx.index, err)
+	}
+
+	if init {
+		logInit(jctx)
+		b, err := json.MarshalIndent(jctx.config, "", "    ")
+		if err != nil {
+			return fmt.Errorf("Config parsing error (json Marshal) for %s[%d]: %v", jctx.file, jctx.index, err)
+		}
+		jLog(jctx, fmt.Sprintf("\nRunning config of JTIMON:\n %s\n", string(b)))
+
+		if init {
+			jctx.pause.subch = make(chan bool)
+			jctx.pause.logch = make(chan bool)
+
+			go periodicStats(jctx)
+			influxInit(jctx)
+			dropInit(jctx)
+			go apiInit(jctx)
+		}
+
+		if *grpcHeaders {
+			pmap := make(map[string]interface{})
+			for i := range jctx.config.Paths {
+				pmap["path"] = jctx.config.Paths[i].Path
+				pmap["reporting-rate"] = float64(jctx.config.Paths[i].Freq)
+				addGRPCHeader(jctx, pmap)
+			}
+		}
+	}
+
+	return nil
 }
 
 // A worker function is the one who gets job done.
-func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
-	ch := make(chan bool)
+func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
+	signalch := make(chan os.Signal)
 	jctx := JCtx{
 		file:  file,
 		index: idx,
@@ -89,43 +138,27 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 		},
 	}
 
-	var err error
-	jctx.config, err = NewJTIMONConfig(file)
+	err := configRead(&jctx, true)
 	if err != nil {
-		fmt.Printf("\nConfig parsing error for %s[%d]: %v\n", file, idx, err)
-		return ch, fmt.Errorf("config parsing (json Unmarshal) error for %s[%d]: %v", file, idx, err)
-	}
-
-	logInit(&jctx)
-	b, err := json.MarshalIndent(jctx.config, "", "    ")
-	if err != nil {
-		return ch, fmt.Errorf("Config parsing error (json Marshal) for %s[%d]: %v", file, idx, err)
-	}
-	jLog(&jctx, fmt.Sprintf("\nRunning config of JTIMON:\n %s\n", string(b)))
-
-	go periodicStats(&jctx)
-	influxInit(&jctx)
-	dropInit(&jctx)
-	go apiInit(&jctx)
-
-	if *grpcHeaders {
-		pmap := make(map[string]interface{})
-		for i := range jctx.config.Paths {
-			pmap["path"] = jctx.config.Paths[i].Path
-			pmap["reporting-rate"] = float64(jctx.config.Paths[i].Freq)
-			addGRPCHeader(&jctx, pmap)
-		}
+		fmt.Println(err)
+		return signalch, err
 	}
 
 	go func() {
 		for {
 			select {
-			case ctrl := <-ch:
-				switch ctrl {
-				case false:
+			case sig := <-signalch:
+				switch sig {
+				case os.Interrupt:
+					// Received Interrupt Signal, Stop the program
 					printSummary(&jctx)
-					jctx.wg.Done()
-				case true:
+					fmt.Println("Signal handling")
+					wg.Done()
+				case syscall.SIGHUP:
+					jctx.pause.subch <- true
+					jctx.pause.logch <- true
+					configRead(&jctx, false)
+				case syscall.SIGCONT:
 					go func() {
 						var retry bool
 						var opts []grpc.DialOption
@@ -211,7 +244,6 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 
 						subscribe(conn, &jctx)
 						// Close the current connection and retry
-						fmt.Println("Closing Connection")
 						conn.Close()
 						// If we are here we must try to reconnect again.
 						// Reconnect after 10 seconds.
@@ -225,10 +257,34 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 	}()
 
 	fmt.Println("Returning from worker")
-	return ch, nil
+	return signalch, nil
+}
+
+func testMyCode() {
+	var v int
+	var wg sync.WaitGroup
+	wg.Add(2)
+	var m sync.Mutex
+	m.Lock()
+	go func() {
+		v = 10
+		m.Unlock()
+		wg.Done()
+	}()
+	go func() {
+		m.Lock()
+		fmt.Println(v)
+		wg.Done()
+	}()
+	wg.Wait()
 }
 
 func main() {
+	if false {
+		testMyCode()
+		return
+	}
+
 	flag.Parse()
 	if *pProf {
 		go func() {
@@ -274,47 +330,46 @@ func main() {
 	wList := make([]*workerCtx, n)
 
 	for idx, file := range *cfgFile {
-		ch, err := worker(file, idx, &wg)
-		fmt.Printf("Returned status %v from worker\n", ch)
+		signalch, err := worker(file, idx, &wg)
 		if err != nil {
 			wg.Done()
 		}
 		wList[idx] = &workerCtx{
-			ch:  ch,
-			err: err,
+			signalch: signalch,
+			err:      err,
 		}
 	}
 
 	// Start the Worked go routines which are waiting on the select loop
 	for _, worker := range wList {
 		if worker.err == nil {
-			worker.ch <- true
+			worker.signalch <- syscall.SIGCONT
 		}
 	}
 
 	go func() {
 		sigchan := make(chan os.Signal, 10)
-		fmt.Println("Waiting for signals")
-		signal.Notify(sigchan, os.Interrupt)
-		<-sigchan
-		for _, worker := range wList {
-			if worker.err == nil {
-				worker.ch <- false
+		signal.Notify(sigchan, os.Interrupt, syscall.SIGHUP)
+		for {
+			s := <-sigchan
+			switch s {
+			case syscall.SIGHUP:
+				for _, worker := range wList {
+					if worker.err == nil {
+						worker.signalch <- s
+					}
+				}
+			case os.Interrupt:
+				// Send the interrupt to the worker routines and
+				// return
+				for _, worker := range wList {
+					if worker.err == nil {
+						worker.signalch <- s
+					}
+				}
+				return
 			}
 		}
-		fmt.Printf("Handled sig int signal")
-	}()
-
-	go func() {
-		sigchan := make(chan os.Signal, 10)
-		signal.Notify(sigchan, syscall.SIGHUP)
-		<-sigchan
-		/*
-			for _, worker := range wList {
-				if worker.err == nil {
-					worker.ch <- false
-				}
-			} */
 	}()
 
 	go func() {
@@ -325,7 +380,7 @@ func main() {
 		<-tickChan
 		for _, worker := range wList {
 			if worker.err == nil {
-				worker.ch <- false
+				worker.signalch <- os.Interrupt
 			}
 		}
 	}()

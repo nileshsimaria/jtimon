@@ -29,6 +29,7 @@ type Config struct {
 	Influx   InfluxConfig  `json:"influx"`
 	Paths    []PathsConfig `json:"paths"`
 	Log      LogConfig     `json:"log"`
+	// mux      sync.RWMutex
 }
 
 //LogConfig is config struct for logging

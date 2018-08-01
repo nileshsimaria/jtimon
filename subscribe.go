@@ -78,7 +78,7 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 	}
 }
 
-func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.SubscriptionRequest) {
+func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.SubscriptionRequest) bool {
 	var ctx context.Context
 	c := na_pb.NewOpenConfigTelemetryClient(conn)
 	if jctx.config.Meta {
@@ -91,8 +91,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 	stream, err := c.TelemetrySubscribe(ctx, &subReqM)
 
 	if err != nil {
-		jLog(jctx, fmt.Sprintf("Could not send RPC: %v\n", err))
-		return
+		return false
 	}
 
 	hdr, errh := stream.Header()
@@ -119,7 +118,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 		}
 		if err != nil {
 			jLog(jctx, fmt.Sprintf("%v.TelemetrySubscribe(_) = _, %v", conn, err))
-			return
+			return false
 		}
 
 		rtime := time.Now()
@@ -156,22 +155,41 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 			default:
 			}
 		}
+
+		// Check for SIGHUP
+		select {
+		case <-jctx.pause.subch:
+			jLog(jctx, fmt.Sprintf("Received Sighup"))
+			return true
+		default:
+		}
 	}
+	return false
 }
 
 func subscribe(conn *grpc.ClientConn, jctx *JCtx) {
 	var subReqM na_pb.SubscriptionRequest
 	var additionalConfigM na_pb.SubscriptionAdditionalConfig
-	cfg := jctx.config
 
-	for i := range cfg.Paths {
-		var pathM na_pb.Path
-		pathM.Path = cfg.Paths[i].Path
-		pathM.SampleFrequency = uint32(cfg.Paths[i].Freq)
+	//jctx.config.mux.RLock()
+	// defer jctx.config.mux.RUnlock()
 
-		subReqM.PathList = append(subReqM.PathList, &pathM)
+	for {
+
+		cfg := &jctx.config
+		for i := range cfg.Paths {
+			var pathM na_pb.Path
+			pathM.Path = cfg.Paths[i].Path
+			pathM.SampleFrequency = uint32(cfg.Paths[i].Freq)
+
+			subReqM.PathList = append(subReqM.PathList, &pathM)
+		}
+		additionalConfigM.NeedEos = jctx.config.EOS
+		subReqM.AdditionalConfig = &additionalConfigM
+
+		res := subSendAndReceive(conn, jctx, subReqM)
+		if res == false {
+			return
+		}
 	}
-	additionalConfigM.NeedEos = jctx.config.EOS
-	subReqM.AdditionalConfig = &additionalConfigM
-	subSendAndReceive(conn, jctx, subReqM)
 }

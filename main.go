@@ -277,21 +277,22 @@ func main() {
 	n := len(*cfgFile)
 	var wg sync.WaitGroup
 	wg.Add(n)
-	wList := make([]*workerCtx, n)
+	wMap := make(map[string]*workerCtx)
 
 	for idx, file := range *cfgFile {
 		signalch, err := worker(file, idx, &wg)
 		if err != nil {
 			wg.Done()
 		}
-		wList[idx] = &workerCtx{
+
+		wMap[file] = &workerCtx{
 			signalch: signalch,
 			err:      err,
 		}
 	}
 
 	// Start the Worked go routines which are waiting on the select loop
-	for _, worker := range wList {
+	for _, worker := range wMap {
 		if worker.err == nil {
 			worker.signalch <- syscall.SIGCONT
 		}
@@ -307,15 +308,33 @@ func main() {
 			case syscall.SIGHUP:
 				// Propagate the signal to workers
 				// and continue waiting for signals
-				for _, worker := range wList {
-					if worker.err == nil {
-						worker.signalch <- s
+				if len(*cfgFileList) != 0 {
+					configfilelist, err := NewJTIMONConfigFilelist(*cfgFileList)
+					if err != nil {
+						fmt.Printf("Error in parsing the new config file, Continuing with older config")
+						continue
+					}
+					n := len(configfilelist.Filenames)
+
+					for _, file := range configfilelist.Filenames {
+						if worker, ok := wMap[file]; ok {
+							worker.signalch <- s
+						} else {
+							signalch, err := worker(file, idx, &wg)
+							if err != nil {
+								wg.Done()
+							}
+							wMap[file] = &workerCtx{
+								signalch: signalch,
+								err:      err,
+							}
+						}
 					}
 				}
 			case os.Interrupt:
 				// Send the interrupt to the worker routines and
 				// return
-				for _, worker := range wList {
+				for _, worker := range wMap {
 					if worker.err == nil {
 						worker.signalch <- s
 					}

@@ -14,6 +14,17 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// SubErrorCode to define the type of errors
+type SubErrorCode int
+
+// Error Codes for Subscribe Send routines
+const (
+	SubRcSucess = iota
+	SubRcConnRetry
+	SubRcRestartStreaming
+	SubRcFail
+)
+
 func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 	updateStats(jctx, ocData, true)
 
@@ -78,7 +89,13 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 	}
 }
 
-func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.SubscriptionRequest) bool {
+// subSendAndReceive handles the following
+// 		- Opens up a stream for receiving the telemetry data
+//		- Handles SIGHUP by terminating the current stream and requests the
+//		  	caller to restart the streaming by setting the corresponding return
+//			code
+//		- In case of an error, Set the error code to restart the connection.
+func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.SubscriptionRequest) SubErrorCode {
 	var ctx context.Context
 	c := na_pb.NewOpenConfigTelemetryClient(conn)
 	if jctx.config.Meta {
@@ -87,11 +104,10 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 	} else {
 		ctx = context.Background()
 	}
-
 	stream, err := c.TelemetrySubscribe(ctx, &subReqM)
 
 	if err != nil {
-		return false
+		return SubRcConnRetry
 	}
 
 	hdr, errh := stream.Header()
@@ -109,87 +125,108 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 			"sensor-path", "sequence-number", "component-id", "sub-component-id", "packet-size", "p-ts", "e-ts", "re-stream-creation-ts", "re-payload-get-ts"))
 	}
 
-	jLog(jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
-	for {
-		ocData, err := stream.Recv()
-		if err == io.EOF {
-			printSummary(jctx)
-			break
-		}
-		if err != nil {
-			jLog(jctx, fmt.Sprintf("%v.TelemetrySubscribe(_) = _, %v", conn, err))
-			return false
-		}
+	datach := make(chan bool)
+	go func() {
+		// Go Routine which actually starts the streaming connection and receives the data
+		jLog(jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
 
-		rtime := time.Now()
-
-		if jctx.config.Log.DropCheck && !jctx.config.Log.CSVStats {
-			dropCheck(jctx, ocData)
-		}
-
-		if *outJSON {
-			if b, err := json.MarshalIndent(ocData, "", "  "); err == nil {
-				jLog(jctx, fmt.Sprintf("%s\n", b))
+		for {
+			ocData, err := stream.Recv()
+			if err == io.EOF {
+				printSummary(jctx)
+				datach <- false
+				break
 			}
-		}
+			if err != nil {
+				jLog(jctx, fmt.Sprintf("%v.TelemetrySubscribe(_) = _, %v", conn, err))
+				datach <- false
+				return
+			}
 
-		if *print || *stateHandler || IsVerboseLogging(jctx) {
-			handleOnePacket(ocData, jctx)
-		}
+			rtime := time.Now()
 
-		if jctx.influxCtx.influxClient != nil {
-			go addIDB(ocData, jctx, rtime)
-		}
+			if jctx.config.Log.DropCheck && !jctx.config.Log.CSVStats {
+				dropCheck(jctx, ocData)
+			}
 
-		if *apiControl {
-			select {
-			case pfor := <-jctx.pause.pch:
-				jLog(jctx, fmt.Sprintf("Pausing for %v seconds\n", pfor))
-				t := time.NewTimer(time.Second * time.Duration(pfor))
-				select {
-				case <-t.C:
-					jLog(jctx, fmt.Sprintf("Done pausing for %v seconds\n", pfor))
-				case <-jctx.pause.upch:
-					t.Stop()
+			if *outJSON {
+				if b, err := json.MarshalIndent(ocData, "", "  "); err == nil {
+					jLog(jctx, fmt.Sprintf("%s\n", b))
 				}
-			default:
 			}
-		}
 
-		// Check for SIGHUP
+			if *print || *stateHandler || IsVerboseLogging(jctx) {
+				handleOnePacket(ocData, jctx)
+			}
+
+			if jctx.influxCtx.influxClient != nil {
+				go addIDB(ocData, jctx, rtime)
+			}
+
+			if *apiControl {
+				select {
+				case pfor := <-jctx.pause.pch:
+					jLog(jctx, fmt.Sprintf("Pausing for %v seconds\n", pfor))
+					t := time.NewTimer(time.Second * time.Duration(pfor))
+					select {
+					case <-t.C:
+						jLog(jctx, fmt.Sprintf("Done pausing for %v seconds\n", pfor))
+					case <-jctx.pause.upch:
+						t.Stop()
+					}
+				default:
+				}
+			}
+			datach <- true
+		}
+	}()
+	for {
+		// The below select loop will hand
 		select {
 		case <-jctx.pause.subch:
-			jLog(jctx, fmt.Sprintf("Received Sighup"))
-			return true
-		default:
+			return SubRcRestartStreaming
+		case status := <-datach:
+			if status == false {
+				return SubRcConnRetry
+			}
+			if jctx.running == false {
+				jctx.running = true
+			}
 		}
 	}
-	return false
 }
 
+// subscribe routine constructs the subscription paths and calls
+// the function to start the streaming connection.
+//
+// In case of SIGHUP, the paths are formed again and streaming
+// is restarted.
 func subscribe(conn *grpc.ClientConn, jctx *JCtx) {
 	var subReqM na_pb.SubscriptionRequest
 	var additionalConfigM na_pb.SubscriptionAdditionalConfig
 
-	//jctx.config.mux.RLock()
-	// defer jctx.config.mux.RUnlock()
-
 	for {
-
+		if jctx.running == true {
+			jctx.running = false
+			<-jctx.pause.subch
+			// Reset the paths
+			subReqM.PathList = nil
+		}
 		cfg := &jctx.config
 		for i := range cfg.Paths {
 			var pathM na_pb.Path
 			pathM.Path = cfg.Paths[i].Path
 			pathM.SampleFrequency = uint32(cfg.Paths[i].Freq)
-
 			subReqM.PathList = append(subReqM.PathList, &pathM)
 		}
 		additionalConfigM.NeedEos = jctx.config.EOS
 		subReqM.AdditionalConfig = &additionalConfigM
 
 		res := subSendAndReceive(conn, jctx, subReqM)
-		if res == false {
+		if res != SubRcRestartStreaming {
+			// Restart the connection
 			return
 		}
+		fmt.Println("Restarting Subscription")
 	}
 }

@@ -171,7 +171,6 @@ func GetConfigFiles(cfgFile *[]string, cfgFileList *string) error {
 		}
 		n := len(configfilelist.Filenames)
 		if n == 0 {
-
 			return fmt.Errorf("File list doesn't have any files in %v", *cfgFileList)
 		}
 		*cfgFile = configfilelist.Filenames

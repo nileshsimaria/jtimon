@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"reflect"
 )
 
 // ConfigFileList to get the list of config file names
@@ -180,5 +181,69 @@ func GetConfigFiles(cfgFile *[]string, cfgFileList *string) error {
 			return fmt.Errorf("Can not run without any config file")
 		}
 	}
+	return nil
+}
+
+// ValidateConfigChange to check which config changes are allowed
+func ValidateConfigChange(jctx *JCtx, config Config) error {
+	runningCfg := jctx.config
+	if !reflect.DeepEqual(runningCfg, config) {
+		// Config change
+		if !reflect.DeepEqual(runningCfg.Paths, config.Paths) {
+			return nil
+		}
+	}
+	return fmt.Errorf("Config Change Validation")
+}
+
+// ConfigRead will read the config and init the services.
+// In case of config changes, it will update the  existing config
+func ConfigRead(jctx *JCtx, init bool) error {
+	var err error
+
+	config, err := NewJTIMONConfig(jctx.file)
+	if err != nil {
+		fmt.Printf("\nConfig parsing error for %s: %v\n", jctx.file, err)
+		return fmt.Errorf("config parsing (json Unmarshal) error for %s[%d]: %v", jctx.file, jctx.index, err)
+	}
+
+	if init {
+		jctx.config = config
+		logInit(jctx)
+		b, err := json.MarshalIndent(jctx.config, "", "    ")
+		if err != nil {
+			return fmt.Errorf("Config parsing error (json Marshal) for %s[%d]: %v", jctx.file, jctx.index, err)
+		}
+		jLog(jctx, fmt.Sprintf("\nRunning config of JTIMON:\n %s\n", string(b)))
+
+		if init {
+			jctx.pause.subch = make(chan bool)
+			jctx.pause.logch = make(chan bool)
+
+			go periodicStats(jctx)
+			influxInit(jctx)
+			dropInit(jctx)
+			go apiInit(jctx)
+		}
+
+		if *grpcHeaders {
+			pmap := make(map[string]interface{})
+			for i := range jctx.config.Paths {
+				pmap["path"] = jctx.config.Paths[i].Path
+				pmap["reporting-rate"] = float64(jctx.config.Paths[i].Freq)
+				addGRPCHeader(jctx, pmap)
+			}
+		}
+	} else {
+		err := ValidateConfigChange(jctx, config)
+		if err == nil {
+			jctx.config.Paths = config.Paths
+			fmt.Println("We have got a new config")
+		} else {
+			jLog(jctx, fmt.Sprintf("Ignoring config changes"))
+		}
+		jLog(jctx, fmt.Sprintf("Config re-read"))
+	}
+
 	return nil
 }

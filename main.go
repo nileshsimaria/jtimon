@@ -3,10 +3,8 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -19,7 +17,6 @@ import (
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	flag "github.com/spf13/pflag"
-	viper "github.com/spf13/viper"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -74,6 +71,7 @@ type JCtx struct {
 		subch chan bool
 		logch chan bool
 	}
+	running bool
 }
 
 type workerCtx struct {
@@ -81,54 +79,10 @@ type workerCtx struct {
 	err      error
 }
 
-func configRead(jctx *JCtx, init bool) error {
-	var err error
-	viper.SetConfigFile(jctx.file)
-	viper.SetConfigType("json")
-
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error reading config file, %s", err)
-	}
-	err = viper.Unmarshal(&jctx.config)
-	if err != nil {
-		fmt.Printf("\nConfig parsing error for %s: %v\n", jctx.file, err)
-		return fmt.Errorf("config parsing (json Unmarshal) error for %s[%d]: %v", jctx.file, jctx.index, err)
-	}
-
-	if init {
-		logInit(jctx)
-		b, err := json.MarshalIndent(jctx.config, "", "    ")
-		if err != nil {
-			return fmt.Errorf("Config parsing error (json Marshal) for %s[%d]: %v", jctx.file, jctx.index, err)
-		}
-		jLog(jctx, fmt.Sprintf("\nRunning config of JTIMON:\n %s\n", string(b)))
-
-		if init {
-			jctx.pause.subch = make(chan bool)
-			jctx.pause.logch = make(chan bool)
-
-			go periodicStats(jctx)
-			influxInit(jctx)
-			dropInit(jctx)
-			go apiInit(jctx)
-		}
-
-		if *grpcHeaders {
-			pmap := make(map[string]interface{})
-			for i := range jctx.config.Paths {
-				pmap["path"] = jctx.config.Paths[i].Path
-				pmap["reporting-rate"] = float64(jctx.config.Paths[i].Freq)
-				addGRPCHeader(jctx, pmap)
-			}
-		}
-	}
-
-	return nil
-}
-
 // A worker function is the one who gets job done.
 func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
 	signalch := make(chan os.Signal)
+	subStatusch := make(chan bool)
 	jctx := JCtx{
 		file:  file,
 		index: idx,
@@ -138,7 +92,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
 		},
 	}
 
-	err := configRead(&jctx, true)
+	err := ConfigRead(&jctx, true)
 	if err != nil {
 		fmt.Println(err)
 		return signalch, err
@@ -152,12 +106,16 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
 				case os.Interrupt:
 					// Received Interrupt Signal, Stop the program
 					printSummary(&jctx)
-					fmt.Println("Signal handling")
 					wg.Done()
 				case syscall.SIGHUP:
-					jctx.pause.subch <- true
-					jctx.pause.logch <- true
-					configRead(&jctx, false)
+					// Handle SIGHUP if the streaming is happening
+					// Running will not be set when the connection is
+					// not establihsed and it is trying to connect.
+					if jctx.running {
+						jctx.pause.subch <- true
+						ConfigRead(&jctx, false)
+						jctx.pause.subch <- false
+					}
 				case syscall.SIGCONT:
 					go func() {
 						var retry bool
@@ -170,12 +128,14 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
 							bs, err := ioutil.ReadFile(jctx.config.TLS.CA)
 							if err != nil {
 								jLog(&jctx, fmt.Sprintf("[%d] Failed to read ca cert: %s\n", idx, err))
+								subStatusch <- true
 								return
 							}
 
 							ok := certPool.AppendCertsFromPEM(bs)
 							if !ok {
 								jLog(&jctx, fmt.Sprintf("[%d] Failed to append certs\n", idx))
+								subStatusch <- true
 								return
 							}
 
@@ -209,6 +169,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
 
 						hostname := jctx.config.Host + ":" + strconv.Itoa(jctx.config.Port)
 						if hostname == ":0" {
+							subStatusch <- true
 							return
 						}
 					connect:
@@ -225,18 +186,25 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
 							goto connect
 						}
 
+						// Close the connection on return
+						defer conn.Close()
+
 						if jctx.config.User != "" && jctx.config.Password != "" {
 							user := jctx.config.User
 							pass := jctx.config.Password
 							if !jctx.config.Meta {
 								lc := auth_pb.NewLoginClient(conn)
-								dat, err := lc.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.config.CID})
+								dat, err := lc.LoginCheck(context.Background(),
+									&auth_pb.LoginRequest{UserName: user,
+										Password: pass, ClientId: jctx.config.CID})
 								if err != nil {
 									jLog(&jctx, fmt.Sprintf("[%d] Could not login: %v\n", idx, err))
+									subStatusch <- true
 									return
 								}
 								if !dat.Result {
 									jLog(&jctx, fmt.Sprintf("[%d] LoginCheck failed", idx))
+									subStatusch <- true
 									return
 								}
 							}
@@ -252,39 +220,21 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
 						goto connect
 					}()
 				}
+			case status := <-subStatusch:
+				switch status {
+				case true:
+					// Exited with error
+					printSummary(&jctx)
+					wg.Done()
+				}
 			}
 		}
 	}()
 
-	fmt.Println("Returning from worker")
 	return signalch, nil
 }
 
-func testMyCode() {
-	var v int
-	var wg sync.WaitGroup
-	wg.Add(2)
-	var m sync.Mutex
-	m.Lock()
-	go func() {
-		v = 10
-		m.Unlock()
-		wg.Done()
-	}()
-	go func() {
-		m.Lock()
-		fmt.Println(v)
-		wg.Done()
-	}()
-	wg.Wait()
-}
-
 func main() {
-	if false {
-		testMyCode()
-		return
-	}
-
 	flag.Parse()
 	if *pProf {
 		go func() {
@@ -349,11 +299,14 @@ func main() {
 
 	go func() {
 		sigchan := make(chan os.Signal, 10)
+		// Handling only Interrupt and SIGHUP signals
 		signal.Notify(sigchan, os.Interrupt, syscall.SIGHUP)
 		for {
 			s := <-sigchan
 			switch s {
 			case syscall.SIGHUP:
+				// Propagate the signal to workers
+				// and continue waiting for signals
 				for _, worker := range wList {
 					if worker.err == nil {
 						worker.signalch <- s
@@ -373,6 +326,9 @@ func main() {
 	}()
 
 	go func() {
+		// mr - Max run time in seconds
+		// Subscription is configured for a certain time period
+		// Once the time expires interrupt the Worker threads
 		if *mr == 0 {
 			return
 		}

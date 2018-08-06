@@ -274,27 +274,28 @@ func main() {
 		return
 	}
 
-	n := len(*cfgFile)
+	//	n := len(*cfgFile)
 	var wg sync.WaitGroup
-	wg.Add(n)
 	wMap := make(map[string]*workerCtx)
 
 	for idx, file := range *cfgFile {
+		wg.Add(1)
 		signalch, err := worker(file, idx, &wg)
 		if err != nil {
 			wg.Done()
+		} else {
+			wMap[file] = &workerCtx{
+				signalch: signalch,
+				err:      err,
+			}
 		}
 
-		wMap[file] = &workerCtx{
-			signalch: signalch,
-			err:      err,
-		}
 	}
 
 	// Start the Worked go routines which are waiting on the select loop
-	for _, worker := range wMap {
-		if worker.err == nil {
-			worker.signalch <- syscall.SIGCONT
+	for _, wCtx := range wMap {
+		if wCtx.err == nil {
+			wCtx.signalch <- syscall.SIGCONT
 		}
 	}
 
@@ -309,35 +310,13 @@ func main() {
 				// Propagate the signal to workers
 				// and continue waiting for signals
 				if len(*cfgFileList) != 0 {
-					configfilelist, err := NewJTIMONConfigFilelist(*cfgFileList)
-					if err != nil {
-						fmt.Printf("Error in parsing the new config file, Continuing with older config")
-						continue
-					}
-					n := len(configfilelist.Filenames)
-
-					for _, file := range configfilelist.Filenames {
-						if worker, ok := wMap[file]; ok {
-							worker.signalch <- s
-						} else {
-							signalch, err := worker(file, idx, &wg)
-							if err != nil {
-								wg.Done()
-							}
-							wMap[file] = &workerCtx{
-								signalch: signalch,
-								err:      err,
-							}
-						}
-					}
+					HandleConfigChanges(cfgFileList, wMap, &wg)
 				}
 			case os.Interrupt:
 				// Send the interrupt to the worker routines and
 				// return
-				for _, worker := range wMap {
-					if worker.err == nil {
-						worker.signalch <- s
-					}
+				for _, wCtx := range wMap {
+					wCtx.signalch <- s
 				}
 				return
 			}
@@ -353,10 +332,9 @@ func main() {
 		}
 		tickChan := time.NewTimer(time.Second * time.Duration(*mr)).C
 		<-tickChan
-		for _, worker := range wList {
-			if worker.err == nil {
-				worker.signalch <- os.Interrupt
-			}
+		for _, worker := range wMap {
+			worker.signalch <- os.Interrupt
+
 		}
 	}()
 	wg.Wait()

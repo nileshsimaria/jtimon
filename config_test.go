@@ -75,3 +75,23 @@ func TestExploreConfig(t *testing.T) {
 		t.Errorf("ExploreConfig failed, Error: %v\n", err)
 	}
 }
+
+func TeststringInSlice(t *testing.T) {
+	files := []struct {
+		name  string
+		value bool
+	}{
+		{"first", false},
+		{"two", true},
+		{"third", false},
+	}
+
+	configfilelist := []string{"one", "two", "three"}
+
+	for _, file := range files {
+		ret := stringInSlice(file.name, configfilelist)
+		if ret != file.value {
+			t.Errorf("TeststringInSlice failed")
+		}
+	}
+}

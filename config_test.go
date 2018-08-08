@@ -76,7 +76,7 @@ func TestExploreConfig(t *testing.T) {
 	}
 }
 
-func TeststringInSlice(t *testing.T) {
+func TestStringInSlice(t *testing.T) {
 	files := []struct {
 		name  string
 		value bool

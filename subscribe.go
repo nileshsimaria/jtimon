@@ -19,10 +19,8 @@ type SubErrorCode int
 
 // Error Codes for Subscribe Send routines
 const (
-	SubRcSucess = iota
-	SubRcConnRetry
+	SubRcConnRetry = iota
 	SubRcRestartStreaming
-	SubRcFail
 )
 
 func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
@@ -95,7 +93,10 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 //		  	caller to restart the streaming by setting the corresponding return
 //			code
 //		- In case of an error, Set the error code to restart the connection.
-func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.SubscriptionRequest) SubErrorCode {
+func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
+	subReqM na_pb.SubscriptionRequest,
+	statusch chan<- bool) SubErrorCode {
+
 	var ctx context.Context
 	c := na_pb.NewOpenConfigTelemetryClient(conn)
 	if jctx.config.Meta {
@@ -125,7 +126,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 			"sensor-path", "sequence-number", "component-id", "sub-component-id", "packet-size", "p-ts", "e-ts", "re-stream-creation-ts", "re-payload-get-ts"))
 	}
 
-	datach := make(chan bool)
+	datach := make(chan struct{})
 	go func() {
 		// Go Routine which actually starts the streaming connection and receives the data
 		jLog(jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
@@ -134,12 +135,12 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 			ocData, err := stream.Recv()
 			if err == io.EOF {
 				printSummary(jctx)
-				datach <- false
+				datach <- struct{}{}
 				break
 			}
 			if err != nil {
 				jLog(jctx, fmt.Sprintf("%v.TelemetrySubscribe(_) = _, %v", conn, err))
-				datach <- false
+				datach <- struct{}{}
 				return
 			}
 
@@ -177,21 +178,20 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 				default:
 				}
 			}
-			datach <- true
 		}
 	}()
 	for {
 		// The below select loop will hand
 		select {
+		case statusch <- true:
+			fmt.Println("Streaming has started")
 		case <-jctx.pause.subch:
+			// Config has been updated restart the streaming.
+			// Need to find a way to close the streaming.
 			return SubRcRestartStreaming
-		case status := <-datach:
-			if status == false {
-				return SubRcConnRetry
-			}
-			if jctx.running == false {
-				jctx.running = true
-			}
+		case <-datach:
+			// data is not received, retry the connection
+			return SubRcConnRetry
 		}
 	}
 }
@@ -201,17 +201,14 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx, subReqM na_pb.Subscrip
 //
 // In case of SIGHUP, the paths are formed again and streaming
 // is restarted.
-func subscribe(conn *grpc.ClientConn, jctx *JCtx) {
+func subscribe(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) {
 	var subReqM na_pb.SubscriptionRequest
 	var additionalConfigM na_pb.SubscriptionAdditionalConfig
 
 	for {
-		if jctx.running == true {
-			jctx.running = false
-			<-jctx.pause.subch
-			// Reset the paths
-			subReqM.PathList = nil
-		}
+		// Reset the paths if continued over loop
+		subReqM.PathList = nil
+
 		cfg := &jctx.config
 		for i := range cfg.Paths {
 			var pathM na_pb.Path
@@ -222,8 +219,9 @@ func subscribe(conn *grpc.ClientConn, jctx *JCtx) {
 		additionalConfigM.NeedEos = jctx.config.EOS
 		subReqM.AdditionalConfig = &additionalConfigM
 
-		res := subSendAndReceive(conn, jctx, subReqM)
+		res := subSendAndReceive(conn, jctx, subReqM, statusch)
 		if res != SubRcRestartStreaming {
+			fmt.Println("Restarting the connection")
 			// Restart the connection
 			return
 		}

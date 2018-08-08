@@ -68,21 +68,21 @@ type JCtx struct {
 	pause     struct {
 		pch   chan int64
 		upch  chan struct{}
-		subch chan bool
-		logch chan bool
+		subch chan struct{}
+		logch chan struct{}
 	}
 	running bool
 }
 
 type workerCtx struct {
-	signalch chan os.Signal
+	signalch chan<- os.Signal
 	err      error
 }
 
 // A worker function is the one who gets job done.
-func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
+func worker(file string, idx int, wg *sync.WaitGroup) (chan<- os.Signal, error) {
 	signalch := make(chan os.Signal)
-	subStatusch := make(chan bool)
+	statusch := make(chan bool)
 	jctx := JCtx{
 		file:  file,
 		index: idx,
@@ -112,9 +112,9 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
 					// Running will not be set when the connection is
 					// not establihsed and it is trying to connect.
 					if jctx.running {
-						jctx.pause.subch <- true
 						ConfigRead(&jctx, false)
-						jctx.pause.subch <- false
+						jctx.pause.subch <- struct{}{}
+						jctx.running = false
 					}
 				case syscall.SIGCONT:
 					go func() {
@@ -128,14 +128,14 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
 							bs, err := ioutil.ReadFile(jctx.config.TLS.CA)
 							if err != nil {
 								jLog(&jctx, fmt.Sprintf("[%d] Failed to read ca cert: %s\n", idx, err))
-								subStatusch <- true
+								statusch <- false
 								return
 							}
 
 							ok := certPool.AppendCertsFromPEM(bs)
 							if !ok {
 								jLog(&jctx, fmt.Sprintf("[%d] Failed to append certs\n", idx))
-								subStatusch <- true
+								statusch <- false
 								return
 							}
 
@@ -169,7 +169,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
 
 						hostname := jctx.config.Host + ":" + strconv.Itoa(jctx.config.Port)
 						if hostname == ":0" {
-							subStatusch <- true
+							statusch <- false
 							return
 						}
 					connect:
@@ -199,18 +199,18 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
 										Password: pass, ClientId: jctx.config.CID})
 								if err != nil {
 									jLog(&jctx, fmt.Sprintf("[%d] Could not login: %v\n", idx, err))
-									subStatusch <- true
+									statusch <- false
 									return
 								}
 								if !dat.Result {
 									jLog(&jctx, fmt.Sprintf("[%d] LoginCheck failed", idx))
-									subStatusch <- true
+									statusch <- false
 									return
 								}
 							}
 						}
 
-						subscribe(conn, &jctx)
+						subscribe(conn, &jctx, statusch)
 						// Close the current connection and retry
 						conn.Close()
 						// If we are here we must try to reconnect again.
@@ -220,17 +220,18 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan os.Signal, error) {
 						goto connect
 					}()
 				}
-			case status := <-subStatusch:
+			case status := <-statusch:
 				switch status {
-				case true:
+				case false:
 					// Exited with error
 					printSummary(&jctx)
 					wg.Done()
+				case true:
+					jctx.running = true
 				}
 			}
 		}
 	}()
-
 	return signalch, nil
 }
 
@@ -277,10 +278,12 @@ func main() {
 	//	n := len(*cfgFile)
 	var wg sync.WaitGroup
 	wMap := make(map[string]*workerCtx)
+	numServers := 0
 
 	for idx, file := range *cfgFile {
 		wg.Add(1)
 		signalch, err := worker(file, idx, &wg)
+		numServers = idx
 		if err != nil {
 			wg.Done()
 		} else {
@@ -310,7 +313,7 @@ func main() {
 				// Propagate the signal to workers
 				// and continue waiting for signals
 				if len(*cfgFileList) != 0 {
-					HandleConfigChanges(cfgFileList, wMap, &wg)
+					HandleConfigChanges(cfgFileList, wMap, &wg, &numServers)
 				}
 			case os.Interrupt:
 				// Send the interrupt to the worker routines and

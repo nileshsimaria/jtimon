@@ -218,8 +218,8 @@ func ConfigRead(jctx *JCtx, init bool) error {
 		jLog(jctx, fmt.Sprintf("\nRunning config of JTIMON:\n %s\n", string(b)))
 
 		if init {
-			jctx.pause.subch = make(chan bool)
-			jctx.pause.logch = make(chan bool)
+			jctx.pause.subch = make(chan struct{})
+			jctx.pause.logch = make(chan struct{})
 
 			go periodicStats(jctx)
 			influxInit(jctx)
@@ -249,7 +249,8 @@ func ConfigRead(jctx *JCtx, init bool) error {
 	return nil
 }
 
-func stringInSlice(a string, list []string) bool {
+// StringInSlice to check whether a string in in the slice
+func StringInSlice(a string, list []string) bool {
 	for _, b := range list {
 		if b == a {
 			return true
@@ -259,7 +260,8 @@ func stringInSlice(a string, list []string) bool {
 }
 
 // HandleConfigChanges will take care of SIGHUP handling for the main thread
-func HandleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx, wg *sync.WaitGroup) {
+func HandleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx,
+	wg *sync.WaitGroup, numServers *int) {
 	// Config was config list.
 	// On Sighup Need to do the following thins
 	// 		1. Add Worker threads if needed
@@ -280,9 +282,9 @@ func HandleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx, wg *sy
 			wCtx.signalch <- s
 		} else {
 			wg.Add(1)
-			NumOfServers := len(wMap)
+			*numServers++
 			fmt.Printf("Adding a new device to %v\n", file)
-			signalch, err := worker(file, NumOfServers, wg)
+			signalch, err := worker(file, *numServers, wg)
 			if err != nil {
 				wg.Done()
 			} else {
@@ -296,7 +298,7 @@ func HandleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx, wg *sy
 
 	// Handle deletions
 	for wCtxFileKey, wCtx := range wMap {
-		if stringInSlice(wCtxFileKey, configfilelist.Filenames) == false {
+		if StringInSlice(wCtxFileKey, configfilelist.Filenames) == false {
 			// Kill the worker thread and remove it from the map
 			fmt.Printf("Deleting a new file to %v\n", wCtxFileKey)
 			wCtx.signalch <- os.Interrupt

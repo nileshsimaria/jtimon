@@ -32,7 +32,6 @@ type Config struct {
 	Influx   InfluxConfig  `json:"influx"`
 	Paths    []PathsConfig `json:"paths"`
 	Log      LogConfig     `json:"log"`
-	// mux      sync.RWMutex
 }
 
 //LogConfig is config struct for logging
@@ -189,7 +188,7 @@ func GetConfigFiles(cfgFile *[]string, cfgFileList *string) error {
 func ValidateConfigChange(jctx *JCtx, config Config) error {
 	runningCfg := jctx.config
 	if !reflect.DeepEqual(runningCfg, config) {
-		// Config change
+		// Config change is now only for path, it can be extended.
 		if !reflect.DeepEqual(runningCfg.Paths, config.Paths) {
 			return nil
 		}
@@ -219,7 +218,6 @@ func ConfigRead(jctx *JCtx, init bool) error {
 
 		if init {
 			jctx.pause.subch = make(chan struct{})
-			jctx.pause.logch = make(chan struct{})
 
 			go periodicStats(jctx)
 			influxInit(jctx)
@@ -239,11 +237,11 @@ func ConfigRead(jctx *JCtx, init bool) error {
 		err := ValidateConfigChange(jctx, config)
 		if err == nil {
 			jctx.config.Paths = config.Paths
-			fmt.Println("We have got a new config")
+			jLog(jctx, fmt.Sprintf("We have got a new config\n"))
 		} else {
-			jLog(jctx, fmt.Sprintf("Ignoring config changes"))
+			jLog(jctx, fmt.Sprintf("Ignoring config changes\n"))
 		}
-		jLog(jctx, fmt.Sprintf("Config re-read"))
+		jLog(jctx, fmt.Sprintf("Config has been updated\n"))
 	}
 
 	return nil
@@ -300,7 +298,7 @@ func HandleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx,
 	for wCtxFileKey, wCtx := range wMap {
 		if StringInSlice(wCtxFileKey, configfilelist.Filenames) == false {
 			// Kill the worker thread and remove it from the map
-			fmt.Printf("Deleting a new file to %v\n", wCtxFileKey)
+			fmt.Printf("Deleting an entry to %v\n", wCtxFileKey)
 			wCtx.signalch <- os.Interrupt
 			delete(wMap, wCtxFileKey)
 		}

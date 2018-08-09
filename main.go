@@ -69,7 +69,6 @@ type JCtx struct {
 		pch   chan int64
 		upch  chan struct{}
 		subch chan struct{}
-		logch chan struct{}
 	}
 	running bool
 }
@@ -106,7 +105,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan<- os.Signal, error) 
 				case os.Interrupt:
 					// Received Interrupt Signal, Stop the program
 					printSummary(&jctx)
-					wg.Done()
+					jctx.wg.Done()
 				case syscall.SIGHUP:
 					// Handle SIGHUP if the streaming is happening
 					// Running will not be set when the connection is
@@ -225,7 +224,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan<- os.Signal, error) 
 				case false:
 					// Exited with error
 					printSummary(&jctx)
-					wg.Done()
+					jctx.wg.Done()
 				case true:
 					jctx.running = true
 				}

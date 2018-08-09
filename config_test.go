@@ -89,7 +89,7 @@ func TestStringInSlice(t *testing.T) {
 	configfilelist := []string{"one", "two", "three"}
 
 	for _, file := range files {
-		ret := stringInSlice(file.name, configfilelist)
+		ret := StringInSlice(file.name, configfilelist)
 		if ret != file.value {
 			t.Errorf("TeststringInSlice failed")
 		}

@@ -221,10 +221,10 @@ func subscribe(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) {
 
 		res := subSendAndReceive(conn, jctx, subReqM, statusch)
 		if res != SubRcRestartStreaming {
-			fmt.Println("Restarting the connection")
+			jLog(jctx, fmt.Sprintf("Restarting the connection\n"))
 			// Restart the connection
 			return
 		}
-		fmt.Println("Restarting Subscription")
+		jLog(jctx, fmt.Sprintf("Restarting Subscription\n"))
 	}
 }

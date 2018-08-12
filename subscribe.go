@@ -127,6 +127,9 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 	}
 
 	datach := make(chan struct{})
+
+	// Inform the caller that streaming has started. 
+	statusch <- true
 	go func() {
 		// Go Routine which actually starts the streaming connection and receives the data
 		jLog(jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
@@ -181,10 +184,9 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 		}
 	}()
 	for {
-		// The below select loop will hand
+		// The below select loop will handle the following 
+		// 		1. Tell the caller that streaming has started
 		select {
-		case statusch <- true:
-			fmt.Println("Streaming has started")
 		case <-jctx.pause.subch:
 			// Config has been updated restart the streaming.
 			// Need to find a way to close the streaming.

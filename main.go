@@ -105,15 +105,20 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan<- os.Signal, error) 
 				case os.Interrupt:
 					// Received Interrupt Signal, Stop the program
 					printSummary(&jctx)
+					jLog(&jctx, fmt.Sprintf("Streaming has been interruppted"))
 					jctx.wg.Done()
 				case syscall.SIGHUP:
 					// Handle SIGHUP if the streaming is happening
 					// Running will not be set when the connection is
 					// not establihsed and it is trying to connect.
-					if jctx.running {
-						ConfigRead(&jctx, false)
+					err := ConfigRead(&jctx, false)
+					if err != nil {
+						jLog(&jctx, fmt.Sprintln(err))
+					} else if jctx.running {
 						jctx.pause.subch <- struct{}{}
 						jctx.running = false
+					} else {
+						jLog(&jctx, fmt.Sprintf("Config Re-Read, Data streaming has not started yet"))
 					}
 				case syscall.SIGCONT:
 					go func() {
@@ -209,12 +214,17 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan<- os.Signal, error) 
 							}
 						}
 
-						subscribe(conn, &jctx, statusch)
+						res := subscribe(conn, &jctx, statusch)
 						// Close the current connection and retry
 						conn.Close()
-						// If we are here we must try to reconnect again.
-						// Reconnect after 10 seconds.
-						time.Sleep(10 * time.Second)
+						if res == SubRcSighupRestart {
+							jLog(&jctx, fmt.Sprintf("Restarting the connection for config changes\n"))
+						} else {
+							jLog(&jctx, fmt.Sprintf("Retrying the connection"))
+							// If we are here we must try to reconnect again.
+							// Reconnect after 10 seconds.
+							time.Sleep(10 * time.Second)
+						}
 						retry = true
 						goto connect
 					}()

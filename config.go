@@ -237,11 +237,10 @@ func ConfigRead(jctx *JCtx, init bool) error {
 		err := ValidateConfigChange(jctx, config)
 		if err == nil {
 			jctx.config.Paths = config.Paths
-			jLog(jctx, fmt.Sprintf("We have got a new config\n"))
+			jLog(jctx, fmt.Sprintf("Config has been updated\n"))
 		} else {
-			jLog(jctx, fmt.Sprintf("Ignoring config changes\n"))
+			return fmt.Errorf("No change in subscription path, ignoring config changes")
 		}
-		jLog(jctx, fmt.Sprintf("Config has been updated\n"))
 	}
 
 	return nil
@@ -268,6 +267,7 @@ func HandleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx,
 	configfilelist, err := NewJTIMONConfigFilelist(*cfgFileList)
 	if err != nil {
 		fmt.Printf("Error in parsing the new config file, Continuing with older config")
+		return
 	}
 
 	s := syscall.SIGHUP

@@ -20,7 +20,7 @@ type SubErrorCode int
 // Error Codes for Subscribe Send routines
 const (
 	SubRcConnRetry = iota
-	SubRcRestartStreaming
+	SubRcSighupRestart
 )
 
 func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
@@ -128,7 +128,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 
 	datach := make(chan struct{})
 
-	// Inform the caller that streaming has started. 
+	// Inform the caller that streaming has started.
 	statusch <- true
 	go func() {
 		// Go Routine which actually starts the streaming connection and receives the data
@@ -184,13 +184,14 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 		}
 	}()
 	for {
-		// The below select loop will handle the following 
+		// The below select loop will handle the following
 		// 		1. Tell the caller that streaming has started
+		//		2. Tell the caller that there is no incoming data
 		select {
 		case <-jctx.pause.subch:
 			// Config has been updated restart the streaming.
 			// Need to find a way to close the streaming.
-			return SubRcRestartStreaming
+			return SubRcSighupRestart
 		case <-datach:
 			// data is not received, retry the connection
 			return SubRcConnRetry
@@ -203,30 +204,25 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 //
 // In case of SIGHUP, the paths are formed again and streaming
 // is restarted.
-func subscribe(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) {
+func subscribe(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
 	var subReqM na_pb.SubscriptionRequest
 	var additionalConfigM na_pb.SubscriptionAdditionalConfig
 
-	for {
-		// Reset the paths if continued over loop
-		subReqM.PathList = nil
-
-		cfg := &jctx.config
-		for i := range cfg.Paths {
-			var pathM na_pb.Path
-			pathM.Path = cfg.Paths[i].Path
-			pathM.SampleFrequency = uint32(cfg.Paths[i].Freq)
-			subReqM.PathList = append(subReqM.PathList, &pathM)
-		}
-		additionalConfigM.NeedEos = jctx.config.EOS
-		subReqM.AdditionalConfig = &additionalConfigM
-
-		res := subSendAndReceive(conn, jctx, subReqM, statusch)
-		if res != SubRcRestartStreaming {
-			jLog(jctx, fmt.Sprintf("Restarting the connection\n"))
-			// Restart the connection
-			return
-		}
-		jLog(jctx, fmt.Sprintf("Restarting Subscription\n"))
+	cfg := &jctx.config
+	for i := range cfg.Paths {
+		var pathM na_pb.Path
+		pathM.Path = cfg.Paths[i].Path
+		pathM.SampleFrequency = uint32(cfg.Paths[i].Freq)
+		subReqM.PathList = append(subReqM.PathList, &pathM)
 	}
+	additionalConfigM.NeedEos = jctx.config.EOS
+	subReqM.AdditionalConfig = &additionalConfigM
+
+	res := subSendAndReceive(conn, jctx, subReqM, statusch)
+	if res == SubRcSighupRestart {
+		jLog(jctx, fmt.Sprintf("Restarting the connection for sighup\n"))
+	} else {
+		jLog(jctx, fmt.Sprintf("Restarting the connection"))
+	}
+	return res
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"os/signal"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
@@ -66,19 +66,22 @@ type JCtx struct {
 	influxCtx InfluxCtx
 	stats     statsCtx
 	pause     struct {
-		pch  chan int64
-		upch chan struct{}
+		pch   chan int64
+		upch  chan struct{}
+		subch chan struct{}
 	}
+	running bool
 }
 
 type workerCtx struct {
-	ch  chan bool
-	err error
+	signalch chan<- os.Signal
+	err      error
 }
 
 // A worker function is the one who gets job done.
-func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
-	ch := make(chan bool)
+func worker(file string, idx int, wg *sync.WaitGroup) (chan<- os.Signal, error) {
+	signalch := make(chan os.Signal)
+	statusch := make(chan bool)
 	jctx := JCtx{
 		file:  file,
 		index: idx,
@@ -88,43 +91,36 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 		},
 	}
 
-	var err error
-	jctx.config, err = NewJTIMONConfig(file)
+	err := ConfigRead(&jctx, true)
 	if err != nil {
-		fmt.Printf("\nConfig parsing error for %s[%d]: %v\n", file, idx, err)
-		return ch, fmt.Errorf("config parsing (json Unmarshal) error for %s[%d]: %v", file, idx, err)
-	}
-
-	logInit(&jctx)
-	b, err := json.MarshalIndent(jctx.config, "", "    ")
-	if err != nil {
-		return ch, fmt.Errorf("Config parsing error (json Marshal) for %s[%d]: %v", file, idx, err)
-	}
-	jLog(&jctx, fmt.Sprintf("\nRunning config of JTIMON:\n %s\n", string(b)))
-
-	go periodicStats(&jctx)
-	influxInit(&jctx)
-	dropInit(&jctx)
-	go apiInit(&jctx)
-
-	if *grpcHeaders {
-		pmap := make(map[string]interface{})
-		for i := range jctx.config.Paths {
-			pmap["path"] = jctx.config.Paths[i].Path
-			pmap["reporting-rate"] = float64(jctx.config.Paths[i].Freq)
-			addGRPCHeader(&jctx, pmap)
-		}
+		fmt.Println(err)
+		return signalch, err
 	}
 
 	go func() {
 		for {
 			select {
-			case ctrl := <-ch:
-				switch ctrl {
-				case false:
+			case sig := <-signalch:
+				switch sig {
+				case os.Interrupt:
+					// Received Interrupt Signal, Stop the program
 					printSummary(&jctx)
+					jLog(&jctx, fmt.Sprintf("Streaming has been interruppted"))
 					jctx.wg.Done()
-				case true:
+				case syscall.SIGHUP:
+					// Handle SIGHUP if the streaming is happening
+					// Running will not be set when the connection is
+					// not establihsed and it is trying to connect.
+					err := ConfigRead(&jctx, false)
+					if err != nil {
+						jLog(&jctx, fmt.Sprintln(err))
+					} else if jctx.running {
+						jctx.pause.subch <- struct{}{}
+						jctx.running = false
+					} else {
+						jLog(&jctx, fmt.Sprintf("Config Re-Read, Data streaming has not started yet"))
+					}
+				case syscall.SIGCONT:
 					go func() {
 						var retry bool
 						var opts []grpc.DialOption
@@ -136,12 +132,14 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 							bs, err := ioutil.ReadFile(jctx.config.TLS.CA)
 							if err != nil {
 								jLog(&jctx, fmt.Sprintf("[%d] Failed to read ca cert: %s\n", idx, err))
+								statusch <- false
 								return
 							}
 
 							ok := certPool.AppendCertsFromPEM(bs)
 							if !ok {
 								jLog(&jctx, fmt.Sprintf("[%d] Failed to append certs\n", idx))
+								statusch <- false
 								return
 							}
 
@@ -175,6 +173,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 
 						hostname := jctx.config.Host + ":" + strconv.Itoa(jctx.config.Port)
 						if hostname == ":0" {
+							statusch <- false
 							return
 						}
 					connect:
@@ -191,38 +190,58 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan bool, error) {
 							goto connect
 						}
 
+						// Close the connection on return
+						defer conn.Close()
+
 						if jctx.config.User != "" && jctx.config.Password != "" {
 							user := jctx.config.User
 							pass := jctx.config.Password
 							if !jctx.config.Meta {
 								lc := auth_pb.NewLoginClient(conn)
-								dat, err := lc.LoginCheck(context.Background(), &auth_pb.LoginRequest{UserName: user, Password: pass, ClientId: jctx.config.CID})
+								dat, err := lc.LoginCheck(context.Background(),
+									&auth_pb.LoginRequest{UserName: user,
+										Password: pass, ClientId: jctx.config.CID})
 								if err != nil {
 									jLog(&jctx, fmt.Sprintf("[%d] Could not login: %v\n", idx, err))
+									statusch <- false
 									return
 								}
 								if !dat.Result {
 									jLog(&jctx, fmt.Sprintf("[%d] LoginCheck failed", idx))
+									statusch <- false
 									return
 								}
 							}
 						}
 
-						subscribe(conn, &jctx)
+						res := subscribe(conn, &jctx, statusch)
 						// Close the current connection and retry
 						conn.Close()
-						// If we are here we must try to reconnect again.
-						// Reconnect after 10 seconds.
-						time.Sleep(10 * time.Second)
+						if res == SubRcSighupRestart {
+							jLog(&jctx, fmt.Sprintf("Restarting the connection for config changes\n"))
+						} else {
+							jLog(&jctx, fmt.Sprintf("Retrying the connection"))
+							// If we are here we must try to reconnect again.
+							// Reconnect after 10 seconds.
+							time.Sleep(10 * time.Second)
+						}
 						retry = true
 						goto connect
 					}()
 				}
+			case status := <-statusch:
+				switch status {
+				case false:
+					// Exited with error
+					printSummary(&jctx)
+					jctx.wg.Done()
+				case true:
+					jctx.running = true
+				}
 			}
 		}
 	}()
-
-	return ch, nil
+	return signalch, nil
 }
 
 func main() {
@@ -265,49 +284,69 @@ func main() {
 		return
 	}
 
-	n := len(*cfgFile)
+	//	n := len(*cfgFile)
 	var wg sync.WaitGroup
-	wg.Add(n)
-	wList := make([]*workerCtx, n)
+	wMap := make(map[string]*workerCtx)
+	numServers := 0
 
 	for idx, file := range *cfgFile {
-		ch, err := worker(file, idx, &wg)
+		wg.Add(1)
+		signalch, err := worker(file, idx, &wg)
+		numServers = idx
 		if err != nil {
 			wg.Done()
+		} else {
+			wMap[file] = &workerCtx{
+				signalch: signalch,
+				err:      err,
+			}
 		}
-		wList[idx] = &workerCtx{
-			ch:  ch,
-			err: err,
-		}
+
 	}
 
-	for _, worker := range wList {
-		if worker.err == nil {
-			worker.ch <- true
+	// Start the Worked go routines which are waiting on the select loop
+	for _, wCtx := range wMap {
+		if wCtx.err == nil {
+			wCtx.signalch <- syscall.SIGCONT
 		}
 	}
 
 	go func() {
 		sigchan := make(chan os.Signal, 10)
-		signal.Notify(sigchan, os.Interrupt)
-		<-sigchan
-		for _, worker := range wList {
-			if worker.err == nil {
-				worker.ch <- false
+		// Handling only Interrupt and SIGHUP signals
+		signal.Notify(sigchan, os.Interrupt, syscall.SIGHUP)
+		for {
+			s := <-sigchan
+			switch s {
+			case syscall.SIGHUP:
+				// Propagate the signal to workers
+				// and continue waiting for signals
+				if len(*cfgFileList) != 0 {
+					HandleConfigChanges(cfgFileList, wMap, &wg, &numServers)
+				}
+			case os.Interrupt:
+				// Send the interrupt to the worker routines and
+				// return
+				for _, wCtx := range wMap {
+					wCtx.signalch <- s
+				}
+				return
 			}
 		}
 	}()
 
 	go func() {
+		// mr - Max run time in seconds
+		// Subscription is configured for a certain time period
+		// Once the time expires interrupt the Worker threads
 		if *mr == 0 {
 			return
 		}
 		tickChan := time.NewTimer(time.Second * time.Duration(*mr)).C
 		<-tickChan
-		for _, worker := range wList {
-			if worker.err == nil {
-				worker.ch <- false
-			}
+		for _, worker := range wMap {
+			worker.signalch <- os.Interrupt
+
 		}
 	}()
 	wg.Wait()

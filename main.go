@@ -236,7 +236,7 @@ func main() {
 
 	if *prom {
 		go func() {
-			addr := fmt.Sprintf("localhost:%d", promPort)
+			addr := fmt.Sprintf("localhost:%d", *promPort)
 			http.Handle("/metrics", promhttp.Handler())
 			fmt.Println(http.ListenAndServe(addr, nil))
 		}()

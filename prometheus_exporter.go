@@ -12,56 +12,53 @@ import (
 	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/version"
 )
 
 var (
-	invalidChars = regexp.MustCompile("[^a-zA-Z0-9_]")
-	lastPush     = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "jtimon_last_push_timestamp_seconds",
-			Help: "Timestamp of the last received jtimon metrics push.",
-		},
-	)
+	promNameRegex = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 )
 
-type jtimonSample struct {
-	ID        string
-	Name      string
-	Labels    map[string]string
-	Value     float64
-	Timestamp time.Time
+// Prometheus does not like special characters, handle them.
+func promName(input string) string {
+	return promNameRegex.ReplaceAllString(input, "_")
 }
 
-type jtimonCollector struct {
-	samples map[string]*jtimonSample
-	mu      sync.Mutex
-	ch      chan *jtimonSample
+type jtimonMetric struct {
+	mapKey           string
+	metricName       string
+	metricLabels     map[string]string
+	metricValue      float64
+	metricExpiration time.Time
 }
 
-func newJTIMONCollector() *jtimonCollector {
-	c := &jtimonCollector{
-		ch:      make(chan *jtimonSample),
-		samples: map[string]*jtimonSample{},
-	}
-	return c
+type jtimonPExporter struct {
+	m  map[string]*jtimonMetric
+	mu sync.Mutex
+	ch chan *jtimonMetric
 }
 
-func (c *jtimonCollector) getSamples() {
+func newJTIMONPExporter() *jtimonPExporter {
+	return (&jtimonPExporter{
+		ch: make(chan *jtimonMetric),
+		m:  map[string]*jtimonMetric{},
+	})
+}
+
+func (c *jtimonPExporter) processJTIMONMetric() {
 	ticker := time.NewTicker(time.Minute).C
 	for {
 		select {
 		case s := <-c.ch:
 			c.mu.Lock()
-			c.samples[s.ID] = s
+			c.m[s.mapKey] = s
 			c.mu.Unlock()
 
 		case <-ticker:
 			ageLimit := time.Now().Add(-time.Minute)
 			c.mu.Lock()
-			for k, sample := range c.samples {
-				if ageLimit.After(sample.Timestamp) {
-					delete(c.samples, k)
+			for k, metric := range c.m {
+				if ageLimit.After(metric.metricExpiration) {
+					delete(c.m, k)
 				}
 			}
 			c.mu.Unlock()
@@ -70,37 +67,49 @@ func (c *jtimonCollector) getSamples() {
 }
 
 // Collect implements prometheus.Collector
-func (c *jtimonCollector) Collect(ch chan<- prometheus.Metric) {
-	ch <- lastPush
-
+func (c *jtimonPExporter) Collect(ch chan<- prometheus.Metric) {
 	c.mu.Lock()
-	samples := make([]*jtimonSample, 0, len(c.samples))
-	for _, sample := range c.samples {
-		samples = append(samples, sample)
+	metrics := make([]*jtimonMetric, 0, len(c.m))
+	for _, metric := range c.m {
+		metrics = append(metrics, metric)
 	}
 	c.mu.Unlock()
 
-	ageLimit := time.Now().Add(-time.Minute)
-	for _, sample := range samples {
-		if ageLimit.After(sample.Timestamp) {
-			continue
-		}
+	for _, metric := range metrics {
 		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc(sample.Name, "JTIMON Metric", []string{}, sample.Labels),
+			prometheus.NewDesc(metric.metricName, "JTIMON Metric", []string{}, metric.metricLabels),
 			prometheus.UntypedValue,
-			sample.Value,
+			metric.metricValue,
 		)
 	}
 }
 
 // Describe implements prometheus.Describe
-func (c *jtimonCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- lastPush.Desc()
+func (c *jtimonPExporter) Describe(ch chan<- *prometheus.Desc) {
+	prometheus.NewGauge(prometheus.GaugeOpts{Name: "Dummy", Help: "Dummy"}).Describe(ch)
+}
+
+func getMapKey(metric *jtimonMetric) string {
+	labels := make([]string, 0, len(metric.metricLabels))
+
+	for k := range metric.metricLabels {
+		labels = append(labels, k)
+	}
+
+	sort.Strings(labels)
+
+	mapKey := make([]string, 0, len(metric.metricLabels)*2+1)
+	mapKey = append(mapKey, metric.metricName)
+
+	for _, l := range labels {
+		mapKey = append(mapKey, l, metric.metricLabels[l])
+	}
+
+	return fmt.Sprintf("%q", mapKey)
 }
 
 func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
-	lastPush.Set(float64(time.Now().UnixNano()) / 1e9)
-	c := jctx.promCollector
+	exporter := jctx.pExporter
 	cfg := jctx.config
 
 	prefix := ""
@@ -144,40 +153,29 @@ func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 			continue
 		}
 
-		sample := &jtimonSample{
-			Name:      invalidChars.ReplaceAllString(field, "_"),
-			Timestamp: time.Now(),
-			Value:     fieldValue,
-			Labels:    map[string]string{},
+		metric := &jtimonMetric{
+			metricName:       promName(field),
+			metricExpiration: time.Now(),
+			metricValue:      fieldValue,
+			metricLabels:     map[string]string{},
 		}
 		for k, v := range tags {
-			sample.Labels[invalidChars.ReplaceAllString(k, "_")] = v
+			metric.metricLabels[promName(k)] = v
 		}
 
-		labelnames := make([]string, 0, len(sample.Labels))
-		for k := range sample.Labels {
-			labelnames = append(labelnames, k)
-		}
-		sort.Strings(labelnames)
-		parts := make([]string, 0, len(sample.Labels)*2+1)
-		parts = append(parts, invalidChars.ReplaceAllString(field, "_"))
-		for _, l := range labelnames {
-			parts = append(parts, l, sample.Labels[l])
-		}
-		sample.ID = fmt.Sprintf("%q", parts)
-
-		c.ch <- sample
+		metric.mapKey = getMapKey(metric)
+		exporter.ch <- metric
 	}
 }
 
-func promInit() *jtimonCollector {
+func promInit() *jtimonPExporter {
 
-	prometheus.MustRegister(version.NewCollector("jtimon_exporter"))
-	c := newJTIMONCollector()
+	c := newJTIMONPExporter()
 	prometheus.MustRegister(c)
 
 	go func() {
-		go c.getSamples()
+		go c.processJTIMONMetric()
+
 		addr := fmt.Sprintf("localhost:%d", *promPort)
 		http.Handle("/metrics", promhttp.Handler())
 		fmt.Println(http.ListenAndServe(addr, nil))

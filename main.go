@@ -55,20 +55,20 @@ var (
 	jtimonVersion = "version-not-available"
 	buildTime     = "build-time-not-available"
 
-	collector *jtimonCollector
+	exporter *jtimonPExporter
 )
 
 // JCtx is JTIMON run time context
 type JCtx struct {
-	config        Config
-	file          string
-	index         int
-	wg            *sync.WaitGroup
-	dMap          map[uint32]map[uint32]map[string]dropData
-	influxCtx     InfluxCtx
-	stats         statsCtx
-	promCollector *jtimonCollector
-	pause         struct {
+	config    Config
+	file      string
+	index     int
+	wg        *sync.WaitGroup
+	dMap      map[uint32]map[uint32]map[string]dropData
+	influxCtx InfluxCtx
+	stats     statsCtx
+	pExporter *jtimonPExporter
+	pause     struct {
 		pch   chan int64
 		upch  chan struct{}
 		subch chan struct{}
@@ -86,10 +86,10 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan<- os.Signal, error) 
 	signalch := make(chan os.Signal)
 	statusch := make(chan bool)
 	jctx := JCtx{
-		file:          file,
-		index:         idx,
-		wg:            wg,
-		promCollector: collector,
+		file:      file,
+		index:     idx,
+		wg:        wg,
+		pExporter: exporter,
 		stats: statsCtx{
 			startTime: time.Now(),
 		},
@@ -257,7 +257,7 @@ func main() {
 		}()
 	}
 	if *prom {
-		collector = promInit()
+		exporter = promInit()
 	}
 	startGtrace(*gtrace)
 

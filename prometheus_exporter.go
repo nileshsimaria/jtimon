@@ -20,7 +20,7 @@ var (
 	lastPush     = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "jtimon_last_push_timestamp_seconds",
-			Help: "Unix timestamp of the last received jtimon metrics push in seconds.",
+			Help: "Timestamp of the last received jtimon metrics push.",
 		},
 	)
 )

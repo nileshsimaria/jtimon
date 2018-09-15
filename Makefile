@@ -20,7 +20,7 @@ clean: ## clean the build
 	-rm -f ${BINARY}
 
 
-LDFLAGS=--ldflags="-X main.version=${COMMIT}-${BRANCH} -X main.buildTime=${TIME}"
+LDFLAGS=--ldflags="-X main.jtimonVersion=${COMMIT}-${BRANCH} -X main.buildTime=${TIME}"
 
 linux: ## generate a linux version of the binary
 	GOOS=linux GOARCH=${GOARCH} go build ${LDFLAGS} -o ${BINARY}-linux-${GOARCH} .

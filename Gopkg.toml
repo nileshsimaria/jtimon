@@ -60,3 +60,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/common-nighthawk/go-figure"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/prometheus/common"

@@ -68,7 +68,8 @@
   packages = [
     "expfmt",
     "internal/bitbucket.org/ww/goautoneg",
-    "model"
+    "model",
+    "version"
   ]
   revision = "d0f7cd64bda49e08b22ae8a730aa57aa0db125d6"
 
@@ -164,6 +165,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "31d6cb561307cf887a3d6465ac8190aab2f9578ee4c69634270f599f4a549f8b"
+  inputs-digest = "035e079d9d2ab57ded795bdae3c238776bce70b70a21bb65385e8bed9431245c"
   solver-name = "gps-cdcl"
   solver-version = 1

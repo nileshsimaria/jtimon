@@ -1,20 +1,12 @@
 {
-    "host": "my-device-name-or-ip",
+    "host": "10.92.249.109",
     "port": 50051,
-    "user": "user-name",
-    "password": "password",
-    "cid": "my-client-id",
-    "grpc" : {
-        "ws" : 524288
-    }, 
+    "cid": "mac1",
     "paths": [{
         "path": "/interfaces",
         "freq": 2000
-	}, {
-        "path": "/bgp",
-        "freq": 10000
-	}, {
-        "path": "/components",
-        "freq": 10000
-    }]
+    }],
+    "log": {
+        "file": "1.log"
+    }
 }

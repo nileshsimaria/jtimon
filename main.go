@@ -15,7 +15,6 @@ import (
 	"time"
 
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -52,20 +51,23 @@ var (
 	gtrace         = flag.Bool("gtrace", false, "Collect GRPC traces")
 	grpcHeaders    = flag.Bool("grpc-headers", false, "Add grpc headers in DB")
 
-	version   = "version-not-available"
-	buildTime = "build-time-not-available"
+	jtimonVersion = "version-not-available"
+	buildTime     = "build-time-not-available"
+
+	collector *jtimonCollector
 )
 
 // JCtx is JTIMON run time context
 type JCtx struct {
-	config    Config
-	file      string
-	index     int
-	wg        *sync.WaitGroup
-	dMap      map[uint32]map[uint32]map[string]dropData
-	influxCtx InfluxCtx
-	stats     statsCtx
-	pause     struct {
+	config        Config
+	file          string
+	index         int
+	wg            *sync.WaitGroup
+	dMap          map[uint32]map[uint32]map[string]dropData
+	influxCtx     InfluxCtx
+	stats         statsCtx
+	promCollector *jtimonCollector
+	pause         struct {
 		pch   chan int64
 		upch  chan struct{}
 		subch chan struct{}
@@ -83,9 +85,10 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan<- os.Signal, error) 
 	signalch := make(chan os.Signal)
 	statusch := make(chan bool)
 	jctx := JCtx{
-		file:  file,
-		index: idx,
-		wg:    wg,
+		file:          file,
+		index:         idx,
+		wg:            wg,
+		promCollector: collector,
 		stats: statsCtx{
 			startTime: time.Now(),
 		},
@@ -252,18 +255,12 @@ func main() {
 			fmt.Println(http.ListenAndServe(addr, nil))
 		}()
 	}
-
 	if *prom {
-		go func() {
-			addr := fmt.Sprintf("localhost:%d", *promPort)
-			http.Handle("/metrics", promhttp.Handler())
-			fmt.Println(http.ListenAndServe(addr, nil))
-		}()
-
+		collector = promInit()
 	}
 	startGtrace(*gtrace)
 
-	fmt.Printf("Version: %s BuildTime %s\n", version, buildTime)
+	fmt.Printf("Version: %s BuildTime %s\n", jtimonVersion, buildTime)
 	if *ver {
 		return
 	}
@@ -283,6 +280,8 @@ func main() {
 		fmt.Printf("Config parsing error: %s \n", err)
 		return
 	}
+
+	mapInit()
 
 	//	n := len(*cfgFile)
 	var wg sync.WaitGroup

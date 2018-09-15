@@ -1,0 +1,21 @@
+{
+    "host": "10.92.249.109",
+    "port": 50051,
+    "cid": "mac1",
+    "paths": [{
+        "path": "/interfaces",
+        "freq": 2000
+    }],
+    "influx": {
+        "server": "127.0.0.1",
+        "port": 9122,
+        "dbname": "db",
+        "user": "u",
+        "password": "p",
+        "recreate": false,
+        "measurement": "m"
+    },
+    "log": {
+        "file": "1.log"
+    }
+}

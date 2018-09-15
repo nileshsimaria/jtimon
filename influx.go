@@ -116,11 +116,12 @@ func spitTagsNPath(jctx *JCtx, xmlpath string) (string, map[string]string) {
 						"/@" + strings.TrimSpace(keyValue[1])
 					tagValue := strings.Replace(strings.TrimSpace(keyValue[2]), "'", "", -1)
 					// Store as key value pairs
-					tags[tagKey] = tagValue
+					tags[getAlias(tagKey)] = tagValue
 				}
 			}
 			// Remove the key value pairs from the given xpath
 			xmlpath = strings.Replace(xmlpath, sub[0], "/"+strings.TrimSpace(sub[1]), 1)
+			xmlpath = getAlias(xmlpath)
 		}
 	}
 

@@ -167,6 +167,10 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 				go addIDB(ocData, jctx, rtime)
 			}
 
+			if *prom {
+				go addPrometheus(ocData, jctx)
+			}
+
 			if *apiControl {
 				select {
 				case pfor := <-jctx.pause.pch:

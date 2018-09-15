@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -12,12 +11,8 @@ var (
 	alias map[string]string
 )
 
-const (
-	aliasFile = "alias.txt"
-)
-
-func mapInit() {
-	f, err := os.Open(aliasFile)
+func aliasInit() {
+	f, err := os.Open(*aliasFile)
 	defer f.Close()
 	if err != nil {
 		return
@@ -35,7 +30,6 @@ func mapInit() {
 			break
 		}
 		alias[strings.TrimSpace(tokens[1])] = strings.TrimSpace(tokens[0])
-		fmt.Println(alias)
 	}
 }
 
@@ -46,7 +40,6 @@ func getAlias(input string) string {
 	name, ok := alias[input]
 	if !ok {
 		return input
-	} else {
-		return name
 	}
+	return name
 }

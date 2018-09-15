@@ -8,11 +8,11 @@
     }],
     "influx": {
         "server": "127.0.0.1",
-        "port": 9122,
+        "port": 8086,
         "dbname": "db",
-        "user": "u",
-        "password": "p",
-        "recreate": false,
+        "user": "influx",
+        "password": "influxdb",
+        "recreate": true,
         "measurement": "m"
     },
     "log": {

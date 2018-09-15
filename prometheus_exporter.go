@@ -54,13 +54,6 @@ func (c *jtimonCollector) getSamples() {
 		case s := <-c.ch:
 			c.mu.Lock()
 			c.samples[s.ID] = s
-			//fmt.Println("One Sample Start")
-			//fmt.Println(s.ID)
-			//fmt.Println(s.Name)
-			// fmt.Println(s.Labels)
-			// fmt.Println(s.Value)
-			// fmt.Println(s.Timestamp)
-			// fmt.Println("One Sample End")
 			c.mu.Unlock()
 
 		case <-ticker:
@@ -128,7 +121,6 @@ func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 
 		field, tags := spitTagsNPath(jctx, key)
 		tags["device"] = cfg.Host
-		tags["sensor"] = ocData.Path
 
 		var fieldValue float64
 
@@ -152,8 +144,6 @@ func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 			continue
 		}
 
-		fmt.Println("field:", field, "value:", fieldValue, "tags:", tags)
-
 		sample := &jtimonSample{
 			Name:      invalidChars.ReplaceAllString(field, "_"),
 			Timestamp: time.Now(),
@@ -164,7 +154,6 @@ func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 			sample.Labels[invalidChars.ReplaceAllString(k, "_")] = v
 		}
 
-		// Calculate a consistent unique ID for the sample.
 		labelnames := make([]string, 0, len(sample.Labels))
 		for k := range sample.Labels {
 			labelnames = append(labelnames, k)

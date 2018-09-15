@@ -33,6 +33,7 @@ const (
 var (
 	cfgFile        = flag.StringSlice("config", make([]string, 0), "Config file name(s)")
 	cfgFileList    = flag.String("config-file-list", "", "List of Config files")
+	aliasFile      = flag.String("alias-file", "", "File containing aliasing information")
 	expConfig      = flag.Bool("explore-config", false, "Explore full config of JTIMON and exit")
 	print          = flag.Bool("print", false, "Print Telemetry data")
 	outJSON        = flag.Bool("json", false, "Convert telemetry packet into JSON")
@@ -281,7 +282,9 @@ func main() {
 		return
 	}
 
-	mapInit()
+	if *aliasFile != "" {
+		aliasInit()
+	}
 
 	//	n := len(*cfgFile)
 	var wg sync.WaitGroup

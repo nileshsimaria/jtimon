@@ -164,7 +164,11 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 			}
 
 			if jctx.influxCtx.influxClient != nil {
-				go addIDB(ocData, jctx, rtime)
+				if *noppgoroutines {
+					addIDB(ocData, jctx, rtime)
+				} else {
+					go addIDB(ocData, jctx, rtime)
+				}
 			}
 
 			if *prom {

@@ -51,6 +51,7 @@ var (
 	pProfPort      = flag.Int32("pprof-port", 6060, "Profile port")
 	gtrace         = flag.Bool("gtrace", false, "Collect GRPC traces")
 	grpcHeaders    = flag.Bool("grpc-headers", false, "Add grpc headers in DB")
+	noppgoroutines = flag.Bool("no-per-packet-goroutines", false, "Spawn per packet go routines")
 
 	jtimonVersion = "version-not-available"
 	buildTime     = "build-time-not-available"

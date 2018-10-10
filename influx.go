@@ -348,7 +348,7 @@ func getInfluxClient(cfg Config) *client.Client {
 	})
 
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Failed to get influxdb client: %v\n", err)
 	}
 	return &c
 }
@@ -377,12 +377,12 @@ func influxInit(jctx *JCtx) {
 		if cfg.Influx.Recreate {
 			_, err := queryIDB(*c, fmt.Sprintf("DROP DATABASE \"%s\"", cfg.Influx.Dbname), cfg.Influx.Dbname)
 			if err != nil {
-				log.Fatal(err)
+				log.Printf("influxInit failed to drop table %v\n", err)
 			}
 		}
 		_, err := queryIDB(*c, fmt.Sprintf("CREATE DATABASE \"%s\"", cfg.Influx.Dbname), cfg.Influx.Dbname)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("influxInit failed to create database: %v\n", err)
 		}
 	}
 

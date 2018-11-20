@@ -208,13 +208,15 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan<- os.Signal, error) 
 										Password: pass, ClientId: jctx.config.CID})
 								if err != nil {
 									jLog(&jctx, fmt.Sprintf("[%d] Could not login: %v\n", idx, err))
-									statusch <- false
-									return
+									time.Sleep(10 * time.Second)
+									retry = true
+									goto connect
 								}
 								if !dat.Result {
 									jLog(&jctx, fmt.Sprintf("[%d] LoginCheck failed", idx))
-									statusch <- false
-									return
+									time.Sleep(10 * time.Second)
+									retry = true
+									goto connect
 								}
 							}
 						}

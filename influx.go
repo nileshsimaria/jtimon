@@ -18,6 +18,8 @@ var (
 	DefaultIDBBatchSize = 1024 * 1024
 	//DefaultIDBBatchFreq is 2 seconds
 	DefaultIDBBatchFreq = 2000
+	//DefaultAccumulatorFreq is 2 seconds
+	DefaultAccumulatorFreq = 2000
 )
 
 // InfluxCtx is run time info of InfluxDB data structures
@@ -25,22 +27,159 @@ type InfluxCtx struct {
 	sync.Mutex
 	influxClient   *client.Client
 	batchWCh       chan []*client.Point
+	accumulatorCh  chan (*metricIDB)
 	reXpath, reKey *regexp.Regexp
 }
 
 // InfluxConfig is the config of InfluxDB
 type InfluxConfig struct {
-	Server          string `json:"server"`
-	Port            int    `json:"port"`
-	Dbname          string `json:"dbname"`
-	User            string `json:"user"`
-	Password        string `json:"password"`
-	Recreate        bool   `json:"recreate"`
-	Measurement     string `json:"measurement"`
-	Diet            bool   `json:"diet"`
-	BatchSize       int    `json:"batchsize"`
-	BatchFrequency  int    `json:"batchfrequency"`
-	RetentionPolicy string `json:"retention-policy"`
+	Server               string `json:"server"`
+	Port                 int    `json:"port"`
+	Dbname               string `json:"dbname"`
+	User                 string `json:"user"`
+	Password             string `json:"password"`
+	Recreate             bool   `json:"recreate"`
+	Measurement          string `json:"measurement"`
+	Diet                 bool   `json:"diet"`
+	BatchSize            int    `json:"batchsize"`
+	BatchFrequency       int    `json:"batchfrequency"`
+	RetentionPolicy      string `json:"retention-policy"`
+	AccumulatorFrequency int    `json:"accumulator-frequency"`
+}
+
+type metricIDB struct {
+	tags   map[string]string
+	fields map[string]interface{}
+}
+
+func newMetricIDB(tags map[string]string, fields map[string]interface{}) *metricIDB {
+	return &metricIDB{
+		tags:   tags,
+		fields: fields,
+	}
+}
+
+func (m *metricIDB) accumulate(jctx *JCtx) {
+	jctx.influxCtx.accumulatorCh <- m
+}
+
+func pointAcculumator(jctx *JCtx) {
+	freq := jctx.config.Influx.AccumulatorFrequency
+	accumulatorCh := make(chan *metricIDB, 1024*10)
+	jctx.influxCtx.accumulatorCh = accumulatorCh
+	jLog(jctx, fmt.Sprintln("Accumulator  frequency:", freq))
+
+	ticker := time.NewTicker(time.Duration(freq) * time.Millisecond)
+
+	go func() {
+		for range ticker.C {
+			n := len(accumulatorCh)
+			jLog(jctx, fmt.Sprintf("Accumulated points : %d\n", n))
+			if n != 0 {
+				var lastPoint *client.Point
+				var points []*client.Point
+				for i := 0; i < n; i++ {
+					m := <-accumulatorCh
+					if lastPoint == nil {
+						mName := ""
+						if jctx.config.Influx.Measurement != "" {
+							mName = jctx.config.Influx.Measurement
+						} else {
+							mName = m.tags["sensor"]
+						}
+
+						pt, err := client.NewPoint(mName, m.tags, m.fields, time.Now())
+						if err != nil {
+							jLog(jctx, fmt.Sprintf("pointAcculumator: Could not get NewPoint (first point): %v\n", err))
+							continue
+						}
+						lastPoint = pt
+					} else {
+						eq := reflect.DeepEqual(m.tags, lastPoint.Tags())
+						if eq {
+							// We can merge
+							lastKV, err := lastPoint.Fields()
+							name := lastPoint.Name()
+							if err != nil {
+								jLog(jctx, fmt.Sprintf("addIDB: Could not get fields of the last point: %v\n", err))
+								continue
+							}
+							// get the fields from last point for merging
+							for k, v := range lastKV {
+								m.fields[k] = v
+							}
+							pt, err := client.NewPoint(name, m.tags, m.fields, time.Now())
+							if err != nil {
+								jLog(jctx, fmt.Sprintf("addIDB: Could not get NewPoint (merging): %v\n", err))
+								continue
+							}
+							lastPoint = pt
+						} else {
+							// lastPoint tags and current point tags differes so we can not merge.
+							// toss current point into the slice (points) and handle current point
+							// by creating new *client.Point
+							mName := ""
+							if jctx.config.Influx.Measurement != "" {
+								mName = jctx.config.Influx.Measurement
+							} else {
+								mName = m.tags["sensor"]
+							}
+							pt, err := client.NewPoint(mName, m.tags, m.fields, time.Now())
+							if err != nil {
+								jLog(jctx, fmt.Sprintf("pointAcculumator: Could not get NewPoint (first point): %v\n", err))
+								continue
+							}
+							points = append(points, lastPoint)
+							lastPoint = pt
+						}
+					}
+				}
+				// See if we need to add lastPoint we are processing
+				if eq := reflect.DeepEqual(points[len(points)-1], lastPoint); !eq {
+					points = append(points, lastPoint)
+				}
+
+				if len(points) > 0 {
+					bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+						Database:        jctx.config.Influx.Dbname,
+						Precision:       "us",
+						RetentionPolicy: jctx.config.Influx.RetentionPolicy,
+					})
+
+					if err != nil {
+						jLog(jctx, fmt.Sprintf("NewBatchPoints failed, error: %v\n", err))
+						return
+					}
+
+					for _, p := range points {
+						bp.AddPoint(p)
+						if jctx.config.Log.Verbose {
+							jLog(jctx, fmt.Sprintf("\n\nPoint Name = %s\n", p.Name()))
+							jLog(jctx, fmt.Sprintf("tags are following ...."))
+							for k, v := range p.Tags() {
+								jLog(jctx, fmt.Sprintf("%s = %s", k, v))
+							}
+							fields, err := p.Fields()
+							if err != nil {
+								jLog(jctx, fmt.Sprintf("%v", err))
+							} else {
+								jLog(jctx, fmt.Sprintf("fields are following ...."))
+								for k, v := range fields {
+									jLog(jctx, fmt.Sprintf("%s = %s", k, v))
+								}
+							}
+						}
+					}
+					if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
+						jLog(jctx, fmt.Sprintf("Batch DB write failed: %v", err))
+					} else {
+						jLog(jctx, fmt.Sprintln("Batch write successful! Number of points written post merge logic: ", len(points)))
+					}
+
+				}
+			}
+		}
+	}()
 }
 
 func dbBatchWrite(jctx *JCtx) {
@@ -391,6 +530,7 @@ func influxInit(jctx *JCtx) {
 	jctx.influxCtx.reKey = regexp.MustCompile(MatchExpressionKey)
 	if cfg.Influx.Server != "" && c != nil {
 		dbBatchWrite(jctx)
+		pointAcculumator(jctx)
 		jLog(jctx, "Successfully initialized InfluxDB Client")
 	}
 }

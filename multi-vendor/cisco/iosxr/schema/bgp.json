@@ -1,0 +1,77 @@
+[
+    {
+        "name" : "openconfig-bgp:bgp",
+        "kids": [
+            {
+                "name": "neighbors",
+                "kids": [
+                    {
+                        "name": "neighbor",
+                        "kids": [
+                            {
+                                "name": "neighbor-address",
+                                "key": true
+                            },
+                            {
+                                "name": "afi-safis",
+                                "kids": [
+                                    {
+                                        "name": "afi-safi",
+                                        "kids": [
+                                            {
+                                                "name": "afi-safi-name",
+                                                "key": true
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "name" : "openconfig-rib-bgp:bgp-rib",
+        "kids": [
+            {
+                "name": "afi-safis",
+                "kids": [
+                    {
+                        "name": "afi-safi-name",
+                        "key": true
+                    },
+                    {
+                        "name": "afi-safi",
+                        "kids": [
+                            {
+                                "name": "afi-safi-name",
+                                "key": true
+                            }, 
+                            {
+                                "name": "ipv4-unicast",
+                                "kids": [
+                                    {
+                                        "name": "neighbors",
+                                        "kids": [
+                                            {
+                                                "name": "neighbor",
+                                                "kids": [
+                                                    {
+                                                        "name": "neighbor-address",
+                                                        "key": true
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]                
+            }
+        ]
+    }
+]

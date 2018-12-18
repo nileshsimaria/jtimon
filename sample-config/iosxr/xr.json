@@ -1,0 +1,36 @@
+{
+    "host": "172.27.113.191",
+    "port": 32767,
+    "user": "admin",
+    "password": "admin",
+    "vendor": {
+        "name": "cisco",
+        "remove-namespace": true,
+        "schema" : [{
+            "file": "multi-vendor/cisco/iosxr/schema/interfaces.json"
+        },{
+            "file": "multi-vendor/cisco/iosxr/schema/bgp.json"
+        }, {
+            "file": "multi-vendor/cisco/iosxr/schema/native-statsd-oper.json"
+        }]
+    },
+    "influx": {
+        "server": "127.0.0.1",
+        "port": 8086,
+        "dbname": "T",
+        "user": "influx",
+        "password": "influxdb",
+        "recreate": true,
+        "accumulator-frequency": 4000,
+        "measurement": "mymeasurement"
+    },
+    "cid": "1001",
+    "paths": [{
+        "path": "SUB_JTIMON_ALL",
+        "freq": 10000
+    }],
+    "log" : {
+        "file": "cisco.logs",
+        "verbose": true
+    }
+}

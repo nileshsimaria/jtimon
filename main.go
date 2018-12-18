@@ -176,6 +176,13 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan<- os.Signal, error) 
 						ws := jctx.config.GRPC.WS
 						opts = append(opts, grpc.WithInitialWindowSize(ws))
 
+						if jctx.config.Vendor.Name == "cisco" {
+							opt := getXRDialExtension(&jctx)
+							if opt != nil {
+								opts = append(opts, opt)
+							}
+						}
+
 						hostname := jctx.config.Host + ":" + strconv.Itoa(jctx.config.Port)
 						if hostname == ":0" {
 							statusch <- false
@@ -201,7 +208,7 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan<- os.Signal, error) 
 						if jctx.config.User != "" && jctx.config.Password != "" {
 							user := jctx.config.User
 							pass := jctx.config.Password
-							if !jctx.config.Meta {
+							if jctx.config.Vendor.Name != "cisco" && !jctx.config.Meta {
 								lc := auth_pb.NewLoginClient(conn)
 								dat, err := lc.LoginCheck(context.Background(),
 									&auth_pb.LoginRequest{UserName: user,
@@ -220,8 +227,14 @@ func worker(file string, idx int, wg *sync.WaitGroup) (chan<- os.Signal, error) 
 								}
 							}
 						}
+						var res SubErrorCode
 
-						res := subscribe(conn, &jctx, statusch)
+						if jctx.config.Vendor.Name == "cisco" {
+							res = subscribeCisco(conn, &jctx, statusch)
+						} else {
+							res = subscribe(conn, &jctx, statusch)
+						}
+
 						// Close the current connection and retry
 						conn.Close()
 						if res == SubRcSighupRestart {

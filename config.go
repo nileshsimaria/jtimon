@@ -32,6 +32,19 @@ type Config struct {
 	Influx   InfluxConfig  `json:"influx"`
 	Paths    []PathsConfig `json:"paths"`
 	Log      LogConfig     `json:"log"`
+	Vendor   VendorConfig  `json:"vendor"`
+}
+
+// VendorConfig definition
+type VendorConfig struct {
+	Name     string         `json:"name"`
+	RemoveNS bool           `json:"remove-namespace"`
+	Schema   []VendorSchema `json:"schema"`
+}
+
+// VendorSchema definition
+type VendorSchema struct {
+	File string `json:"file"`
 }
 
 //LogConfig is config struct for logging

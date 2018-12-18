@@ -44,6 +44,7 @@ docker-sh: ## start the docker container and exec into shell, ensure you have pr
 	docker run -ti --rm -v ${PWD}:/root --entrypoint=/bin/sh jtimon
 
 test: ## run the go tests
+	go vet
 	go test -v
 
 help: 

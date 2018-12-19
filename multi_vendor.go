@@ -27,7 +27,7 @@ func getVendor(jctx *JCtx) (*vendor, error) {
 			return vendor, nil
 		}
 	}
-	return nil, fmt.Errorf("The support for vendor [%s] has not implemented yet", name)
+	return nil, fmt.Errorf("support for vendor [%s] has not implemented yet", name)
 }
 
 func newJuniperJUNOS() *vendor {
@@ -36,7 +36,7 @@ func newJuniperJUNOS() *vendor {
 		loginCheckRequired: true,
 		sendLoginCheck:     loginCheckJunos,
 		dialExt:            nil,
-		subscribe:          subscribeJuniperJUNOS,
+		subscribe:          subscribeJunos,
 	}
 }
 
@@ -45,7 +45,7 @@ func newCiscoIOSXR() *vendor {
 		name:               "cisco-iosxr",
 		loginCheckRequired: false,
 		sendLoginCheck:     nil,
-		dialExt:            getXRDialExtension,
-		subscribe:          subscribeCiscoIOSXR,
+		dialExt:            dialExtensionXR,
+		subscribe:          subscribeXR,
 	}
 }

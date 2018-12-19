@@ -36,7 +36,7 @@ func (c *loginCreds) RequireTransportSecurity() bool {
 	return c.requireTLS
 }
 
-func getXRDialExtension(jctx *JCtx) grpc.DialOption {
+func dialExtensionXR(jctx *JCtx) grpc.DialOption {
 	if jctx.config.User != "" && jctx.config.Password != "" {
 		return grpc.WithPerRPCCredentials(&loginCreds{
 			Username:   jctx.config.User,
@@ -147,7 +147,7 @@ const (
 	CISCOGPBKV = 3
 )
 
-func subscribeCiscoIOSXR(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
+func subscribeXR(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
 	schema, err := getCiscoSchema(jctx)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("%s", err))

@@ -119,7 +119,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 
 	jLog(jctx, fmt.Sprintf("gRPC headers from host %s:%d\n", jctx.config.Host, jctx.config.Port))
 	for k, v := range hdr {
-		jLog(jctx, fmt.Sprintf("  %s: %s\n", k, v))
+		jLog(jctx, fmt.Sprintf("  %s: %s", k, v))
 	}
 
 	if jctx.config.Log.CSVStats {
@@ -213,7 +213,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 //
 // In case of SIGHUP, the paths are formed again and streaming
 // is restarted.
-func subscribeJuniperJUNOS(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
+func subscribeJunos(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
 	var subReqM na_pb.SubscriptionRequest
 	var additionalConfigM na_pb.SubscriptionAdditionalConfig
 

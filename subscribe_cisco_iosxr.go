@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -185,54 +186,81 @@ func subscribeXR(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErr
 		jLog(jctx, fmt.Sprintf("  %s: %s\n", k, v))
 	}
 
-	for {
-		d, err := stream.Recv()
-		if err != nil {
-			jLog(jctx, fmt.Sprintf("%v\n", err))
-			return 0
-		}
-		message := new(telemetry.Telemetry)
-		err = proto.Unmarshal(d.GetData(), message)
-		if err != nil {
-			jLog(jctx, fmt.Sprintf("Can not unmarshal proto message:\n%q\n", message))
-			continue
-		}
-		jLog(jctx, fmt.Sprintf("Received telemetry data from %v (vendor - cisco)", jctx.config.Host))
+	datach := make(chan struct{})
 
-		path := message.GetEncodingPath()
-		if path == "" {
-			jLog(jctx, "Device did not send encoding path - ignoring this message")
-			continue
-		}
+	// Inform the caller that streaming has started.
+	statusch <- true
+	go func() {
+		// Go Routine which actually starts the streaming connection and receives the data
+		jLog(jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
+		for {
+			d, err := stream.Recv()
+			if err == io.EOF {
+				datach <- struct{}{}
+				break
+			}
+			if err != nil {
+				jLog(jctx, fmt.Sprintf("%v.CreateSubs(_) = _, %v", conn, err))
+				datach <- struct{}{}
+				return
+			}
+			message := new(telemetry.Telemetry)
+			err = proto.Unmarshal(d.GetData(), message)
+			if err != nil {
+				jLog(jctx, fmt.Sprintf("Can not unmarshal proto message:\n%q\n", message))
+				continue
+			}
+			jLog(jctx, fmt.Sprintf("Received telemetry data from %v (vendor - cisco)", jctx.config.Host))
 
-		ePath := strings.Split(path, "/")
-		if len(ePath) == 1 {
-			jLog(jctx, fmt.Sprintf("The message matched with top-level subscription %s\n", ePath))
-			for _, nodes := range schema.nodes {
-				for _, node := range nodes {
-					if strings.Compare(ePath[0], node.Name) == 0 {
-						for _, fields := range message.GetDataGpbkv() {
-							parentPath := []string{node.Name}
-							processTopLevelMsg(jctx, node, fields, parentPath)
+			path := message.GetEncodingPath()
+			if path == "" {
+				jLog(jctx, "Device did not send encoding path - ignoring this message")
+				continue
+			}
+
+			ePath := strings.Split(path, "/")
+			if len(ePath) == 1 {
+				jLog(jctx, fmt.Sprintf("The message matched with top-level subscription %s\n", ePath))
+				for _, nodes := range schema.nodes {
+					for _, node := range nodes {
+						if strings.Compare(ePath[0], node.Name) == 0 {
+							for _, fields := range message.GetDataGpbkv() {
+								parentPath := []string{node.Name}
+								processTopLevelMsg(jctx, node, fields, parentPath)
+							}
 						}
 					}
 				}
-			}
-		} else if len(ePath) >= 2 {
-			jLog(jctx, fmt.Sprintf("Multi level path %s", ePath))
-			for _, nodes := range schema.nodes {
-				for _, node := range nodes {
-					if strings.Compare(ePath[0], node.Name) == 0 {
-						processMultiLevelMsg(jctx, node, ePath, message)
+			} else if len(ePath) >= 2 {
+				jLog(jctx, fmt.Sprintf("Multi level path %s", ePath))
+				for _, nodes := range schema.nodes {
+					for _, node := range nodes {
+						if strings.Compare(ePath[0], node.Name) == 0 {
+							processMultiLevelMsg(jctx, node, ePath, message)
+						}
 					}
 				}
+
 			}
 
+			if jctx.config.Log.Verbose {
+				jLog(jctx, fmt.Sprintf("%q", message))
+				printFields(jctx, message.GetDataGpbkv(), nil)
+			}
 		}
-
-		if jctx.config.Log.Verbose {
-			jLog(jctx, fmt.Sprintf("%q", message))
-			printFields(jctx, message.GetDataGpbkv(), nil)
+	}()
+	for {
+		// The below select loop will handle the following
+		//      1. Tell the caller that streaming has started
+		//      2. Tell the caller that there is no incoming data
+		select {
+		case <-jctx.pause.subch:
+			// Config has been updated restart the streaming.
+			// Need to find a way to close the streaming.
+			return SubRcSighupRestart
+		case <-datach:
+			// data is not received, retry the connection
+			return SubRcConnRetry
 		}
 	}
 }

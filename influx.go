@@ -306,7 +306,7 @@ func addGRPCHeader(jctx *JCtx, hmap map[string]interface{}) {
 
 	if len(hmap) != 0 {
 		m := mName(nil, jctx.config)
-		m = fmt.Sprintf("%s-%d-HDR", m, jctx.index)
+		m = fmt.Sprintf("%s-%s-HDR", m, jctx.config.Host)
 		tags := make(map[string]string)
 		pt, err := client.NewPoint(m, tags, hmap, time.Now())
 		if err != nil {
@@ -337,7 +337,7 @@ func addIDBSummary(jctx *JCtx, stmap map[string]interface{}) {
 
 	if len(stmap) != 0 {
 		m := mName(nil, jctx.config)
-		m = fmt.Sprintf("%s-%d-LOG", m, jctx.index)
+		m = fmt.Sprintf("%s-%s-LOG", m, jctx.config.Host)
 		tags := make(map[string]string)
 		pt, err := client.NewPoint(m, tags, stmap, time.Now())
 		if err != nil {

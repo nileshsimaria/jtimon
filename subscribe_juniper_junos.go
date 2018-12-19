@@ -212,7 +212,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 //
 // In case of SIGHUP, the paths are formed again and streaming
 // is restarted.
-func subscribe(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
+func subscribeJuniperJUNOS(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
 	var subReqM na_pb.SubscriptionRequest
 	var additionalConfigM na_pb.SubscriptionAdditionalConfig
 

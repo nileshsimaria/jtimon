@@ -4,7 +4,7 @@
     "user": "admin",
     "password": "admin",
     "vendor": {
-        "name": "cisco",
+        "name": "cisco-iosxr",
         "remove-namespace": true,
         "schema" : [{
             "file": "multi-vendor/cisco/iosxr/schema/interfaces.json"

@@ -217,7 +217,7 @@ func ConfigRead(jctx *JCtx, init bool) error {
 	config, err := NewJTIMONConfig(jctx.file)
 	if err != nil {
 		fmt.Printf("\nConfig parsing error for %s: %v\n", jctx.file, err)
-		return fmt.Errorf("config parsing (json Unmarshal) error for %s[%d]: %v", jctx.file, jctx.index, err)
+		return fmt.Errorf("config parsing (json Unmarshal) error for %s: %v", jctx.file, err)
 	}
 
 	if init {
@@ -225,7 +225,7 @@ func ConfigRead(jctx *JCtx, init bool) error {
 		logInit(jctx)
 		b, err := json.MarshalIndent(jctx.config, "", "    ")
 		if err != nil {
-			return fmt.Errorf("Config parsing error (json Marshal) for %s[%d]: %v", jctx.file, jctx.index, err)
+			return fmt.Errorf("Config parsing error (json Marshal) for %s: %v", jctx.file, err)
 		}
 		jLog(jctx, fmt.Sprintf("\nRunning config of JTIMON:\n %s\n", string(b)))
 
@@ -271,7 +271,7 @@ func StringInSlice(a string, list []string) bool {
 
 // HandleConfigChanges will take care of SIGHUP handling for the main thread
 func HandleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx,
-	wg *sync.WaitGroup, numServers *int) {
+	wg *sync.WaitGroup) {
 	// Config was config list.
 	// On Sighup Need to do the following thins
 	// 		1. Add Worker threads if needed
@@ -279,7 +279,7 @@ func HandleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx,
 	// 		3. Modify worker Config by issuing SIGHUP to the worker channel.
 	configfilelist, err := NewJTIMONConfigFilelist(*cfgFileList)
 	if err != nil {
-		fmt.Printf("Error in parsing the new config file, Continuing with older config")
+		log.Printf("Error in parsing the new config file, continuing with older config")
 		return
 	}
 
@@ -293,9 +293,8 @@ func HandleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx,
 			wCtx.signalch <- s
 		} else {
 			wg.Add(1)
-			*numServers++
 			fmt.Printf("Adding a new device to %v\n", file)
-			signalch, err := worker(file, *numServers, wg)
+			signalch, err := worker(file, wg)
 			if err != nil {
 				wg.Done()
 			} else {
@@ -310,7 +309,7 @@ func HandleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx,
 	// Handle deletions
 	for wCtxFileKey, wCtx := range wMap {
 		if StringInSlice(wCtxFileKey, configfilelist.Filenames) == false {
-			// Kill the worker thread and remove it from the map
+			// kill the worker go routine and remove it from the map
 			fmt.Printf("Deleting an entry to %v\n", wCtxFileKey)
 			wCtx.signalch <- os.Interrupt
 			delete(wMap, wCtxFileKey)

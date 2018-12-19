@@ -14,14 +14,14 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Cisco IOS XR needs per RPC credentials
+// cisco-iosxr needs per RPC credentials
 type loginCreds struct {
 	Username   string
 	Password   string
 	requireTLS bool
 }
 
-// Method of the PerRPCCredentials interface.
+// Method of the Per RPC Credentials
 func (c *loginCreds) GetRequestMetadata(context.Context, ...string) (map[string]string, error) {
 	return map[string]string{
 		"username": c.Username,
@@ -29,19 +29,17 @@ func (c *loginCreds) GetRequestMetadata(context.Context, ...string) (map[string]
 	}, nil
 }
 
-// Method of the PerRPCCredentials interface.
+// Method of the Per RPC Credentials
 func (c *loginCreds) RequireTransportSecurity() bool {
 	return c.requireTLS
 }
 
 func getXRDialExtension(jctx *JCtx) grpc.DialOption {
-	if jctx.config.Vendor.Name == "cisco" {
-		if jctx.config.User != "" && jctx.config.Password != "" {
-			return grpc.WithPerRPCCredentials(&loginCreds{
-				Username:   jctx.config.User,
-				Password:   jctx.config.Password,
-				requireTLS: false})
-		}
+	if jctx.config.User != "" && jctx.config.Password != "" {
+		return grpc.WithPerRPCCredentials(&loginCreds{
+			Username:   jctx.config.User,
+			Password:   jctx.config.Password,
+			requireTLS: false})
 	}
 	return nil
 }
@@ -120,7 +118,7 @@ const (
 	CISCOGPBKV = 3
 )
 
-func subscribeCisco(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
+func subscribeCiscoIOSXR(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
 	schema, err := getCiscoSchema(jctx)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("%s", err))

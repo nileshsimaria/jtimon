@@ -44,7 +44,7 @@ type VendorConfig struct {
 
 // VendorSchema definition
 type VendorSchema struct {
-	File string `json:"file"`
+	Path string `json:"path"`
 }
 
 //LogConfig is config struct for logging

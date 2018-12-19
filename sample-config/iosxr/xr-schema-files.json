@@ -7,7 +7,11 @@
         "name": "cisco-iosxr",
         "remove-namespace": true,
         "schema" : [{
-            "path": "multi-vendor/cisco/iosxr/schema/"
+            "path": "multi-vendor/cisco/iosxr/schema/bgp.json"
+        }, {
+            "path": "multi-vendor/cisco/iosxr/schema/interfaces.json"
+        }, {
+            "path": "multi-vendor/cisco/iosxr/schema/native-statsd-oper.json"
         }]
     },
     "influx": {

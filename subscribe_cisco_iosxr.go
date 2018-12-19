@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -80,27 +82,54 @@ func logSchema(jctx *JCtx, node *schemaNode, indent string) {
 	}
 }
 
+func getCiscoSchemaNode(jctx *JCtx, name string) ([]*schemaNode, error) {
+	f, err := ioutil.ReadFile(name)
+	if err != nil {
+		return nil, fmt.Errorf("Could not read vendor schema file: %s", name)
+	}
+
+	node := []*schemaNode{}
+	err = json.Unmarshal(f, &node)
+	if err != nil {
+		return nil, fmt.Errorf("Could not unmarshal JSON schema for file: %s", name)
+	}
+	return node, nil
+}
+
 // Load schemas. Schema helps to identify keys which are needed
 // as tags
 func getCiscoSchema(jctx *JCtx) (*schema, error) {
 	schema := newSchema()
 	for _, s := range jctx.config.Vendor.Schema {
-
-		if s.File == "" {
+		name := s.Path
+		if name == "" {
 			return nil, fmt.Errorf("Vendor schema is missing")
 		}
 
-		f, err := ioutil.ReadFile(s.File)
+		fileInfo, err := os.Stat(name)
 		if err != nil {
-			return nil, fmt.Errorf("Could not read vendor schema file: %s", s.File)
+			return nil, err
 		}
 
-		node := []*schemaNode{}
-		err = json.Unmarshal(f, &node)
-		if err != nil {
-			return nil, fmt.Errorf("Could not unmarshal JSON schema for file: %s", s.File)
+		if fileInfo.IsDir() {
+			files, err := filepath.Glob(name + "/*.json")
+			if err != nil {
+				return nil, err
+			}
+			for _, file := range files {
+				node, err := getCiscoSchemaNode(jctx, file)
+				if err != nil {
+					return nil, err
+				}
+				schema.nodes = append(schema.nodes, node)
+			}
+		} else {
+			node, err := getCiscoSchemaNode(jctx, name)
+			if err != nil {
+				return nil, err
+			}
+			schema.nodes = append(schema.nodes, node)
 		}
-		schema.nodes = append(schema.nodes, node)
 	}
 	return schema, nil
 }

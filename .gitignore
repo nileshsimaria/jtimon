@@ -3,6 +3,7 @@ jtimon
 jtimon-darwin-amd64
 jtimon-linux-amd64
 *.log
+*.logs
 .*
 debug.test
 jtimon-windows-amd64.exe

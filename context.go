@@ -1,11 +1,7 @@
 package main
 
 import (
-	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"sync"
@@ -13,9 +9,6 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-
-	auth_pb "github.com/nileshsimaria/jtimon/authentication"
 )
 
 // JCtx is JTIMON run time context
@@ -40,75 +33,15 @@ type workerCtx struct {
 	err      error
 }
 
-func getSecurityOptions(jctx *JCtx) (grpc.DialOption, error) {
-	var bs []byte
-	var err error
-
-	if jctx.config.TLS.CA == "" {
-		return grpc.WithInsecure(), nil
-	}
-
-	certificate, _ := tls.LoadX509KeyPair(jctx.config.TLS.ClientCrt, jctx.config.TLS.ClientKey)
-	certPool := x509.NewCertPool()
-	if bs, err = ioutil.ReadFile(jctx.config.TLS.CA); err != nil {
-		return nil, fmt.Errorf("[%s] failed to read ca cert: %s", jctx.config.Host, err)
-	}
-
-	if ok := certPool.AppendCertsFromPEM(bs); !ok {
-		return nil, fmt.Errorf("[%s] failed to append certs", jctx.config.Host)
-	}
-
-	transportCreds := credentials.NewTLS(&tls.Config{
-		Certificates: []tls.Certificate{certificate},
-		ServerName:   jctx.config.TLS.ServerName,
-		RootCAs:      certPool,
-	})
-
-	return grpc.WithTransportCredentials(transportCreds), nil
-}
-
 func work(jctx *JCtx, statusch chan bool) {
 	var retry bool
 	var opts []grpc.DialOption
+
 	vendor, err := getVendor(jctx)
-
-	if err != nil {
+	if opts, err = getGPRCDialOptions(jctx, vendor); err != nil {
 		jLog(jctx, fmt.Sprintf("%v", err))
 		statusch <- false
 		return
-	}
-
-	securityOpt, err := getSecurityOptions(jctx)
-	if err != nil {
-		jLog(jctx, fmt.Sprintf("%v", err))
-		statusch <- false
-		return
-	}
-	opts = append(opts, securityOpt)
-
-	if *stateHandler {
-		opts = append(opts, grpc.WithStatsHandler(&statshandler{jctx: jctx}))
-	}
-
-	if *compression != "" {
-		var dc grpc.Decompressor
-		if *compression == "gzip" {
-			dc = grpc.NewGZIPDecompressor()
-		} else if *compression == "deflate" {
-			dc = newDEFLATEDecompressor()
-		}
-		compressionOpts := grpc.Decompressor(dc)
-		opts = append(opts, grpc.WithDecompressor(compressionOpts))
-	}
-
-	ws := jctx.config.GRPC.WS
-	opts = append(opts, grpc.WithInitialWindowSize(ws))
-
-	if vendor.dialExt != nil {
-		opt := vendor.dialExt(jctx)
-		if opt != nil {
-			opts = append(opts, opt)
-		}
 	}
 
 	hostname := jctx.config.Host + ":" + strconv.Itoa(jctx.config.Port)
@@ -116,6 +49,7 @@ func work(jctx *JCtx, statusch chan bool) {
 		statusch <- false
 		return
 	}
+
 connect:
 	if retry {
 		jLog(jctx, fmt.Sprintf("Reconnecting to %s", hostname))
@@ -133,43 +67,29 @@ connect:
 	// Close the connection on return
 	defer conn.Close()
 
-	if jctx.config.User != "" && jctx.config.Password != "" {
-		user := jctx.config.User
-		pass := jctx.config.Password
-		if vendor.loginCheckRequired && !jctx.config.Meta {
-			lc := auth_pb.NewLoginClient(conn)
-			dat, err := lc.LoginCheck(context.Background(),
-				&auth_pb.LoginRequest{UserName: user,
-					Password: pass, ClientId: jctx.config.CID})
-			if err != nil {
-				jLog(jctx, fmt.Sprintf("[%s] Could not login: %v", jctx.config.Host, err))
-				time.Sleep(10 * time.Second)
-				retry = true
-				goto connect
-			}
-			if !dat.Result {
-				jLog(jctx, fmt.Sprintf("[%s] LoginCheck failed", jctx.config.Host))
-				time.Sleep(10 * time.Second)
-				retry = true
-				goto connect
-			}
+	// We are able to Dial grpc, now let's begin by sending LoginCheck
+	// if required.
+	if vendor.loginCheckRequired {
+		if err := vendor.sendLoginCheck(jctx, conn); err != nil {
+			jLog(jctx, fmt.Sprintf("%v", err))
+			time.Sleep(10 * time.Second)
+			retry = true
+			goto connect
 		}
 	}
 
-	var res SubErrorCode
 	if vendor.subscribe == nil {
 		panic("Could not found subscribe implementation")
 	}
-	res = vendor.subscribe(conn, jctx, statusch)
+	res := vendor.subscribe(conn, jctx, statusch)
 
 	// Close the current connection and retry
 	conn.Close()
+
 	if res == SubRcSighupRestart {
-		jLog(jctx, fmt.Sprintf("Restarting the connection for config changes\n"))
+		jLog(jctx, fmt.Sprintf("Restarting the connection for config changes"))
 	} else {
 		jLog(jctx, fmt.Sprintf("Retrying the connection"))
-		// If we are here we must try to reconnect again.
-		// Reconnect after 10 seconds.
 		time.Sleep(10 * time.Second)
 	}
 	retry = true

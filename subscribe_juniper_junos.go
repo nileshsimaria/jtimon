@@ -8,6 +8,7 @@ import (
 
 	"encoding/json"
 
+	auth_pb "github.com/nileshsimaria/jtimon/authentication"
 	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -233,4 +234,24 @@ func subscribeJuniperJUNOS(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bo
 		jLog(jctx, fmt.Sprintf("Restarting the connection"))
 	}
 	return res
+}
+
+func loginCheckJunos(jctx *JCtx, conn *grpc.ClientConn) error {
+	if jctx.config.User != "" && jctx.config.Password != "" {
+		user := jctx.config.User
+		pass := jctx.config.Password
+		if !jctx.config.Meta {
+			lc := auth_pb.NewLoginClient(conn)
+			dat, err := lc.LoginCheck(context.Background(),
+				&auth_pb.LoginRequest{UserName: user,
+					Password: pass, ClientId: jctx.config.CID})
+			if err != nil {
+				return fmt.Errorf("[%s] Could not login: %v", jctx.config.Host, err)
+			}
+			if !dat.Result {
+				return fmt.Errorf("[%s] LoginCheck failed", jctx.config.Host)
+			}
+		}
+	}
+	return nil
 }

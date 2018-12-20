@@ -1,0 +1,32 @@
+{
+    "host": "172.27.113.191",
+    "port": 32767,
+    "user": "admin",
+    "password": "admin",
+    "vendor": {
+        "name": "cisco-iosxr",
+        "remove-namespace": true,
+        "schema" : [{
+            "path": "multi-vendor/cisco/iosxr/schema/"
+        }]
+    },
+    "influx": {
+        "server": "127.0.0.1",
+        "port": 8086,
+        "dbname": "T",
+        "user": "influx",
+        "password": "influxdb",
+        "recreate": true,
+        "accumulator-frequency": 4000,
+        "measurement": "mymeasurement"
+    },
+    "cid": "1001",
+    "paths": [{
+        "path": "sub_wdsysmon-fd",
+        "freq": 10000
+    }],
+    "log" : {
+        "file": "cisco.logs",
+        "verbose": true
+    }
+}

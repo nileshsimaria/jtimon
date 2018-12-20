@@ -1,0 +1,25 @@
+[
+    {
+        "name": "Cisco-IOS-XR-wdsysmon-fd-oper:system-monitoring",
+        "kids": [
+            {
+                "name": "cpu-utilization",
+                "kids": [
+                    {
+                        "name": "node-name",
+                        "key": true
+                    },
+                    {
+                        "name": "process-cpu",
+                        "kids": [
+                            {
+                                "name": "process-name",
+                                "key": true
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+]

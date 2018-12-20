@@ -95,8 +95,23 @@ func pointAcculumator(jctx *JCtx) {
 						}
 						lastPoint = pt
 					} else {
+						// let's see if we can merge
+						var fieldFound = false
 						eq := reflect.DeepEqual(m.tags, lastPoint.Tags())
 						if eq {
+							// tags are equal so most likely we will be able to merge.
+							// we would also need to see if the field is not already part of the point,
+							// if it is then we can merge because in 'config false' world of yang, keys
+							// are optional inside list so instead of losing the point we'd  not merge.
+							for mk := range m.fields {
+								lastKV, _ := lastPoint.Fields()
+								if _, ok := lastKV[mk]; ok {
+									fieldFound = true
+									break
+								}
+							}
+						}
+						if eq && !fieldFound {
 							// We can merge
 							lastKV, err := lastPoint.Fields()
 							name := lastPoint.Name()

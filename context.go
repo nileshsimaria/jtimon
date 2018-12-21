@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"sync"
@@ -58,16 +59,13 @@ connect:
 	}
 	conn, err := grpc.Dial(hostname, opts...)
 	if err != nil {
-		jLog(jctx, fmt.Sprintf("[%s] Could not dial: %v\n", jctx.config.Host, err))
+		jLog(jctx, fmt.Sprintf("[%s] could not dial: %v", jctx.config.Host, err))
 		time.Sleep(10 * time.Second)
 		retry = true
 		goto connect
 	}
 
-	// Close the connection on return
-	defer conn.Close()
-
-	// We are able to Dial grpc, now let's begin by sending LoginCheck
+	// we are able to Dial grpc, now let's begin by sending LoginCheck
 	// if required.
 	if vendor.loginCheckRequired {
 		if err := vendor.sendLoginCheck(jctx, conn); err != nil {
@@ -79,17 +77,17 @@ connect:
 	}
 
 	if vendor.subscribe == nil {
-		panic("Could not found subscribe implementation")
+		panic(fmt.Sprintf("could not found subscribe implementation for vendor %s", vendor.name))
 	}
 	res := vendor.subscribe(conn, jctx, statusch)
 
-	// Close the current connection and retry
+	// close the current connection and retry
 	conn.Close()
 
 	if res == SubRcSighupRestart {
-		jLog(jctx, fmt.Sprintf("Restarting the connection for config changes"))
+		jLog(jctx, fmt.Sprintf("restarting the connection for config changes"))
 	} else {
-		jLog(jctx, fmt.Sprintf("Retrying the connection"))
+		jLog(jctx, fmt.Sprintf("subscribe returns, retrying the connection"))
 		time.Sleep(10 * time.Second)
 	}
 	retry = true
@@ -111,7 +109,7 @@ func worker(file string, wg *sync.WaitGroup) (chan<- os.Signal, error) {
 
 	err := ConfigRead(&jctx, true)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return signalch, err
 	}
 
@@ -127,9 +125,10 @@ func worker(file string, wg *sync.WaitGroup) (chan<- os.Signal, error) {
 					jctx.wg.Done()
 				case syscall.SIGHUP:
 					// handle SIGHUP if the streaming is happening.
-					//
 					// running will not be set when the connection is
 					// not establihsed and it is trying to connect.
+					// ConfigRead will re-parse the config and updates jctx so
+					// when we retry Dial, it will do it with updated config
 					err := ConfigRead(&jctx, false)
 					if err != nil {
 						jLog(&jctx, fmt.Sprintln(err))
@@ -137,7 +136,7 @@ func worker(file string, wg *sync.WaitGroup) (chan<- os.Signal, error) {
 						jctx.pause.subch <- struct{}{}
 						jctx.running = false
 					} else {
-						jLog(&jctx, fmt.Sprintf("Config Re-Read, Data streaming has not started yet"))
+						jLog(&jctx, fmt.Sprintf("config re-parse, data streaming has not started yet"))
 					}
 				case syscall.SIGCONT:
 					go work(&jctx, statusch)
@@ -145,7 +144,7 @@ func worker(file string, wg *sync.WaitGroup) (chan<- os.Signal, error) {
 			case status := <-statusch:
 				switch status {
 				case false:
-					// Exited with error
+					// worker must have encountered error
 					printSummary(&jctx)
 					jctx.wg.Done()
 				case true:

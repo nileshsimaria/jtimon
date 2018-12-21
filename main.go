@@ -21,8 +21,8 @@ const (
 )
 
 var (
-	cfgFile        = flag.StringSlice("config", make([]string, 0), "Config file name(s)")
-	cfgFileList    = flag.String("config-file-list", "", "List of Config files")
+	configFiles    = flag.StringSlice("config", make([]string, 0), "Config file name(s)")
+	configFileList    = flag.String("config-file-list", "", "List of Config files")
 	aliasFile      = flag.String("alias-file", "", "File containing aliasing information")
 	expConfig      = flag.Bool("explore-config", false, "Explore full config of JTIMON and exit")
 	print          = flag.Bool("print", false, "Print Telemetry data")
@@ -77,9 +77,9 @@ func main() {
 		return
 	}
 
-	err := GetConfigFiles(cfgFile, cfgFileList)
+	err := GetConfigFiles(configFiles, configFileList)
 	if err != nil {
-		log.Printf("Config parsing error: %s \n", err)
+		log.Printf("config parsing error: %s", err)
 		return
 	}
 
@@ -90,7 +90,7 @@ func main() {
 	var wg sync.WaitGroup
 	wMap := make(map[string]*workerCtx)
 
-	for _, file := range *cfgFile {
+	for _, file := range *configFiles {
 		wg.Add(1)
 		signalch, err := worker(file, &wg)
 		if err != nil {
@@ -111,7 +111,7 @@ func main() {
 		}
 	}
 
-	go signalHandler(*cfgFileList, wMap, &wg)
+	go signalHandler(*configFileList, wMap, &wg)
 	go maxRunHandler(*maxRun, wMap)
 
 	wg.Wait()

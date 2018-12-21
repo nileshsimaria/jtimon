@@ -19,7 +19,7 @@ var (
 	//DefaultIDBBatchFreq is 2 seconds
 	DefaultIDBBatchFreq = 2000
 	//DefaultAccumulatorFreq is 2 seconds
-	DefaultAccumulatorFreq = 2000
+	DefaultIDBAccumulatorFreq = 2000
 )
 
 // InfluxCtx is run time info of InfluxDB data structures

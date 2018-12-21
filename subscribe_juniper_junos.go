@@ -129,7 +129,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 
 	datach := make(chan struct{})
 
-	// Inform the caller that streaming has started.
+	// inform the caller that streaming has been started
 	statusch <- true
 	go func() {
 		// Go Routine which actually starts the streaming connection and receives the data
@@ -140,7 +140,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 			if err == io.EOF {
 				printSummary(jctx)
 				datach <- struct{}{}
-				break
+				return
 			}
 			if err != nil {
 				jLog(jctx, fmt.Sprintf("%v.TelemetrySubscribe(_) = _, %v", conn, err))
@@ -149,7 +149,6 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 			}
 
 			rtime := time.Now()
-
 			if jctx.config.Log.DropCheck && !jctx.config.Log.CSVStats {
 				dropCheck(jctx, ocData)
 			}
@@ -198,8 +197,9 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 		//		2. Tell the caller that there is no incoming data
 		select {
 		case <-jctx.pause.subch:
-			// Config has been updated restart the streaming.
-			// Need to find a way to close the streaming.
+			// config has been updated restart the streaming. this will make
+			// subscribe call to return and after that it will retry with
+			// newly parsed config
 			return SubRcSighupRestart
 		case <-datach:
 			// data is not received, retry the connection

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -159,93 +158,6 @@ func generateTestData(jctx *JCtx, data []byte) {
 	}
 	if jctx.testBytes != nil {
 		jctx.testBytes.Write(data)
-	}
-}
-
-func consumeTestDataXR(jctx *JCtx) {
-	schema, err := getXRSchema(jctx)
-	if err != nil {
-		jLog(jctx, fmt.Sprintf("%s", err))
-		return
-	}
-
-	sizeFileContent, err := ioutil.ReadFile(jctx.file + ".testmeta")
-	if err != nil {
-		log.Printf("%v", err)
-		return
-	}
-
-	data, err := os.Open(jctx.file + ".testbytes")
-	if err != nil {
-		log.Printf("%v data: %v", err, data)
-		return
-	}
-	defer data.Close()
-
-	testRes, err := os.Create(jctx.file + ".testres")
-	if err != nil {
-		log.Printf("%v data: %v", err, data)
-		return
-	}
-	jctx.testRes = testRes
-	defer testRes.Close()
-
-	sizes := strings.Split(string(sizeFileContent), ":")
-	for _, size := range sizes {
-		if size != "" {
-			n, err := strconv.ParseInt(size, 10, 64)
-			if err != nil {
-				fmt.Printf("%v\n", err)
-				return
-			}
-			fmt.Printf("Reading %d bytes\n", n)
-			d := make([]byte, n)
-			bytesRead, err := data.Read(d)
-			if err != nil {
-				fmt.Printf("%v\n", err)
-				return
-			}
-			if int64(bytesRead) != n {
-				fmt.Printf("want %d got %d", n, bytesRead)
-				return
-			}
-			message := new(telemetry.Telemetry)
-			err = proto.Unmarshal(d, message)
-			if err != nil {
-				fmt.Printf("%v\n", err)
-				return
-			}
-			path := message.GetEncodingPath()
-			if path == "" {
-				jLog(jctx, "Device did not send encoding path - ignoring this message")
-				continue
-			}
-
-			ePath := strings.Split(path, "/")
-			if len(ePath) == 1 {
-				jLog(jctx, fmt.Sprintf("The message matched with top-level subscription %s\n", ePath))
-				for _, nodes := range schema.nodes {
-					for _, node := range nodes {
-						if strings.Compare(ePath[0], node.Name) == 0 {
-							for _, fields := range message.GetDataGpbkv() {
-								parentPath := []string{node.Name}
-								processTopLevelMsg(jctx, node, fields, parentPath)
-							}
-						}
-					}
-				}
-			} else if len(ePath) >= 2 {
-				jLog(jctx, fmt.Sprintf("Multi level path %s", ePath))
-				for _, nodes := range schema.nodes {
-					for _, node := range nodes {
-						if strings.Compare(ePath[0], node.Name) == 0 {
-							processMultiLevelMsg(jctx, node, ePath, message)
-						}
-					}
-				}
-
-			}
-		}
 	}
 }
 

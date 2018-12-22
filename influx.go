@@ -69,7 +69,7 @@ func pointAcculumator(jctx *JCtx) {
 	freq := jctx.config.Influx.AccumulatorFrequency
 	accumulatorCh := make(chan *metricIDB, 1024*10)
 	jctx.influxCtx.accumulatorCh = accumulatorCh
-	jLog(jctx, fmt.Sprintln("Accumulator  frequency:", freq))
+	jLog(jctx, fmt.Sprintln("Accumulator frequency:", freq))
 
 	ticker := time.NewTicker(time.Duration(freq) * time.Millisecond)
 

@@ -43,12 +43,6 @@ func work(jctx *JCtx, statusch chan bool) {
 	var opts []grpc.DialOption
 
 	vendor, err := getVendor(jctx)
-	if *conTestData && vendor.consumeTestData != nil {
-		vendor.consumeTestData(jctx)
-		statusch <- false
-		return
-	}
-
 	if opts, err = getGPRCDialOptions(jctx, vendor); err != nil {
 		jLog(jctx, fmt.Sprintf("%v", err))
 		statusch <- false

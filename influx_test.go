@@ -14,17 +14,20 @@ func TestSpitTagsNPath(t *testing.T) {
 		},
 	}
 
-	data := []struct {
+	tests := []struct {
+		name    string
 		input   string
 		xmlpath string
 		tags    map[string]string
 	}{
 		{
+			"path-without-tags",
 			"/path/without/tags",
 			"/path/without/tags",
 			map[string]string{},
 		},
 		{
+			"ifd-admin-status",
 			"/interfaces/interface[name='ge-0/0/0']/state/admin-status/",
 			"/interfaces/interface/state/admin-status/",
 			map[string]string{
@@ -32,6 +35,7 @@ func TestSpitTagsNPath(t *testing.T) {
 			},
 		},
 		{
+			"ifl-admin-status",
 			"/interfaces/interface[name='ge-0/0/0']/subinterfaces/subinterface[index='9']/state/admin-status",
 			"/interfaces/interface/subinterfaces/subinterface/state/admin-status",
 			map[string]string{
@@ -40,6 +44,7 @@ func TestSpitTagsNPath(t *testing.T) {
 			},
 		},
 		{
+			"cmerror",
 			"/junos/chassis/cmerror/counters[name='/fpc/1/pfe/0/cm/0/CM0/0/CM_CMERROR_FABRIC_REMOTE_PFE_RATE']/error",
 			"/junos/chassis/cmerror/counters/error",
 			map[string]string{
@@ -47,6 +52,7 @@ func TestSpitTagsNPath(t *testing.T) {
 			},
 		},
 		{
+			"events",
 			"/junos/events/event[id='SYSTEM' and type='3' and facility='5']/attributes[key='message']/",
 			"/junos/events/event/attributes/",
 			map[string]string{
@@ -58,39 +64,86 @@ func TestSpitTagsNPath(t *testing.T) {
 		},
 	}
 
-	for _, d := range data {
-		gotxmlpath, gottags := spitTagsNPath(jctx, d.input)
-		if gotxmlpath != d.xmlpath {
-			t.Errorf("splitTagsNPath xmlpath failed, got: %s, want: %s", gotxmlpath, d.xmlpath)
-		}
-		if !reflect.DeepEqual(gottags, d.tags) {
-			t.Errorf("splitTagsNPath tags failed, got: %v, want: %v", gottags, d.tags)
-		}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotxmlpath, gottags := spitTagsNPath(jctx, test.input)
+			if gotxmlpath != test.xmlpath {
+				t.Errorf("splitTagsNPath xmlpath failed, got: %s, want: %s", gotxmlpath, test.xmlpath)
+			}
+			if !reflect.DeepEqual(gottags, test.tags) {
+				t.Errorf("splitTagsNPath tags failed, got: %v, want: %v", gottags, test.tags)
+			}
+		})
 	}
 }
 
 func TestSubscriptionPathFromPath(t *testing.T) {
-	paths := []struct {
+	tests := []struct {
+		name  string
 		input string
 		exp   string
 	}{
-		{"", ""},
-		{"sensor_1008:/lacp/:/lacp/:lacpd", "/lacp/"},
-		{"sensor_1009:/lldp/:/lldp/:l2cpd", "/lldp/"},
-		{"sensor_1000_5_1:/interfaces/:/interfaces/:xmlproxyd", "/interfaces/"},
-		{"sensor_1000_1_1:/junos/system/linecard/interface/:/interfaces/:PFE", "/interfaces/"},
-		{"sensor_1002:/arp-information/ipv4/:/arp-information/ipv4/:mib2d", "/arp-information/ipv4/"},
-		{"sensor_1000_1_2:/junos/system/linecard/interface/logical/usage/:/interfaces/:PFE", "/interfaces/"},
-		{"sensor_1004:/junos/system/linecard/firewall/:/junos/system/linecard/firewall/:PFE", "/junos/system/linecard/firewall/"},
-		{"sensor_1018:/junos/system/linecard/npu/memory/:/junos/system/linecard/npu/memory/:PFE", "/junos/system/linecard/npu/memory/"},
-		{"sensor_1006:/interfaces/interface/state/ifindex/:/interfaces/interface/state/ifindex/:mib2d", "/interfaces/interface/state/ifindex/"},
-		{"sensor_1010:/network-instances/network-instance/mpls/:/network-instances/network-instance/mpls/:rpd", "/network-instances/network-instance/mpls/"},
+		{
+			"empty",
+			"",
+			"",
+		},
+		{
+			"lacpd",
+			"sensor_1008:/lacp/:/lacp/:lacpd",
+			"/lacp/",
+		},
+		{
+			"l2cpd",
+			"sensor_1009:/lldp/:/lldp/:l2cpd",
+			"/lldp/",
+		},
+		{
+			"xmlproxyd",
+			"sensor_1000_5_1:/interfaces/:/interfaces/:xmlproxyd",
+			"/interfaces/",
+		},
+		{
+			"pfe-ifd",
+			"sensor_1000_1_1:/junos/system/linecard/interface/:/interfaces/:PFE",
+			"/interfaces/",
+		},
+		{
+			"arp-mib2d",
+			"sensor_1002:/arp-information/ipv4/:/arp-information/ipv4/:mib2d",
+			"/arp-information/ipv4/",
+		},
+		{
+			"pfe-ifl",
+			"sensor_1000_1_2:/junos/system/linecard/interface/logical/usage/:/interfaces/:PFE",
+			"/interfaces/",
+		},
+		{
+			"pfe-firewall",
+			"sensor_1004:/junos/system/linecard/firewall/:/junos/system/linecard/firewall/:PFE",
+			"/junos/system/linecard/firewall/",
+		},
+		{
+			"pfe-npu-memory",
+			"sensor_1018:/junos/system/linecard/npu/memory/:/junos/system/linecard/npu/memory/:PFE",
+			"/junos/system/linecard/npu/memory/",
+		},
+		{
+			"mib2d-ifindex",
+			"sensor_1006:/interfaces/interface/state/ifindex/:/interfaces/interface/state/ifindex/:mib2d",
+			"/interfaces/interface/state/ifindex/",
+		},
+		{
+			"rpd",
+			"sensor_1010:/network-instances/network-instance/mpls/:/network-instances/network-instance/mpls/:rpd",
+			"/network-instances/network-instance/mpls/",
+		},
 	}
 
-	for _, path := range paths {
-		got := SubscriptionPathFromPath(path.input)
-		if got != path.exp {
-			t.Errorf("SubscriptionPathFromPath failed, got: %s, want: %s", got, path.exp)
+	for _, test := range tests {
+		got := SubscriptionPathFromPath(test.input)
+		if got != test.exp {
+			t.Errorf("SubscriptionPathFromPath failed, got: %s, want: %s", got, test.exp)
 		}
 	}
 

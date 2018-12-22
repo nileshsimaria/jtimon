@@ -6,7 +6,7 @@ import (
 
 func TestNewJTIMONConfig(t *testing.T) {
 	var xerr error
-	files := []struct {
+	tests := []struct {
 		name  string
 		error bool
 	}{
@@ -15,20 +15,22 @@ func TestNewJTIMONConfig(t *testing.T) {
 		{"tests/data/error.json", true},    // syntax error in JSON file
 	}
 
-	for _, file := range files {
-		_, err := NewJTIMONConfig(file.name)
-		if err != nil && !file.error {
-			t.Errorf("NewJTIMONConfig failed, got: %v, want: %v", err, xerr)
-		}
-		if err == nil && file.error {
-			t.Errorf("NewJTIMONConfig failed, got: %v, want error", err)
-		}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := NewJTIMONConfig(test.name)
+			if err != nil && !test.error {
+				t.Errorf("NewJTIMONConfig failed, got: %v, want: %v", err, xerr)
+			}
+			if err == nil && test.error {
+				t.Errorf("NewJTIMONConfig failed, got: %v, want error", err)
+			}
+		})
 	}
 }
 
 func TestNewJTIMONConfigFilelist(t *testing.T) {
 	var xerr error
-	files := []struct {
+	tests := []struct {
 		name  string
 		error bool
 	}{
@@ -37,19 +39,21 @@ func TestNewJTIMONConfigFilelist(t *testing.T) {
 		{"tests/data/file_list_err.json", true}, // syntax error in JSON file
 	}
 
-	for _, file := range files {
-		_, err := NewJTIMONConfigFilelist(file.name)
-		if err != nil && !file.error {
-			t.Errorf("NewJTIMONConfig failed, got: %v, want: %v", err, xerr)
-		}
-		if err == nil && file.error {
-			t.Errorf("NewJTIMONConfig failed, got: %v, want error", err)
-		}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := NewJTIMONConfigFilelist(test.name)
+			if err != nil && !test.error {
+				t.Errorf("NewJTIMONConfig failed, got: %v, want: %v", err, xerr)
+			}
+			if err == nil && test.error {
+				t.Errorf("NewJTIMONConfig failed, got: %v, want error", err)
+			}
+		})
 	}
 }
 
 func TestValidateConfig(t *testing.T) {
-	files := []struct {
+	tests := []struct {
 		name  string
 		error bool
 	}{
@@ -58,26 +62,30 @@ func TestValidateConfig(t *testing.T) {
 		{"tests/data/error.json", true},    // syntax error in JSON file
 	}
 
-	for _, file := range files {
-		config, err := NewJTIMONConfig(file.name)
-		if err != nil {
-			configString, err := ValidateConfig(config)
+	for _, test := range tests {
+		t.Run(test.name, func(*testing.T) {
+			config, err := NewJTIMONConfig(test.name)
 			if err != nil {
-				t.Errorf("TestValidateConfig failed. Error: %v\nConfig %s\n", err, configString)
+				configString, err := ValidateConfig(config)
+				if err != nil {
+					t.Errorf("TestValidateConfig failed. Error: %v\nConfig %s\n", err, configString)
+				}
 			}
-		}
+		})
 	}
 }
 
 func TestExploreConfig(t *testing.T) {
-	_, err := ExploreConfig()
-	if err != nil {
-		t.Errorf("ExploreConfig failed, Error: %v\n", err)
-	}
+	t.Run("explore-config", func(t *testing.T) {
+		_, err := ExploreConfig()
+		if err != nil {
+			t.Errorf("ExploreConfig failed, Error: %v\n", err)
+		}
+	})
 }
 
 func TestStringInSlice(t *testing.T) {
-	files := []struct {
+	tests := []struct {
 		name  string
 		value bool
 	}{
@@ -88,10 +96,12 @@ func TestStringInSlice(t *testing.T) {
 
 	configfilelist := []string{"one", "two", "three"}
 
-	for _, file := range files {
-		ret := StringInSlice(file.name, configfilelist)
-		if ret != file.value {
-			t.Errorf("TeststringInSlice failed")
-		}
+	for _, test := range tests {
+		t.Run(test.name, func(*testing.T) {
+			ret := StringInSlice(test.name, configfilelist)
+			if ret != test.value {
+				t.Errorf("TeststringInSlice failed")
+			}
+		})
 	}
 }

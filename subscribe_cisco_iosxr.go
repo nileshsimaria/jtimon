@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -15,6 +17,11 @@ import (
 	pb "github.com/nileshsimaria/jtimon/multi-vendor/cisco/iosxr/grpc-proto"
 	"github.com/nileshsimaria/jtimon/multi-vendor/cisco/iosxr/telemetry-proto"
 	"google.golang.org/grpc"
+)
+
+const (
+	//CISCOGPBKV gRPC GPBKV encoding
+	CISCOGPBKV = 3
 )
 
 // cisco-iosxr needs per RPC credentials
@@ -53,11 +60,6 @@ type schema struct {
 	nodes [][]*schemaNode
 }
 
-// create new schema
-func newSchema() *schema {
-	return &schema{}
-}
-
 // schemaNode holds individual JSON schema
 type schemaNode struct {
 	Name string        `json:"name"`
@@ -65,25 +67,39 @@ type schemaNode struct {
 	Kids []*schemaNode `json:"kids"`
 }
 
-func nameWithKey(node *schemaNode) string {
-	if node.Key {
-		return node.Name + "[key]"
+func (snode *schemaNode) String() string {
+	if snode.Key {
+		return snode.Name + "[key]"
 	}
-	return node.Name
+	return snode.Name
 }
 
-// Recursive function to log schema that's currently loaded
-func logSchema(jctx *JCtx, node *schemaNode, indent string) {
-	jLog(jctx, fmt.Sprintf("%s%s", indent, nameWithKey(node)))
+// create new schema
+func newSchema() *schema {
+	return &schema{}
+}
+
+func (s *schema) String() string {
+	buf := new(bytes.Buffer)
+	for _, nodes := range s.nodes {
+		for _, node := range nodes {
+			swalk(node, "", buf)
+		}
+	}
+	return string(buf.Bytes())
+}
+
+func swalk(node *schemaNode, indent string, buf *bytes.Buffer) {
+	buf.WriteString(fmt.Sprintf("%s%s\n", indent, fmt.Sprintf("%s", node)))
 
 	if node.Kids != nil {
 		for _, kid := range node.Kids {
-			logSchema(jctx, kid, indent+"    ")
+			swalk(kid, indent+"    ", buf)
 		}
 	}
 }
 
-func getCiscoSchemaNode(jctx *JCtx, name string) ([]*schemaNode, error) {
+func getXRSchemaNode(jctx *JCtx, name string) ([]*schemaNode, error) {
 	f, err := ioutil.ReadFile(name)
 	if err != nil {
 		return nil, fmt.Errorf("Could not read vendor schema file: %s", name)
@@ -99,7 +115,7 @@ func getCiscoSchemaNode(jctx *JCtx, name string) ([]*schemaNode, error) {
 
 // Load schemas. Schema helps to identify keys which are needed
 // as tags
-func getCiscoSchema(jctx *JCtx) (*schema, error) {
+func getXRSchema(jctx *JCtx) (*schema, error) {
 	schema := newSchema()
 	for _, s := range jctx.config.Vendor.Schema {
 		name := s.Path
@@ -118,14 +134,14 @@ func getCiscoSchema(jctx *JCtx) (*schema, error) {
 				return nil, err
 			}
 			for _, file := range files {
-				node, err := getCiscoSchemaNode(jctx, file)
+				node, err := getXRSchemaNode(jctx, file)
 				if err != nil {
 					return nil, err
 				}
 				schema.nodes = append(schema.nodes, node)
 			}
 		} else {
-			node, err := getCiscoSchemaNode(jctx, name)
+			node, err := getXRSchemaNode(jctx, name)
 			if err != nil {
 				return nil, err
 			}
@@ -135,83 +151,70 @@ func getCiscoSchema(jctx *JCtx) (*schema, error) {
 	return schema, nil
 }
 
-func logAllSchema(jctx *JCtx, schema *schema) {
-	for _, nodes := range schema.nodes {
-		for _, node := range nodes {
-			logSchema(jctx, node, "")
-		}
+func generateTestData(jctx *JCtx, data []byte) {
+	fmt.Printf("data len = %d\n", len(data))
+	if jctx.testMeta != nil {
+		dat := fmt.Sprintf("%d:", len(data))
+		jctx.testMeta.WriteString(dat)
+	}
+	if jctx.testBytes != nil {
+		jctx.testBytes.Write(data)
 	}
 }
 
-const (
-	//CISCOGPBKV gRPC GPBKV encoding
-	CISCOGPBKV = 3
-)
-
-func subscribeXR(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
-	schema, err := getCiscoSchema(jctx)
+func consumeTestDataXR(jctx *JCtx) {
+	schema, err := getXRSchema(jctx)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("%s", err))
-		return SubRcConnRetry
+		return
 	}
 
-	logAllSchema(jctx, schema)
-
-	c := pb.NewGRPCConfigOperClient(conn)
-
-	id, err := strconv.ParseInt(jctx.config.CID, 10, 64)
+	sizeFileContent, err := ioutil.ReadFile(jctx.file + ".testmeta")
 	if err != nil {
-		jLog(jctx, fmt.Sprintf("can not convert CID - %s to int64", jctx.config.CID))
+		log.Printf("%v", err)
+		return
 	}
 
-	subsArg := pb.CreateSubsArgs{
-		ReqId:    id,
-		Encode:   CISCOGPBKV,
-		Subidstr: jctx.config.Paths[0].Path,
-	}
-
-	stream, err := c.CreateSubs(context.Background(), &subsArg)
+	data, err := os.Open(jctx.file + ".testbytes")
 	if err != nil {
-		jLog(jctx, "Could not create subscription - retry")
-		return SubRcConnRetry
+		log.Printf("%v data: %v", err, data)
+		return
 	}
+	defer data.Close()
 
-	hdr, errh := stream.Header()
-	if errh != nil {
-		jLog(jctx, fmt.Sprintf("Failed to get header for stream: %v", errh))
+	testRes, err := os.Create(jctx.file + ".testres")
+	if err != nil {
+		log.Printf("%v data: %v", err, data)
+		return
 	}
+	jctx.testRes = testRes
+	defer testRes.Close()
 
-	jLog(jctx, fmt.Sprintf("gRPC headers from host %s:%d\n", jctx.config.Host, jctx.config.Port))
-	for k, v := range hdr {
-		jLog(jctx, fmt.Sprintf("  %s: %s\n", k, v))
-	}
-
-	datach := make(chan struct{})
-
-	// Inform the caller that streaming has started.
-	statusch <- true
-	go func() {
-		// Go Routine which actually starts the streaming connection and receives the data
-		jLog(jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
-		for {
-			d, err := stream.Recv()
-			if err == io.EOF {
-				datach <- struct{}{}
-				break
-			}
+	sizes := strings.Split(string(sizeFileContent), ":")
+	for _, size := range sizes {
+		if size != "" {
+			n, err := strconv.ParseInt(size, 10, 64)
 			if err != nil {
-				jLog(jctx, fmt.Sprintf("%v.CreateSubs(_) = _, %v", conn, err))
-				datach <- struct{}{}
+				fmt.Printf("%v\n", err)
+				return
+			}
+			fmt.Printf("Reading %d bytes\n", n)
+			d := make([]byte, n)
+			bytesRead, err := data.Read(d)
+			if err != nil {
+				fmt.Printf("%v\n", err)
+				return
+			}
+			if int64(bytesRead) != n {
+				fmt.Printf("want %d got %d", n, bytesRead)
 				return
 			}
 			message := new(telemetry.Telemetry)
-			err = proto.Unmarshal(d.GetData(), message)
+			err = proto.Unmarshal(d, message)
 			if err != nil {
-				jLog(jctx, fmt.Sprintf("Can not unmarshal proto message:\n%q\n", message))
-				continue
+				fmt.Printf("%v\n", err)
+				return
 			}
-			jLog(jctx, fmt.Sprintf("Received telemetry data from %v (vendor - cisco)", jctx.config.Host))
-
 			path := message.GetEncodingPath()
 			if path == "" {
 				jLog(jctx, "Device did not send encoding path - ignoring this message")
@@ -242,13 +245,119 @@ func subscribeXR(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErr
 				}
 
 			}
-
-			if jctx.config.Log.Verbose {
-				jLog(jctx, fmt.Sprintf("%q", message))
-				printFields(jctx, message.GetDataGpbkv(), nil)
-			}
 		}
-	}()
+	}
+}
+
+func handleOnePath(schema *schema, id int64, path string, conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool, datach chan<- struct{}) {
+	c := pb.NewGRPCConfigOperClient(conn)
+
+	subsArg := pb.CreateSubsArgs{
+		ReqId:    id,
+		Encode:   CISCOGPBKV,
+		Subidstr: path,
+	}
+
+	stream, err := c.CreateSubs(context.Background(), &subsArg)
+	if err != nil {
+		jLog(jctx, "Could not create subscription - retry")
+		datach <- struct{}{}
+		return
+	}
+
+	hdr, errh := stream.Header()
+	if errh != nil {
+		jLog(jctx, fmt.Sprintf("Failed to get header for stream: %v", errh))
+	}
+
+	jLog(jctx, fmt.Sprintf("gRPC headers from host %s:%d\n", jctx.config.Host, jctx.config.Port))
+	for k, v := range hdr {
+		jLog(jctx, fmt.Sprintf("  %s: %s\n", k, v))
+	}
+
+	// Inform the caller that streaming has started.
+	statusch <- true
+	// Go Routine which actually starts the streaming connection and receives the data
+	jLog(jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
+	for {
+		d, err := stream.Recv()
+		if err == io.EOF {
+			datach <- struct{}{}
+			return
+		}
+		if err != nil {
+			jLog(jctx, fmt.Sprintf("%v.CreateSubs(_) = _, %v", conn, err))
+			datach <- struct{}{}
+			return
+		}
+		message := new(telemetry.Telemetry)
+		err = proto.Unmarshal(d.GetData(), message)
+		if err != nil {
+			jLog(jctx, fmt.Sprintf("Can not unmarshal proto message:\n%q\n", message))
+			continue
+		}
+		if *genTestData {
+			generateTestData(jctx, d.GetData())
+		}
+		jLog(jctx, fmt.Sprintf("Received telemetry data from %v (vendor - cisco)", jctx.config.Host))
+
+		path := message.GetEncodingPath()
+		if path == "" {
+			jLog(jctx, "Device did not send encoding path - ignoring this message")
+			continue
+		}
+
+		ePath := strings.Split(path, "/")
+		if len(ePath) == 1 {
+			jLog(jctx, fmt.Sprintf("The message matched with top-level subscription %s\n", ePath))
+			for _, nodes := range schema.nodes {
+				for _, node := range nodes {
+					if strings.Compare(ePath[0], node.Name) == 0 {
+						for _, fields := range message.GetDataGpbkv() {
+							parentPath := []string{node.Name}
+							processTopLevelMsg(jctx, node, fields, parentPath)
+						}
+					}
+				}
+			}
+		} else if len(ePath) >= 2 {
+			jLog(jctx, fmt.Sprintf("Multi level path %s", ePath))
+			for _, nodes := range schema.nodes {
+				for _, node := range nodes {
+					if strings.Compare(ePath[0], node.Name) == 0 {
+						processMultiLevelMsg(jctx, node, ePath, message)
+					}
+				}
+			}
+
+		}
+
+		if jctx.config.Log.Verbose {
+			jLog(jctx, fmt.Sprintf("%q", message))
+			printFields(jctx, message.GetDataGpbkv(), nil)
+		}
+	}
+}
+
+func subscribeXR(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
+	schema, err := getXRSchema(jctx)
+	if err != nil {
+		jLog(jctx, fmt.Sprintf("%s", err))
+		return SubRcConnRetry
+	}
+
+	jLog(jctx, fmt.Sprintf("%s", schema))
+
+	datach := make(chan struct{})
+	id, err := strconv.ParseInt(jctx.config.CID, 10, 64)
+	if err != nil {
+		jLog(jctx, fmt.Sprintf("can not convert CID - %s to int64", jctx.config.CID))
+	}
+
+	for index, path := range jctx.config.Paths {
+		go handleOnePath(schema, id+int64(index), path.Path, conn, jctx, statusch, datach)
+	}
+
 	for {
 		// The below select loop will handle the following
 		//      1. Tell the caller that streaming has started
@@ -472,8 +581,21 @@ func walk(jctx *JCtx, n *schemaNode, f []*telemetry.TelemetryField, p []string, 
 			k := getParentPath(p, jctx.config.Vendor.RemoveNS) + field.GetName()
 			v := getFieldStringValue(field)
 			if jctx.config.Log.Verbose {
-				jLog(jctx, fmt.Sprintf("\nTAGS: %v", newTags))
-				jLog(jctx, fmt.Sprintf("\nPOINT: %s = %s", k, v))
+				jLog(jctx, fmt.Sprintf("\nTAGS: %v\n", newTags))
+				jLog(jctx, fmt.Sprintf("\nPOINT: %s = %s\n", k, v))
+			}
+
+			if *genTestData {
+				if jctx.testExp != nil {
+					jctx.testExp.WriteString(fmt.Sprintf("TAGS: %v\n", newTags))
+					jctx.testExp.WriteString(fmt.Sprintf("POINT: %s = %s\n", k, v))
+				}
+			}
+			if *conTestData {
+				if jctx.testRes != nil {
+					jctx.testRes.WriteString(fmt.Sprintf("TAGS: %v\n", newTags))
+					jctx.testRes.WriteString(fmt.Sprintf("POINT: %s = %s\n", k, v))
+				}
 			}
 
 			tagsM := make(map[string]string)

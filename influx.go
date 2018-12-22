@@ -60,7 +60,9 @@ func newMetricIDB(tags map[string]string, fields map[string]interface{}) *metric
 }
 
 func (m *metricIDB) accumulate(jctx *JCtx) {
-	jctx.influxCtx.accumulatorCh <- m
+	if jctx.influxCtx.influxClient != nil {
+		jctx.influxCtx.accumulatorCh <- m
+	}
 }
 
 func pointAcculumator(jctx *JCtx) {

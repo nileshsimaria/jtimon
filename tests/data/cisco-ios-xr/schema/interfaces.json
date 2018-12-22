@@ -1,0 +1,30 @@
+[
+    {
+        "name": "openconfig-interfaces:interfaces",
+        "kids": [
+            {
+                "name": "interface",
+                "kids": [
+                    {
+                        "name": "name",
+                        "key": true
+                    },
+                    {
+                        "name": "subinterfaces",
+                        "kids": [
+                            {
+                                "name": "subinterface",
+                                "kids": [
+                                    {
+                                        "name": "index",
+                                        "key": true
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+]

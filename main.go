@@ -22,7 +22,7 @@ const (
 
 var (
 	configFiles    = flag.StringSlice("config", make([]string, 0), "Config file name(s)")
-	configFileList    = flag.String("config-file-list", "", "List of Config files")
+	configFileList = flag.String("config-file-list", "", "List of Config files")
 	aliasFile      = flag.String("alias-file", "", "File containing aliasing information")
 	expConfig      = flag.Bool("explore-config", false, "Explore full config of JTIMON and exit")
 	print          = flag.Bool("print", false, "Print Telemetry data")
@@ -42,6 +42,8 @@ var (
 	gtrace         = flag.Bool("gtrace", false, "Collect GRPC traces")
 	grpcHeaders    = flag.Bool("grpc-headers", false, "Add grpc headers in DB")
 	noppgoroutines = flag.Bool("no-per-packet-goroutines", false, "Spawn per packet go routines")
+	genTestData    = flag.Bool("generate-test-data", false, "Generate test data")
+	conTestData    = flag.Bool("consume-test-data", false, "Consume test data")
 
 	jtimonVersion = "version-not-available"
 	buildTime     = "build-time-not-available"

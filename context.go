@@ -26,7 +26,11 @@ type JCtx struct {
 		upch  chan struct{}
 		subch chan struct{}
 	}
-	running bool
+	running   bool
+	testMeta  *os.File
+	testBytes *os.File
+	testExp   *os.File
+	testRes   *os.File
 }
 
 type workerCtx struct {
@@ -39,6 +43,12 @@ func work(jctx *JCtx, statusch chan bool) {
 	var opts []grpc.DialOption
 
 	vendor, err := getVendor(jctx)
+	if *conTestData && vendor.consumeTestData != nil {
+		vendor.consumeTestData(jctx)
+		statusch <- false
+		return
+	}
+
 	if opts, err = getGPRCDialOptions(jctx, vendor); err != nil {
 		jLog(jctx, fmt.Sprintf("%v", err))
 		statusch <- false
@@ -107,6 +117,24 @@ func worker(file string, wg *sync.WaitGroup) (chan<- os.Signal, error) {
 		},
 	}
 
+	if *genTestData {
+		var errf error
+		jctx.testMeta, errf = os.Create(file + ".testmeta")
+		if errf != nil {
+			log.Printf("Could not create 'testmeta' for file %s\n", file+".testmeta")
+		}
+
+		jctx.testBytes, errf = os.Create(file + ".testbytes")
+		if errf != nil {
+			log.Printf("Could not create 'testbytes' for file %s\n", file+".testbytes")
+		}
+
+		jctx.testExp, errf = os.Create(file + ".testexp")
+		if errf != nil {
+			log.Printf("Could not create 'testexp' for file %s\n", file+".testexp")
+		}
+	}
+
 	err := ConfigRead(&jctx, true)
 	if err != nil {
 		log.Println(err)
@@ -122,6 +150,18 @@ func worker(file string, wg *sync.WaitGroup) (chan<- os.Signal, error) {
 					// we are asked to stop
 					printSummary(&jctx)
 					jLog(&jctx, fmt.Sprintf("Streaming for host %s has been stopped (SIGINT)", jctx.config.Host))
+					if *genTestData {
+						if jctx.testMeta != nil {
+							jctx.testMeta.Close()
+						}
+						if jctx.testBytes != nil {
+							jctx.testBytes.Close()
+						}
+						if jctx.testExp != nil {
+							jctx.testExp.Close()
+						}
+					}
+
 					jctx.wg.Done()
 				case syscall.SIGHUP:
 					// handle SIGHUP if the streaming is happening.

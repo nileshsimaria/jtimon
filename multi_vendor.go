@@ -14,6 +14,7 @@ type vendor struct {
 	sendLoginCheck     func(*JCtx, *grpc.ClientConn) error
 	dialExt            func(*JCtx) grpc.DialOption
 	subscribe          func(*grpc.ClientConn, *JCtx, chan<- bool) SubErrorCode
+	consumeTestData    func(*JCtx)
 }
 
 func getVendor(jctx *JCtx) (*vendor, error) {
@@ -37,6 +38,7 @@ func newJuniperJUNOS() *vendor {
 		sendLoginCheck:     loginCheckJunos,
 		dialExt:            nil,
 		subscribe:          subscribeJunos,
+		consumeTestData:    nil,
 	}
 }
 
@@ -47,5 +49,6 @@ func newCiscoIOSXR() *vendor {
 		sendLoginCheck:     nil,
 		dialExt:            dialExtensionXR,
 		subscribe:          subscribeXR,
+		consumeTestData:    consumeTestDataXR,
 	}
 }

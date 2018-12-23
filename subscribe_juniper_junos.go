@@ -173,10 +173,8 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 			}
 
 			if *noppgoroutines {
-				fmt.Printf("\n 11111\n")
 				addIDB(ocData, jctx, rtime)
 			} else {
-				fmt.Printf("\n 22222\n")
 				go addIDB(ocData, jctx, rtime)
 			}
 

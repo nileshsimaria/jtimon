@@ -7,13 +7,86 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/nileshsimaria/jtimon/multi-vendor/cisco/iosxr/telemetry-proto"
+	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 	flag "github.com/spf13/pflag"
 )
 
+func TestVMXTagsPoints(t *testing.T) {
+	flag.Parse()
+	*conTestData = true
+	*noppgoroutines = true
+
+	tt := []struct {
+		name   string
+		config string
+		jctx   *JCtx
+	}{
+		{
+			name:   "interfaces",
+			config: "tests/data/juniper-junos/config/interfaces.json",
+			jctx: &JCtx{
+				file: "tests/data/juniper-junos/config/interfaces.json",
+			},
+		},
+	}
+	for _, test := range tt {
+		t.Run(test.name, func(t *testing.T) {
+			jctx := test.jctx
+			err := ConfigRead(jctx, true)
+			if err != nil {
+				t.Errorf("error %v for test config %s", err, test.config)
+			}
+
+			sizeFileContent, err := ioutil.ReadFile(jctx.file + ".testmeta")
+			if err != nil {
+				t.Errorf("error %v for test config %s", err, test.config)
+			}
+
+			data, err := os.Open(jctx.file + ".testbytes")
+			if err != nil {
+				t.Errorf("error %v for test config %s", err, test.config)
+			}
+			defer data.Close()
+
+			testRes, err := os.Create(jctx.file + ".testres")
+			if err != nil {
+				t.Errorf("error %v for test config %s", err, test.config)
+			}
+			defer testRes.Close()
+			jctx.testRes = testRes
+
+			sizes := strings.Split(string(sizeFileContent), ":")
+			for _, size := range sizes {
+				if size != "" {
+					n, err := strconv.ParseInt(size, 10, 64)
+					if err != nil {
+						t.Errorf("error %v for test config %s", err, test.config)
+					}
+					d := make([]byte, n)
+					bytesRead, err := data.Read(d)
+					if err != nil {
+						t.Errorf("error %v for test config %s", err, test.config)
+					}
+					if int64(bytesRead) != n {
+						t.Errorf("want %d got %d from testbytes", n, bytesRead)
+					}
+					ocData := new(na_pb.OpenConfigData)
+					err = proto.Unmarshal(d, ocData)
+
+					if err != nil {
+						t.Errorf("error %v for test config %s", err, test.config)
+					}
+					addIDB(ocData, jctx, time.Now())
+				}
+			}
+		})
+	}
+}
 func TestXRTagsPoints(t *testing.T) {
 	flag.Parse()
 	*conTestData = true

@@ -6,6 +6,6 @@
     "cid": "mac1",
     "paths": [{
         "path": "/interfaces",
-        "freq": 10000
+        "freq": 2000
     }]
 }

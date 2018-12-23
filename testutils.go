@@ -1,8 +1,18 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"os"
+	"sort"
+)
+
+type testDataType int
+
+const (
+	// GENTESTEXPDATA to generate expected test data
+	GENTESTEXPDATA = iota
+	// GENTESTRESDATA to generate result test data
+	GENTESTRESDATA
 )
 
 func testSetup(jctx *JCtx) {
@@ -11,17 +21,17 @@ func testSetup(jctx *JCtx) {
 		var errf error
 		jctx.testMeta, errf = os.Create(file + ".testmeta")
 		if errf != nil {
-			log.Printf("Could not create 'testmeta' for file %s\n", file+".testmeta")
+			jLog(jctx, fmt.Sprintf("Could not create 'testmeta' for file %s\n", file+".testmeta"))
 		}
 
 		jctx.testBytes, errf = os.Create(file + ".testbytes")
 		if errf != nil {
-			log.Printf("Could not create 'testbytes' for file %s\n", file+".testbytes")
+			jLog(jctx, fmt.Sprintf("Could not create 'testbytes' for file %s\n", file+".testbytes"))
 		}
 
 		jctx.testExp, errf = os.Create(file + ".testexp")
 		if errf != nil {
-			log.Printf("Could not create 'testexp' for file %s\n", file+".testexp")
+			jLog(jctx, fmt.Sprintf("Could not create 'testexp' for file %s\n", file+".testexp"))
 		}
 	}
 }
@@ -38,4 +48,60 @@ func testTearDown(jctx *JCtx) {
 			jctx.testExp.Close()
 		}
 	}
+}
+
+func generateTestData(jctx *JCtx, data []byte) {
+	fmt.Printf("data len = %d\n", len(data))
+	if jctx.testMeta != nil {
+		dat := fmt.Sprintf("%d:", len(data))
+		jctx.testMeta.WriteString(dat)
+	}
+	if jctx.testBytes != nil {
+		jctx.testBytes.Write(data)
+	}
+}
+
+func testDataPoints(jctx *JCtx, testType testDataType, tags map[string]string, fields map[string]interface{}) {
+	var f *os.File
+
+	switch testType {
+	case GENTESTEXPDATA:
+		if jctx.testExp == nil {
+			return
+		}
+		f = jctx.testExp
+	case GENTESTRESDATA:
+		if jctx.testRes == nil {
+			return
+		}
+		f = jctx.testRes
+	default:
+		return
+	}
+
+	f.WriteString("TAGS: [")
+	var keys []string
+	for k := range tags {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := tags[k]
+		f.WriteString(fmt.Sprintf(" %s=%s ", k, v))
+	}
+	f.WriteString("]\n")
+
+	f.WriteString("FIELDS: [")
+
+	keys = nil
+	for k := range fields {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := fields[k]
+		f.WriteString(fmt.Sprintf("%s=%s", k, v))
+	}
+	f.WriteString("]\n")
+	f.Sync()
 }

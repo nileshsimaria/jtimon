@@ -150,16 +150,6 @@ func getXRSchema(jctx *JCtx) (*schema, error) {
 	return schema, nil
 }
 
-func generateTestData(jctx *JCtx, data []byte) {
-	fmt.Printf("data len = %d\n", len(data))
-	if jctx.testMeta != nil {
-		dat := fmt.Sprintf("%d:", len(data))
-		jctx.testMeta.WriteString(dat)
-	}
-	if jctx.testBytes != nil {
-		jctx.testBytes.Write(data)
-	}
-}
 
 func handleOnePath(schema *schema, id int64, path string, conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool, datach chan<- struct{}) {
 	c := pb.NewGRPCConfigOperClient(conn)

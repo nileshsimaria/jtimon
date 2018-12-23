@@ -18,7 +18,7 @@ var (
 	DefaultIDBBatchSize = 1024 * 1024
 	//DefaultIDBBatchFreq is 2 seconds
 	DefaultIDBBatchFreq = 2000
-	//DefaultAccumulatorFreq is 2 seconds
+	//DefaultIDBAccumulatorFreq is 2 seconds
 	DefaultIDBAccumulatorFreq = 2000
 )
 
@@ -200,6 +200,10 @@ func pointAcculumator(jctx *JCtx) {
 }
 
 func dbBatchWrite(jctx *JCtx) {
+	if jctx.influxCtx.influxClient == nil {
+		return
+	}
+
 	batchSize := jctx.config.Influx.BatchSize
 	batchCh := make(chan []*client.Point, batchSize)
 	jctx.influxCtx.batchWCh = batchCh
@@ -370,9 +374,6 @@ func addIDBSummary(jctx *JCtx, stmap map[string]interface{}) {
 // A go routine to add one telemetry packet in to InfluxDB
 func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	cfg := jctx.config
-	if jctx.influxCtx.influxClient == nil {
-		return
-	}
 
 	prefix := ""
 	points := make([]*client.Point, 0)
@@ -432,6 +433,17 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 				kv[xmlpath] = v.GetBytesValue()
 			default:
 			}
+		}
+
+		if *genTestData {
+			testDataPoints(jctx, GENTESTEXPDATA, tags, kv)
+		}
+		if *conTestData {
+			testDataPoints(jctx, GENTESTRESDATA, tags, kv)
+		}
+
+		if jctx.influxCtx.influxClient == nil {
+			continue
 		}
 
 		if len(kv) != 0 {

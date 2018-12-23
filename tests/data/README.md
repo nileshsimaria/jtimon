@@ -21,3 +21,9 @@ xr-all.json.testbytes      xr-all.json.testmeta       xr-wdsysmon.json.testbytes
 - .testres is produced on "make test" (basically when we run the test)
 
 There should be no diff between .testres and .testexp at all, otherwise test fails.
+
+
+For Junos, use --no-per-packet-goroutines when generate test data.
+```
+$ ./jtimon-darwin-amd64 --config tests/data/juniper-junos/config/interfaces.json --no-per-packet-goroutines --generate-test-data
+```

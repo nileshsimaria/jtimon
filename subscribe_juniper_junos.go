@@ -8,6 +8,7 @@ import (
 
 	"encoding/json"
 
+	"github.com/golang/protobuf/proto"
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
 	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 	"golang.org/x/net/context"
@@ -148,6 +149,14 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 				return
 			}
 
+			if *genTestData {
+				if ocDataM, err := proto.Marshal(ocData); err == nil {
+					generateTestData(jctx, ocDataM)
+				} else {
+					jLog(jctx, fmt.Sprintf("%v", err))
+				}
+			}
+
 			rtime := time.Now()
 			if jctx.config.Log.DropCheck && !jctx.config.Log.CSVStats {
 				dropCheck(jctx, ocData)
@@ -163,12 +172,12 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 				handleOnePacket(ocData, jctx)
 			}
 
-			if jctx.influxCtx.influxClient != nil {
-				if *noppgoroutines {
-					addIDB(ocData, jctx, rtime)
-				} else {
-					go addIDB(ocData, jctx, rtime)
-				}
+			if *noppgoroutines {
+				fmt.Printf("\n 11111\n")
+				addIDB(ocData, jctx, rtime)
+			} else {
+				fmt.Printf("\n 22222\n")
+				go addIDB(ocData, jctx, rtime)
 			}
 
 			if *prom {

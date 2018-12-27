@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
+	"unicode"
 )
 
 type testDataType int
@@ -104,4 +106,17 @@ func testDataPoints(jctx *JCtx, testType testDataType, tags map[string]string, f
 	}
 	f.WriteString("]\n")
 	f.Sync()
+}
+
+func compareString(a string, b string) bool {
+	filter := func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}
+	if strings.Compare(strings.Map(filter, a), strings.Map(filter, b)) == 0 {
+		return true
+	}
+	return false
 }

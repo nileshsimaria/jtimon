@@ -30,18 +30,6 @@
   version = "1.0.0"
 
 [[constraint]]
-  name = "github.com/gorilla/mux"
-  version = "1.6.1"
-
-[[constraint]]
-  name = "github.com/influxdata/influxdb"
-  version = "1.5.2"
-
-[[constraint]]
-  name = "github.com/prometheus/client_golang"
-  version = "0.8.0"
-
-[[constraint]]
   name = "github.com/spf13/pflag"
   version = "1.0.1"
 
@@ -56,15 +44,3 @@
 [prune]
   go-tests = true
   unused-packages = true
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/common-nighthawk/go-figure"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/prometheus/common"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/nileshsimaria/jtisim"

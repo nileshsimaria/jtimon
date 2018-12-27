@@ -1,0 +1,33 @@
+package jtisim
+
+import (
+	"log"
+	"time"
+
+	tpb "github.com/nileshsimaria/jtimon/telemetry"
+)
+
+func (s *server) streamLLDP(ch chan *tpb.OpenConfigData, path *tpb.Path) {
+	pname := path.GetPath()
+	freq := path.GetSampleFrequency()
+	log.Println(pname, freq)
+
+	seq := uint64(0)
+	for {
+		kv := []*tpb.KeyValue{
+			{Key: "__prefix__", Value: &tpb.KeyValue_StrValue{StrValue: "/lldp"}},
+			{Key: "state/foo", Value: &tpb.KeyValue_UintValue{UintValue: 2222}},
+		}
+
+		d := &tpb.OpenConfigData{
+			SystemId:       "jtisim",
+			ComponentId:    3,
+			Timestamp:      uint64(MakeMSTimestamp()),
+			SequenceNumber: seq,
+			Kv:             kv,
+		}
+		ch <- d
+		time.Sleep(time.Duration(freq) * time.Millisecond)
+		seq++
+	}
+}

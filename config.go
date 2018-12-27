@@ -290,11 +290,12 @@ func handleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx, wg *sy
 				// new worker
 				wg.Add(1)
 				log.Printf("adding a new worker for %v", file)
-				signalch, err := worker(file, wg)
+				jctx, signalch, err := worker(file, wg)
 				if err != nil {
 					wg.Done()
 				} else {
 					wMap[file] = &workerCtx{
+						jctx:     jctx,
 						signalch: signalch,
 						err:      err,
 					}

@@ -1,0 +1,19 @@
+{
+    "desc" : {
+        "media" : "ge",
+        "fpc" : 10,
+        "pic" : 1,
+        "port" : 1,
+        "logical" : 3
+    },
+    "ifd-counters"  : {
+        "in-pkts" : 5000,
+        "in-octets" : 9000,
+        "oper-status" : true,
+        "admin-status" : false
+    },
+    "ifl-counters"  : {
+        "in-unicast-pkts" : 100,
+        "in-multicast-pkts" : 2000
+    }
+}

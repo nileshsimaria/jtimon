@@ -34,6 +34,7 @@ type JCtx struct {
 }
 
 type workerCtx struct {
+	jctx *JCtx
 	signalch chan<- os.Signal
 	err      error
 }
@@ -99,7 +100,7 @@ connect:
 }
 
 // A worker function is the one who gets job done.
-func worker(file string, wg *sync.WaitGroup) (chan<- os.Signal, error) {
+func worker(file string, wg *sync.WaitGroup) (*JCtx, chan<- os.Signal, error) {
 	signalch := make(chan os.Signal)
 	statusch := make(chan bool)
 	jctx := JCtx{
@@ -118,7 +119,7 @@ func worker(file string, wg *sync.WaitGroup) (chan<- os.Signal, error) {
 	err := ConfigRead(&jctx, true)
 	if err != nil {
 		log.Println(err)
-		return signalch, err
+		return &jctx, signalch, err
 	}
 
 	go func() {
@@ -165,5 +166,5 @@ func worker(file string, wg *sync.WaitGroup) (chan<- os.Signal, error) {
 			}
 		}
 	}()
-	return signalch, nil
+	return &jctx, signalch, nil
 }

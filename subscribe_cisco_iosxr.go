@@ -150,7 +150,6 @@ func getXRSchema(jctx *JCtx) (*schema, error) {
 	return schema, nil
 }
 
-
 func handleOnePath(schema *schema, id int64, path string, conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool, datach chan<- struct{}) {
 	c := pb.NewGRPCConfigOperClient(conn)
 

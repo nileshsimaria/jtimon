@@ -74,7 +74,7 @@ func main() {
 		if err == nil {
 			log.Printf("\n%s\n", config)
 		} else {
-			log.Printf("Can not generate config\n")
+			log.Printf("can not generate config")
 		}
 		return
 	}
@@ -94,19 +94,20 @@ func main() {
 
 	for _, file := range *configFiles {
 		wg.Add(1)
-		signalch, err := worker(file, &wg)
+		jctx, signalch, err := worker(file, &wg)
 		if err != nil {
 			wg.Done()
 		} else {
 			wMap[file] = &workerCtx{
+				jctx: jctx,
 				signalch: signalch,
 				err:      err,
 			}
 		}
 	}
 
-	// Tell the workers (go routines) to actually start the work by Dialing GRPC connection
-	// and send subscribe RPC.
+	// tell the workers (go routines) to actually start the work by Dialing
+	// GRPC connection and send subscribe RPC
 	for _, wCtx := range wMap {
 		if wCtx.err == nil {
 			wCtx.signalch <- syscall.SIGCONT

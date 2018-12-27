@@ -91,7 +91,7 @@ func generateIList(idesc *IDesc) *interfaces {
 	for i := 0; i < fpc; i++ {
 		for j := 0; j < pic; j++ {
 			for k := 0; k < port; k++ {
-				name := fmt.Sprintf("%s=%d/%d/%d", media, i, j, k)
+				name := fmt.Sprintf("%s-%d/%d/%d", media, i, j, k)
 				ifd := &ifd{
 					name: name,
 				}
@@ -157,6 +157,21 @@ func (s *server) streamInterfaces(ch chan *tpb.OpenConfigData, path *tpb.Path) {
 				{Key: "state/admin-status", Value: &tpb.KeyValue_StrValue{StrValue: ads}},
 				{Key: "state/counters/in-pkts", Value: &tpb.KeyValue_UintValue{UintValue: inp}},
 				{Key: "state/counters/in-octets", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "init_time", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/counters/carrier-transitions", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/counters/last-clear", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/counters/out-octets", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/counters/out-pkts", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/counters/out-unicast-pkts", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/description", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/enabled", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/high-speed", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/ifindex", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/last-change", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/mtu", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/name", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/parent_ae_name", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+				{Key: "state/type", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
 			}
 
 			d := &tpb.OpenConfigData{
@@ -166,7 +181,7 @@ func (s *server) streamInterfaces(ch chan *tpb.OpenConfigData, path *tpb.Path) {
 				SequenceNumber: seq,
 				Kv:             kv,
 				SyncResponse:   false,
-				Path:           "sensor_1000_1_1:/junos/system/linecard/interface/:/junos/system/linecard/interface/:PFE",
+				Path:           "sensor_1000_1_1:/junos/system/linecard/interface/:/interfaces/:PFE",
 			}
 			seq++
 			ch <- d
@@ -181,12 +196,68 @@ func (s *server) streamInterfaces(ch chan *tpb.OpenConfigData, path *tpb.Path) {
 				rValue = getRandom(interfaces.desc.IFL.INMulticastPkts, s.jtisim.random)
 				inmp := ifl.inMPkts + uint64((uint32(rValue) * (freq / 1000)))
 				ifl.inMPkts = inmp
+				name := fmt.Sprintf("%s.%d", ifd.name, ifl.index)
 
 				kvifl := []*tpb.KeyValue{
 					{Key: "__prefix__", Value: &tpb.KeyValue_StrValue{StrValue: prefixVifl}},
 					{Key: "index", Value: &tpb.KeyValue_UintValue{UintValue: uint64(ifl.index)}},
+					{Key: "state/name", Value: &tpb.KeyValue_StrValue{StrValue: name}},
 					{Key: "state/counters/in-unicast-pkts", Value: &tpb.KeyValue_UintValue{UintValue: inup}},
 					{Key: "state/counters/in-multicast-pkts", Value: &tpb.KeyValue_UintValue{UintValue: inmp}},
+					{Key: "state/oper-status", Value: &tpb.KeyValue_StrValue{StrValue: ops}},
+					{Key: "state/admin-status", Value: &tpb.KeyValue_StrValue{StrValue: ads}},
+					{Key: "ipv4/addresses/address/ipv4/state/mtu", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/addresses/address/ipv4/unnumbered/interface-ref/state/interface", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/addresses/address/ipv4/unnumbered/interface-ref/state/subinterface", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/addresses/address/ipv4/unnumbered/state/enabled", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/addresses/address/state/ip", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/addresses/address/state/origin", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/addresses/address/state/prefix-length", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/@ip", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/ipv4/state/enabled", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/ipv4/state/mtu", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/ipv4/unnumbered/interface-ref/state/interface", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/ipv4/unnumbered/interface-ref/state/subinterface", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/ipv4/unnumbered/state/enabled", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/state/expiry", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/state/host-name", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/state/interface-name", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/state/ip", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/state/is-publish", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/state/link-layer-address", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/state/logical-router-id", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/state/neighbor-state", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/state/origin", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/neighbors/neighbor/state/table-id", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/state/enabled", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/state/mtu", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/unnumbered/interface-ref/state/interface", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/unnumbered/interface-ref/state/subinterface", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv4/unnumbered/state/enabled", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/addresses/address/@ip", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/addresses/address/ipv6/state/enabled", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/addresses/address/ipv6/state/mtu", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/addresses/address/ipv6/unnumbered/interface-ref/state/interface", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/addresses/address/ipv6/unnumbered/interface-ref/state/subinterface", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/addresses/address/ipv6/unnumbered/state/enabled", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/addresses/address/state/ip", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/addresses/address/state/origin", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/addresses/address/state/prefix-length", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/addresses/address/state/status", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/state/enabled", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/state/mtu", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/unnumbered/interface-ref/state/interface", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/unnumbered/interface-ref/state/subinterface", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "ipv6/unnumbered/state/enabled", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "state/counters/in-octets", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "state/counters/in-pkts", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "state/counters/out-octets", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "state/counters/out-pkts", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "state/description", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "state/enabled", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "state/ifindex", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "state/index", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
+					{Key: "state/last-change", Value: &tpb.KeyValue_UintValue{UintValue: ino}},
 				}
 
 				d := &tpb.OpenConfigData{
@@ -196,7 +267,7 @@ func (s *server) streamInterfaces(ch chan *tpb.OpenConfigData, path *tpb.Path) {
 					SequenceNumber: seq,
 					Kv:             kvifl,
 					SyncResponse:   false,
-					Path:           "sensor_1013_1_1:/junos/system/linecard/interface/logical/usage/:/interfaces/interface/subinterfaces/subinterface/:PFE",
+					Path:           "sensor_1013_1_1:/junos/system/linecard/interface/logical/usage/:/interfaces/:PFE",
 				}
 				seq++
 				ch <- d

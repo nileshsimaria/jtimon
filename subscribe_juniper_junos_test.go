@@ -26,7 +26,7 @@ func TestJTISIM(t *testing.T) {
 			name:    "multi-file-list-1",
 			config:  "tests/data/juniper-junos/config/jtisim-interfaces-file-list.json",
 			totalIn: 120,
-			totalKV: 540,
+			totalKV: 5940,
 		},
 	}
 

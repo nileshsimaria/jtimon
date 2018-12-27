@@ -51,7 +51,7 @@
   branch = "master"
   name = "github.com/nileshsimaria/jtisim"
   packages = ["."]
-  revision = "a16e4a4e03853d7747926095a3fd402d9676aca6"
+  revision = "a719714e2a2bbde4bec5a6c1f82c6c210a1adfb7"
 
 [[projects]]
   name = "github.com/prometheus/client_golang"

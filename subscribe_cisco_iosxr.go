@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/golang/protobuf/proto"
 	pb "github.com/nileshsimaria/jtimon/multi-vendor/cisco/iosxr/grpc-proto"
@@ -260,14 +261,16 @@ func subscribeXR(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErr
 	}
 
 	for {
-		// The below select loop will handle the following
-		//      1. Tell the caller that streaming has started
-		//      2. Tell the caller that there is no incoming data
 		select {
-		case <-jctx.pause.subch:
-			// Config has been updated restart the streaming.
-			// Need to find a way to close the streaming.
-			return SubRcSighupRestart
+		case s := <-jctx.control:
+			switch s {
+			case syscall.SIGHUP:
+				// config has been updated restart the streaming
+				return SubRcSighupRestart
+			case os.Interrupt:
+				// we are done
+				return SubRcSighupNoRestart
+			}
 		case <-datach:
 			// data is not received, retry the connection
 			return SubRcConnRetry

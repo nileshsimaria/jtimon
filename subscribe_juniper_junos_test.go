@@ -5,8 +5,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -15,18 +13,143 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-func TestJTISIM(t *testing.T) {
+func TestJTISIMSigHup(t *testing.T) {
+	flag.Parse()
+	*noppgoroutines = true
+	*stateHandler = true
+	*prefixCheck = true
+
+	config := "tests/data/juniper-junos/config/jtisim-interfaces-file-list-sig.json"
+	total := 3 // this file has three workers config
+
+	err := GetConfigFiles(configFiles, config)
+	if err != nil {
+		t.Errorf("config parsing error: %s", err)
+	}
+
+	// create and start workers group with three workers
+	workers := NewJWorkers(*configFiles, config, 0)
+	workers.StartWorkers()
+
+	// run them for 4 seconds
+	time.Sleep(time.Duration(4) * time.Second)
+
+	// we should have three workers
+	if len(workers.m) != total {
+		t.Errorf("workers does not match: want %d got %d", total, len(workers.m))
+	}
+
+	// change fileList
+	workers.fileList = "tests/data/juniper-junos/config/jtisim-interfaces-file-list-sig-delete.json"
+	total = 1               // two deleted so we end up with only one worker config
+	workers.SIGHUPWorkers() // send sighup
+
+	// run updated workers for six seconds
+	time.Sleep(time.Duration(6) * time.Second)
+	// we should have only one worker
+	if len(workers.m) != total {
+		t.Errorf("after sighup, workers does not match: want %d got %d", total, len(workers.m))
+	}
+
+	// change file list again, bring back all three workers again
+	workers.fileList = "tests/data/juniper-junos/config/jtisim-interfaces-file-list-sig.json"
+	total = 3 // another sighup, we should have three workers now
+	workers.SIGHUPWorkers()
+
+	// run the stest for 4 seconds. this includes two new workers and one existing worker
+	time.Sleep(time.Duration(4) * time.Second)
+	if len(workers.m) != total {
+		t.Errorf("after sighup, workers does not match: want %d got %d", total, len(workers.m))
+	}
+
+	workers.EndWorkers() // end all workers, this will retain workers map for us to peek data for test
+	workers.Wait()       // this should not block as we have stopped all workers
+
+	w := workers.m
+	tests := []struct {
+		config  string
+		totalIn uint64
+	}{
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-1.json",
+			totalIn: 40, // after 2nd sighup its new worker
+		},
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-2.json",
+			totalIn: 40, // after 2nd sighup its new worker
+		},
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-3.json",
+			totalIn: 80, // this worker was running from beginning (it got two sighup though)
+		},
+	}
+
+	for _, test := range tests {
+		if v, ok := w[test.config]; !ok {
+			t.Errorf("workers map is missing entry for worker %s", test.config)
+		} else {
+			if v.jctx.stats.totalIn != test.totalIn {
+				t.Errorf("totalIn mismatch for %s, want %d got %d", test.config, test.totalIn, v.jctx.stats.totalIn)
+			}
+		}
+	}
+}
+
+func TestJTISIMSigInt(t *testing.T) {
+	flag.Parse()
+	*noppgoroutines = true
+	*stateHandler = true
+	*prefixCheck = true
+
+	config := "tests/data/juniper-junos/config/jtisim-interfaces-file-list-sig.json"
+	total := 3
+	runTime := 12           // if you change runTime, you will have to change totalIn and totalKV as well
+	totalIn := uint64(80)   // for 12 seconds
+	totalKV := uint64(3960) // for 12 seconds
+
+	err := GetConfigFiles(configFiles, config)
+	if err != nil {
+		t.Errorf("config parsing error: %s", err)
+	}
+
+	workers := NewJWorkers(*configFiles, config, 0)
+	workers.StartWorkers()
+
+	if len(workers.m) != total {
+		t.Errorf("workers does not match: want %d got %d", total, len(workers.m))
+	}
+
+	time.Sleep(time.Duration(runTime) * time.Second)
+	workers.EndWorkers()
+	workers.Wait() // this should not block as we have stopped all workers
+
+	for _, w := range workers.m {
+		jctx := w.jctx
+		if totalIn != jctx.stats.totalIn {
+			t.Errorf("totalIn failed for config : %s wanted %v got %v", jctx.file, totalIn, jctx.stats.totalIn)
+		}
+		if totalKV != jctx.stats.totalKV {
+			t.Errorf("totalKV failed for config : %s wanted %v got %v", jctx.file, totalKV, jctx.stats.totalKV)
+		}
+	}
+}
+
+func TestJTISIMMaxRun(t *testing.T) {
 	tests := []struct {
 		name    string
 		config  string
+		total   int
+		maxRun  int64
 		totalIn uint64
 		totalKV uint64
 	}{
 		{
 			name:    "multi-file-list-1",
 			config:  "tests/data/juniper-junos/config/jtisim-interfaces-file-list.json",
-			totalIn: 120,
-			totalKV: 5940,
+			total:   2,
+			maxRun:  25,   // if you change maxRun, please change totalIn and totalKV as well
+			totalIn: 120,  // for 25 seconds
+			totalKV: 5940, // for 25 seconds
 		},
 	}
 
@@ -34,53 +157,30 @@ func TestJTISIM(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			flag.Parse()
 			*noppgoroutines = true
-			*maxRun = 25
 			*stateHandler = true
-			*print = false
+			*prefixCheck = true
 
-			err := GetConfigFiles(configFiles, &test.config)
+			err := GetConfigFiles(configFiles, test.config)
 			if err != nil {
 				t.Errorf("config parsing error: %s", err)
 			}
 
-			var wg sync.WaitGroup
-			wMap := make(map[string]*workerCtx)
+			workers := NewJWorkers(*configFiles, test.config, test.maxRun)
+			workers.StartWorkers()
+			workers.Wait()
 
-			for _, file := range *configFiles {
-				wg.Add(1)
-				jctx, signalch, err := worker(file, &wg)
-				if err != nil {
-					wg.Done()
-				} else {
-					wMap[file] = &workerCtx{
-						jctx:     jctx,
-						signalch: signalch,
-						err:      err,
-					}
-				}
+			if len(workers.m) != test.total {
+				t.Errorf("workers does not match: want %d got %d", test.total, len(workers.m))
 			}
 
-			// tell the workers (go routines) to actually start the work by Dialing
-			// GRPC connection and send subscribe RPC
-			for _, wCtx := range wMap {
-				if wCtx.err == nil {
-					wCtx.signalch <- syscall.SIGCONT
-				}
-			}
-
-			go signalHandler(*configFileList, wMap, &wg)
-			go maxRunHandler(*maxRun, wMap)
-
-			wg.Wait()
-			for _, wCtx := range wMap {
-				jctx := wCtx.jctx
+			for _, w := range workers.m {
+				jctx := w.jctx
 				if test.totalIn != jctx.stats.totalIn {
 					t.Errorf("totalIn failed for config : %s wanted %v got %v", jctx.file, test.totalIn, jctx.stats.totalIn)
 				}
 				if test.totalKV != jctx.stats.totalKV {
 					t.Errorf("totalKV failed for config : %s wanted %v got %v", jctx.file, test.totalKV, jctx.stats.totalKV)
 				}
-
 			}
 		})
 	}

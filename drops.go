@@ -23,8 +23,8 @@ func dropCheckCSV(jctx *JCtx) {
 	if !jctx.config.Log.CSVStats {
 		return
 	}
-	f := jctx.config.Log.FileHandle
-	if jctx.config.Log.FileHandle == nil {
+	f := jctx.config.Log.out
+	if jctx.config.Log.out == nil {
 		return
 	}
 	if _, err := f.Seek(0, 0); err != nil {

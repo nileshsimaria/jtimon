@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"encoding/json"
+	"os"
+	"syscall"
 
 	"github.com/golang/protobuf/proto"
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
@@ -23,6 +25,7 @@ type SubErrorCode int
 const (
 	SubRcConnRetry = iota
 	SubRcSighupRestart
+	SubRcSighupNoRestart
 )
 
 func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
@@ -181,33 +184,19 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 			if *prom {
 				go addPrometheus(ocData, jctx)
 			}
-
-			if *apiControl {
-				select {
-				case pfor := <-jctx.pause.pch:
-					jLog(jctx, fmt.Sprintf("Pausing for %v seconds\n", pfor))
-					t := time.NewTimer(time.Second * time.Duration(pfor))
-					select {
-					case <-t.C:
-						jLog(jctx, fmt.Sprintf("Done pausing for %v seconds\n", pfor))
-					case <-jctx.pause.upch:
-						t.Stop()
-					}
-				default:
-				}
-			}
 		}
 	}()
 	for {
-		// The below select loop will handle the following
-		// 		1. Tell the caller that streaming has started
-		//		2. Tell the caller that there is no incoming data
 		select {
-		case <-jctx.pause.subch:
-			// config has been updated restart the streaming. this will make
-			// subscribe call to return and after that it will retry with
-			// newly parsed config
-			return SubRcSighupRestart
+		case s := <-jctx.control:
+			switch s {
+			case syscall.SIGHUP:
+				// config has been updated restart the streaming
+				return SubRcSighupRestart
+			case os.Interrupt:
+				// we are done
+				return SubRcSighupNoRestart
+			}
 		case <-datach:
 			// data is not received, retry the connection
 			return SubRcConnRetry
@@ -234,13 +223,7 @@ func subscribeJunos(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) Sub
 	additionalConfigM.NeedEos = jctx.config.EOS
 	subReqM.AdditionalConfig = &additionalConfigM
 
-	res := subSendAndReceive(conn, jctx, subReqM, statusch)
-	if res == SubRcSighupRestart {
-		jLog(jctx, fmt.Sprintf("Restarting the connection for sighup\n"))
-	} else {
-		jLog(jctx, fmt.Sprintf("Restarting the connection"))
-	}
-	return res
+	return subSendAndReceive(conn, jctx, subReqM, statusch)
 }
 
 func loginCheckJunos(jctx *JCtx, conn *grpc.ClientConn) error {

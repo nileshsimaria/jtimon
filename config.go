@@ -8,8 +8,6 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"sync"
-	"syscall"
 )
 
 // ConfigFileList to get the list of config file names
@@ -55,8 +53,8 @@ type LogConfig struct {
 	DropCheck     bool   `json:"drop-check"`
 	LatencyCheck  bool   `json:"latency-check"`
 	CSVStats      bool   `json:"csv-stats"`
-	FileHandle    *os.File
-	Logger        *log.Logger
+	out           *os.File
+	logger        *log.Logger
 }
 
 // APIConfig is config struct for API Server
@@ -180,15 +178,15 @@ func IsVerboseLogging(jctx *JCtx) bool {
 }
 
 // GetConfigFiles to get the list of config files
-func GetConfigFiles(cfgFile *[]string, cfgFileList *string) error {
-	if len(*cfgFileList) != 0 {
-		configfilelist, err := NewJTIMONConfigFilelist(*cfgFileList)
+func GetConfigFiles(cfgFile *[]string, cfgFileList string) error {
+	if len(cfgFileList) != 0 {
+		configfilelist, err := NewJTIMONConfigFilelist(cfgFileList)
 		if err != nil {
 			return fmt.Errorf("%v: [%v]", err, cfgFileList)
 		}
 		n := len(configfilelist.Filenames)
 		if n == 0 {
-			return fmt.Errorf("%s doesn't have any files", *cfgFileList)
+			return fmt.Errorf("%s doesn't have any files", cfgFileList)
 		}
 		*cfgFile = configfilelist.Filenames
 	} else {
@@ -235,12 +233,11 @@ func ConfigRead(jctx *JCtx, init bool) error {
 
 		// subscription channel (subch) is used to let go routine receiving telemetry
 		// data know about certain events like sighup.
-		jctx.pause.subch = make(chan struct{})
+		jctx.control = make(chan os.Signal)
 
 		go periodicStats(jctx)
 		influxInit(jctx)
 		dropInit(jctx)
-		go apiInit(jctx)
 
 		if *grpcHeaders {
 			pmap := make(map[string]interface{})
@@ -270,48 +267,4 @@ func StringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
-}
-
-func handleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx, wg *sync.WaitGroup) {
-	// we support config changes through sighup only for config file list
-	// perform following on sighup:
-	// 	  Add new worker if needed
-	//	  delete worker if not in new list
-	//    otherwise, send sighup to worker to restart streaming with new config
-	if configfilelist, err := NewJTIMONConfigFilelist(*cfgFileList); err == nil {
-		for _, file := range configfilelist.Filenames {
-			if wCtx, ok := wMap[file]; ok {
-				// signal to the worker if they are running. upon receiving sighup,
-				// the worker'd stop current streaming, parse new config and make new
-				// connection (grpc dial) to the device to get new streams of data
-				log.Printf("sending sighup to the worker for %v", file)
-				wCtx.signalch <- syscall.SIGHUP
-			} else {
-				// new worker
-				wg.Add(1)
-				log.Printf("adding a new worker for %v", file)
-				jctx, signalch, err := worker(file, wg)
-				if err != nil {
-					wg.Done()
-				} else {
-					wMap[file] = &workerCtx{
-						jctx:     jctx,
-						signalch: signalch,
-						err:      err,
-					}
-				}
-			}
-		}
-		// handle deletions
-		for file, wCtx := range wMap {
-			if StringInSlice(file, configfilelist.Filenames) == false {
-				// kill the worker go routine and remove it from the map
-				log.Printf("deleting worker for %v", file)
-				wCtx.signalch <- os.Interrupt
-				delete(wMap, file)
-			}
-		}
-	} else {
-		log.Printf("error in parsing the new config file, continuing with older config")
-	}
 }

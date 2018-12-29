@@ -5,8 +5,6 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof"
-	"sync"
-	"syscall"
 
 	flag "github.com/spf13/pflag"
 )
@@ -79,7 +77,7 @@ func main() {
 		return
 	}
 
-	err := GetConfigFiles(configFiles, configFileList)
+	err := GetConfigFiles(configFiles, *configFileList)
 	if err != nil {
 		log.Printf("config parsing error: %s", err)
 		return
@@ -89,34 +87,9 @@ func main() {
 		aliasInit()
 	}
 
-	var wg sync.WaitGroup
-	wMap := make(map[string]*workerCtx)
+	workers := NewJWorkers(*configFiles, *configFileList, *maxRun)
+	workers.StartWorkers()
+	workers.Wait()
 
-	for _, file := range *configFiles {
-		wg.Add(1)
-		jctx, signalch, err := worker(file, &wg)
-		if err != nil {
-			wg.Done()
-		} else {
-			wMap[file] = &workerCtx{
-				jctx: jctx,
-				signalch: signalch,
-				err:      err,
-			}
-		}
-	}
-
-	// tell the workers (go routines) to actually start the work by Dialing
-	// GRPC connection and send subscribe RPC
-	for _, wCtx := range wMap {
-		if wCtx.err == nil {
-			wCtx.signalch <- syscall.SIGCONT
-		}
-	}
-
-	go signalHandler(*configFileList, wMap, &wg)
-	go maxRunHandler(*maxRun, wMap)
-
-	wg.Wait()
 	log.Printf("All done ... exiting!\n")
 }

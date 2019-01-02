@@ -238,15 +238,6 @@ func ConfigRead(jctx *JCtx, init bool) error {
 		go periodicStats(jctx)
 		influxInit(jctx)
 		dropInit(jctx)
-
-		if *grpcHeaders {
-			pmap := make(map[string]interface{})
-			for i := range jctx.config.Paths {
-				pmap["path"] = jctx.config.Paths[i].Path
-				pmap["reporting-rate"] = float64(jctx.config.Paths[i].Freq)
-				addGRPCHeader(jctx, pmap)
-			}
-		}
 	} else {
 		err := ValidateConfigChange(jctx, config)
 		if err == nil {

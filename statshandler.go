@@ -198,42 +198,28 @@ func printSummary(jctx *JCtx) {
 	}
 
 	endTime := time.Since(jctx.stats.startTime)
-	stmap := make(map[string]interface{})
 
 	s := fmt.Sprintf("\nCollector Stats for %s:%d (Run time : %s)\n", jctx.config.Host, jctx.config.Port, endTime)
-	stmap["run-time"] = float64(endTime)
 	s += fmt.Sprintf("%-12v : in-packets\n", jctx.stats.totalIn)
-	stmap["in-packets"] = float64(jctx.stats.totalIn)
 	s += fmt.Sprintf("%-12v : data points (KV pairs)\n", jctx.stats.totalKV)
-	stmap["kv"] = float64(jctx.stats.totalKV)
 
 	s += fmt.Sprintf("%-12v : in-header wirelength (bytes)\n", jctx.stats.totalInHeaderWireLength)
-	stmap["in-header-wire-length"] = float64(jctx.stats.totalInHeaderWireLength)
 	s += fmt.Sprintf("%-12v : in-payload length (bytes)\n", jctx.stats.totalInPayloadLength)
-	stmap["in-payload-length-bytes"] = float64(jctx.stats.totalInPayloadLength)
 	s += fmt.Sprintf("%-12v : in-payload wirelength (bytes)\n", jctx.stats.totalInPayloadWireLength)
-	stmap["in-payload-wirelength-bytes"] = float64(jctx.stats.totalInPayloadWireLength)
 	if uint64(endTime.Seconds()) != 0 {
 		s += fmt.Sprintf("%-12v : throughput (bytes per seconds)\n", jctx.stats.totalInPayloadLength/uint64(endTime.Seconds()))
-		stmap["throughput"] = float64(jctx.stats.totalInPayloadLength / uint64(endTime.Seconds()))
 	}
 
 	if jctx.config.Log.LatencyCheck && jctx.stats.totalLatencyPkt != 0 {
 		s += fmt.Sprintf("%-12v : latency sample packets\n", jctx.stats.totalLatencyPkt)
-		stmap["latency-sample-packets"] = float64(jctx.stats.totalLatencyPkt)
 		s += fmt.Sprintf("%-12v : latency (ms)\n", jctx.stats.totalLatency)
-		stmap["total-latency"] = float64(jctx.stats.totalLatency)
 		s += fmt.Sprintf("%-12v : average latency (ms)\n", jctx.stats.totalLatency/jctx.stats.totalLatencyPkt)
-		stmap["average-latency"] = float64(jctx.stats.totalLatency / jctx.stats.totalLatencyPkt)
 	}
 
 	if jctx.config.Log.DropCheck {
 		s += fmt.Sprintf("%-12v : total packet drops\n", jctx.stats.totalDdrops)
-		stmap["total-drops"] = float64(jctx.stats.totalDdrops)
 	}
 
 	s += fmt.Sprintf("\n")
 	jLog(jctx, fmt.Sprintf("\n%s\n", s))
-
-	addIDBSummary(jctx, stmap)
 }

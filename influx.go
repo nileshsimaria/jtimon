@@ -309,68 +309,6 @@ func mName(ocData *na_pb.OpenConfigData, cfg Config) string {
 	return ""
 }
 
-// A go routine to add header of gRPC in to influxDB
-func addGRPCHeader(jctx *JCtx, hmap map[string]interface{}) {
-	cfg := jctx.config
-
-	if jctx.influxCtx.influxClient == nil {
-		return
-	}
-
-	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  cfg.Influx.Dbname,
-		Precision: "us",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if len(hmap) != 0 {
-		m := mName(nil, jctx.config)
-		m = fmt.Sprintf("%s-%s-HDR", m, jctx.config.Host)
-		tags := make(map[string]string)
-		pt, err := client.NewPoint(m, tags, hmap, time.Now())
-		if err != nil {
-			log.Fatal(err)
-		}
-		bp.AddPoint(pt)
-		if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
-// A go routine to add summary of stats collection in to influxDB
-func addIDBSummary(jctx *JCtx, stmap map[string]interface{}) {
-	cfg := jctx.config
-
-	if jctx.influxCtx.influxClient == nil {
-		return
-	}
-
-	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  cfg.Influx.Dbname,
-		Precision: "us",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if len(stmap) != 0 {
-		m := mName(nil, jctx.config)
-		m = fmt.Sprintf("%s-%s-LOG", m, jctx.config.Host)
-		tags := make(map[string]string)
-		pt, err := client.NewPoint(m, tags, stmap, time.Now())
-		if err != nil {
-			log.Fatal(err)
-		}
-		bp.AddPoint(pt)
-		if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
 // A go routine to add one telemetry packet in to InfluxDB
 func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	cfg := jctx.config

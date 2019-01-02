@@ -35,7 +35,6 @@ var (
 	prefixCheck    = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
 	pProf          = flag.Bool("pprof", false, "Profile JTIMON")
 	pProfPort      = flag.Int32("pprof-port", 6060, "Profile port")
-	gtrace         = flag.Bool("gtrace", false, "Collect GRPC traces")
 	noppgoroutines = flag.Bool("no-per-packet-goroutines", false, "Spawn per packet go routines")
 	genTestData    = flag.Bool("generate-test-data", false, "Generate test data")
 	conTestData    = flag.Bool("consume-test-data", false, "Consume test data")
@@ -57,7 +56,6 @@ func main() {
 	if *prom {
 		exporter = promInit()
 	}
-	startGtrace(*gtrace)
 
 	log.Printf("Version: %s BuildTime %s\n", jtimonVersion, buildTime)
 	if *versionOnly {

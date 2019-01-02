@@ -30,7 +30,6 @@ var (
 	stateHandler   = flag.Bool("stats-handler", false, "Use GRPC statshandler")
 	versionOnly    = flag.Bool("version", false, "Print version and build-time of the binary and exit")
 	compression    = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
-	latencyProfile = flag.Bool("latency-profile", false, "Profile latencies. Place them in TSDB")
 	prom           = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
 	promPort       = flag.Int32("prometheus-port", 8090, "Prometheus port")
 	prefixCheck    = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")

@@ -318,23 +318,6 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 
 	for _, v := range ocData.Kv {
 		kv := make(map[string]interface{})
-		if *stateHandler && *latencyProfile {
-			kv["platency"] = rtime.UnixNano()/1000000 - int64(ocData.Timestamp)
-			if v.Key == "__timestamp__" {
-				if rtime.UnixNano()/1000000 < int64(v.GetUintValue()) {
-					kv["elatency"] = 0
-				} else {
-					kv["elatency"] = rtime.UnixNano()/1000000 - int64(v.GetUintValue())
-				}
-				kv["ilatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
-			}
-			if v.Key == "__agentd_rx_timestamp__" {
-				kv["arxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
-			}
-			if v.Key == "__agentd_tx_timestamp__" {
-				kv["atxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
-			}
-		}
 
 		switch {
 		case v.Key == "__prefix__":

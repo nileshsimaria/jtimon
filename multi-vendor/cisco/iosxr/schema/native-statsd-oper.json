@@ -1,0 +1,93 @@
+[
+    {
+        "name": "Cisco-IOS-XR-infra-statsd-oper:infra-statistics",
+        "kids": [
+            {
+                "name": "interfaces",
+                "kids": [
+                    {
+                        "name": "interface",
+                        "kids": [
+                            {
+                                "name": "interface-name",
+                                "key": true
+                            },
+                            {
+                                "name" : "protocols",
+                                "kids": [
+                                    {
+                                        "name": "protocol",
+                                        "kids": [
+                                            {
+                                                "name": "protocol-name",
+                                                "key" : true
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "name" : "cache",
+                                "kids": [
+                                    {
+                                        "name": "protocols",
+                                        "kids": [
+                                            {
+                                                "name" : "protocol",
+                                                "kids" : [
+                                                    {
+                                                        "name" : "protocol-name",
+                                                        "key" : true
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "name" : "total",
+                                "kids": [
+                                    {
+                                        "name": "protocols",
+                                        "kids": [
+                                            {
+                                                "name" : "protocol",
+                                                "kids" : [
+                                                    {
+                                                        "name" : "protocol-name",
+                                                        "key" : true
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "name" : "latest",
+                                "kids": [
+                                    {
+                                        "name": "protocols",
+                                        "kids": [
+                                            {
+                                                "name" : "protocol",
+                                                "kids" : [
+                                                    {
+                                                        "name" : "protocol-name",
+                                                        "key" : true
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {}
+        ]
+    }
+]

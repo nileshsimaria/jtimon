@@ -44,7 +44,8 @@ docker-sh: ## start the docker container and exec into shell, ensure you have pr
 	docker run -ti --rm -v ${PWD}:/root --entrypoint=/bin/sh jtimon
 
 test: ## run the go tests
-	go test -v
+	go vet
+	go test --cover -v
 
 help: 
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

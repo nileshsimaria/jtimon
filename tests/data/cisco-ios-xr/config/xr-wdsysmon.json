@@ -1,0 +1,18 @@
+{
+    "host": "172.27.113.191",
+    "port": 32767,
+    "user": "admin",
+    "password": "admin",
+    "vendor": {
+        "name": "cisco-iosxr",
+        "remove-namespace": true,
+        "schema" : [{
+            "path": "tests/data/cisco-ios-xr/schema/"
+        }]
+    },
+    "cid": "1001",
+    "paths": [{
+        "path": "sub_wdsysmon-fd",
+        "freq": 10000
+    }]
+}

@@ -8,8 +8,6 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"sync"
-	"syscall"
 )
 
 // ConfigFileList to get the list of config file names
@@ -32,6 +30,19 @@ type Config struct {
 	Influx   InfluxConfig  `json:"influx"`
 	Paths    []PathsConfig `json:"paths"`
 	Log      LogConfig     `json:"log"`
+	Vendor   VendorConfig  `json:"vendor"`
+}
+
+// VendorConfig definition
+type VendorConfig struct {
+	Name     string         `json:"name"`
+	RemoveNS bool           `json:"remove-namespace"`
+	Schema   []VendorSchema `json:"schema"`
+}
+
+// VendorSchema definition
+type VendorSchema struct {
+	Path string `json:"path"`
 }
 
 //LogConfig is config struct for logging
@@ -42,8 +53,8 @@ type LogConfig struct {
 	DropCheck     bool   `json:"drop-check"`
 	LatencyCheck  bool   `json:"latency-check"`
 	CSVStats      bool   `json:"csv-stats"`
-	FileHandle    *os.File
-	Logger        *log.Logger
+	out           *os.File
+	logger        *log.Logger
 }
 
 // APIConfig is config struct for API Server
@@ -96,9 +107,12 @@ func fillupDefaults(config *Config) {
 	if config.Influx.BatchSize == 0 {
 		config.Influx.BatchSize = DefaultIDBBatchSize
 	}
+	if config.Influx.AccumulatorFrequency == 0 {
+		config.Influx.AccumulatorFrequency = DefaultIDBAccumulatorFreq
+	}
 }
 
-// ParseJSONConfigFileList parses JSON encoded string of JTIMON Config files
+// ParseJSONConfigFileList parses file list config
 func ParseJSONConfigFileList(file string) (ConfigFileList, error) {
 	var configfilelist ConfigFileList
 
@@ -164,21 +178,21 @@ func IsVerboseLogging(jctx *JCtx) bool {
 }
 
 // GetConfigFiles to get the list of config files
-func GetConfigFiles(cfgFile *[]string, cfgFileList *string) error {
-	if len(*cfgFileList) != 0 {
-		configfilelist, err := NewJTIMONConfigFilelist(*cfgFileList)
+func GetConfigFiles(cfgFile *[]string, cfgFileList string) error {
+	if len(cfgFileList) != 0 {
+		configfilelist, err := NewJTIMONConfigFilelist(cfgFileList)
 		if err != nil {
-			return fmt.Errorf("Error %v in %v", err, cfgFileList)
+			return fmt.Errorf("%v: [%v]", err, cfgFileList)
 		}
 		n := len(configfilelist.Filenames)
 		if n == 0 {
-			return fmt.Errorf("File list doesn't have any files in %v", *cfgFileList)
+			return fmt.Errorf("%s doesn't have any files", cfgFileList)
 		}
 		*cfgFile = configfilelist.Filenames
 	} else {
 		n := len(*cfgFile)
 		if n == 0 {
-			return fmt.Errorf("Can not run without any config file")
+			return fmt.Errorf("can not run without any config file")
 		}
 	}
 	return nil
@@ -188,23 +202,23 @@ func GetConfigFiles(cfgFile *[]string, cfgFileList *string) error {
 func ValidateConfigChange(jctx *JCtx, config Config) error {
 	runningCfg := jctx.config
 	if !reflect.DeepEqual(runningCfg, config) {
-		// Config change is now only for path, it can be extended.
+		// config change is now only for path, it can be extended.
 		if !reflect.DeepEqual(runningCfg.Paths, config.Paths) {
 			return nil
 		}
 	}
-	return fmt.Errorf("Config Change Validation")
+	return fmt.Errorf("ValidateConfigChange: only paths are allowed to be changed")
 }
 
 // ConfigRead will read the config and init the services.
-// In case of config changes, it will update the  existing config
+// In case of config changes, it will update the existing config
 func ConfigRead(jctx *JCtx, init bool) error {
 	var err error
 
 	config, err := NewJTIMONConfig(jctx.file)
 	if err != nil {
-		fmt.Printf("\nConfig parsing error for %s: %v\n", jctx.file, err)
-		return fmt.Errorf("config parsing (json Unmarshal) error for %s[%d]: %v", jctx.file, jctx.index, err)
+		log.Printf("config parsing error for %s: %v", jctx.file, err)
+		return fmt.Errorf("config parsing (json unmarshal) error for %s: %v", jctx.file, err)
 	}
 
 	if init {
@@ -212,18 +226,18 @@ func ConfigRead(jctx *JCtx, init bool) error {
 		logInit(jctx)
 		b, err := json.MarshalIndent(jctx.config, "", "    ")
 		if err != nil {
-			return fmt.Errorf("Config parsing error (json Marshal) for %s[%d]: %v", jctx.file, jctx.index, err)
+			return fmt.Errorf("config parsing error (json marshal) for %s: %v", jctx.file, err)
 		}
-		jLog(jctx, fmt.Sprintf("\nRunning config of JTIMON:\n %s\n", string(b)))
 
-		if init {
-			jctx.pause.subch = make(chan struct{})
+		jLog(jctx, fmt.Sprintf("Running config of JTIMON:\n %s", string(b)))
 
-			go periodicStats(jctx)
-			influxInit(jctx)
-			dropInit(jctx)
-			go apiInit(jctx)
-		}
+		// subscription channel (subch) is used to let go routine receiving telemetry
+		// data know about certain events like sighup.
+		jctx.control = make(chan os.Signal)
+
+		go periodicStats(jctx)
+		influxInit(jctx)
+		dropInit(jctx)
 
 		if *grpcHeaders {
 			pmap := make(map[string]interface{})
@@ -237,12 +251,11 @@ func ConfigRead(jctx *JCtx, init bool) error {
 		err := ValidateConfigChange(jctx, config)
 		if err == nil {
 			jctx.config.Paths = config.Paths
-			jLog(jctx, fmt.Sprintf("Config has been updated\n"))
+			jLog(jctx, fmt.Sprintf("config has been updated"))
 		} else {
-			return fmt.Errorf("No change in subscription path, ignoring config changes")
+			return fmt.Errorf("no change in subscription path, ignoring config changes")
 		}
 	}
-
 	return nil
 }
 
@@ -254,54 +267,4 @@ func StringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
-}
-
-// HandleConfigChanges will take care of SIGHUP handling for the main thread
-func HandleConfigChanges(cfgFileList *string, wMap map[string]*workerCtx,
-	wg *sync.WaitGroup, numServers *int) {
-	// Config was config list.
-	// On Sighup Need to do the following thins
-	// 		1. Add Worker threads if needed
-	//		2. Delete Worker threads if not in the list.
-	// 		3. Modify worker Config by issuing SIGHUP to the worker channel.
-	configfilelist, err := NewJTIMONConfigFilelist(*cfgFileList)
-	if err != nil {
-		fmt.Printf("Error in parsing the new config file, Continuing with older config")
-		return
-	}
-
-	s := syscall.SIGHUP
-
-	// Handle New Insertions and Changes
-	for _, file := range configfilelist.Filenames {
-		if wCtx, ok := wMap[file]; ok {
-			// Signal to the worker if they are running.
-			fmt.Printf("Sending SIGHUP to %v\n", file)
-			wCtx.signalch <- s
-		} else {
-			wg.Add(1)
-			*numServers++
-			fmt.Printf("Adding a new device to %v\n", file)
-			signalch, err := worker(file, *numServers, wg)
-			if err != nil {
-				wg.Done()
-			} else {
-				wMap[file] = &workerCtx{
-					signalch: signalch,
-					err:      err,
-				}
-			}
-		}
-	}
-
-	// Handle deletions
-	for wCtxFileKey, wCtx := range wMap {
-		if StringInSlice(wCtxFileKey, configfilelist.Filenames) == false {
-			// Kill the worker thread and remove it from the map
-			fmt.Printf("Deleting an entry to %v\n", wCtxFileKey)
-			wCtx.signalch <- os.Interrupt
-			delete(wMap, wCtxFileKey)
-		}
-	}
-	return
 }

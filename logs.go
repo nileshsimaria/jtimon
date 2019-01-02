@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 )
@@ -13,18 +12,25 @@ func jLog(jctx *JCtx, msg string) {
 		return
 	}
 
-	if jctx.config.Log.Logger != nil {
-		jctx.config.Log.Logger.Printf(msg)
+	if jctx.config.Log.logger != nil {
+		jctx.config.Log.logger.Printf(msg)
 	}
 }
 
+func logStop(jctx *JCtx) {
+	if jctx.config.Log.out != nil {
+		jctx.config.Log.out.Close()
+		jctx.config.Log.out = nil
+		jctx.config.Log.logger = nil
+	}
+}
 func logInit(jctx *JCtx) {
 	if *logMux {
 		return
 	}
 
 	file := jctx.config.Log.File
-	var out io.Writer
+	var out *os.File
 
 	if *print {
 		out = os.Stdout
@@ -45,9 +51,9 @@ func logInit(jctx *JCtx) {
 			flags = log.LstdFlags
 		}
 
-		jctx.config.Log.Logger = log.New(out, "", flags)
+		jctx.config.Log.logger = log.New(out, "", flags)
+		jctx.config.Log.out = out
 		log.Printf("logging in %s for %s:%d [periodic stats every %d seconds]\n",
 			jctx.config.Log.File, jctx.config.Host, jctx.config.Port, jctx.config.Log.PeriodicStats)
-
 	}
 }

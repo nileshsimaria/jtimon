@@ -1,0 +1,6 @@
+{
+    "config_file_list": [
+        "tests/data/juniper-junos/config/jtisim-interfaces-1.json",
+        "tests/data/juniper-junos/config/jtisim-interfaces-2.json"
+    ]
+}

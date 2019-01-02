@@ -1,0 +1,9 @@
+{
+    "host": "10.102.177.53",
+    "port": 50051,
+    "cid": "mac1",
+    "paths": [{
+        "path": "/interfaces",
+        "freq": 10000
+    }]
+}

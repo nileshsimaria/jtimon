@@ -48,6 +48,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/nileshsimaria/jtisim"
+  packages = ["."]
+  revision = "a719714e2a2bbde4bec5a6c1f82c6c210a1adfb7"
+
+[[projects]]
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
@@ -68,8 +74,7 @@
   packages = [
     "expfmt",
     "internal/bitbucket.org/ww/goautoneg",
-    "model",
-    "version"
+    "model"
   ]
   revision = "d0f7cd64bda49e08b22ae8a730aa57aa0db125d6"
 
@@ -165,6 +170,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "035e079d9d2ab57ded795bdae3c238776bce70b70a21bb65385e8bed9431245c"
+  inputs-digest = "71f24b65fbaa6a3d8a7a4c1fa550420b5884cac7687aadaec5e71d70a9f3840c"
   solver-name = "gps-cdcl"
   solver-version = 1

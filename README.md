@@ -71,7 +71,7 @@ Enter config file name: bla.json
 $ ./jtimon --help
 Usage of ./jtimon:
       --api                     Receive HTTP commands when running
-      --compression string      Enable HTTP/2 compression (gzip, deflate)
+      --compression string      Enable HTTP/2 compression (gzip)
       --config strings          Config file name(s)
       --explore-config          Explore full config of JTIMON and exit
       --gnmi                    Use gnmi proto

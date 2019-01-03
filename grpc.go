@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/encoding/gzip"
 )
 
 func getSecurityOptions(jctx *JCtx) (grpc.DialOption, error) {
@@ -50,15 +51,13 @@ func getGPRCDialOptions(jctx *JCtx, vendor *vendor) ([]grpc.DialOption, error) {
 		opts = append(opts, grpc.WithStatsHandler(&statshandler{jctx: jctx}))
 	}
 
-	if *compression != "" {
-		var dc grpc.Decompressor
-		if *compression == "gzip" {
-			dc = grpc.NewGZIPDecompressor()
-		} else if *compression == "deflate" {
-			dc = newDEFLATEDecompressor()
-		}
-		compressionOpts := grpc.Decompressor(dc)
-		opts = append(opts, grpc.WithDecompressor(compressionOpts))
+	switch *compression {
+	case "gzip":
+		compressionOpts := grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name))
+		opts = append(opts, compressionOpts)
+		jLog(jctx, "compression = gzip")
+	default:
+		jLog(jctx, "compression = none")
 	}
 
 	ws := jctx.config.GRPC.WS

@@ -10,6 +10,8 @@ import (
 	tpb "github.com/nileshsimaria/jtimon/telemetry"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	// server size compression
+	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/metadata"
 )
 

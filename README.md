@@ -70,7 +70,6 @@ Enter config file name: bla.json
 ```sh
 $ ./jtimon --help
 Usage of ./jtimon:
-      --api                     Receive HTTP commands when running
       --compression string      Enable HTTP/2 compression (gzip)
       --config strings          Config file name(s)
       --explore-config          Explore full config of JTIMON and exit
@@ -132,7 +131,6 @@ Version: 0ba993049ca2ac9690b0440df88ae4f5c3d26d37-master BuildTime 2018-05-23T23
         "password": "",
         "recreate": false,
         "measurement": "",
-        "diet": false,
         "batchsize": 0,
         "batchfrequency": 0,
         "retention-policy": ""

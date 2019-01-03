@@ -40,7 +40,6 @@ type InfluxConfig struct {
 	Password             string `json:"password"`
 	Recreate             bool   `json:"recreate"`
 	Measurement          string `json:"measurement"`
-	Diet                 bool   `json:"diet"`
 	BatchSize            int    `json:"batchsize"`
 	BatchFrequency       int    `json:"batchfrequency"`
 	RetentionPolicy      string `json:"retention-policy"`
@@ -336,24 +335,22 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 		tags["device"] = cfg.Host
 		tags["sensor"] = ocData.Path
 
-		if !cfg.Influx.Diet {
-			switch v.Value.(type) {
-			case *na_pb.KeyValue_StrValue:
-				kv[xmlpath] = v.GetStrValue()
-			case *na_pb.KeyValue_DoubleValue:
-				kv[xmlpath] = v.GetDoubleValue()
-			case *na_pb.KeyValue_IntValue:
-				kv[xmlpath] = float64(v.GetIntValue())
-			case *na_pb.KeyValue_UintValue:
-				kv[xmlpath] = float64(v.GetUintValue())
-			case *na_pb.KeyValue_SintValue:
-				kv[xmlpath] = float64(v.GetSintValue())
-			case *na_pb.KeyValue_BoolValue:
-				kv[xmlpath] = v.GetBoolValue()
-			case *na_pb.KeyValue_BytesValue:
-				kv[xmlpath] = v.GetBytesValue()
-			default:
-			}
+		switch v.Value.(type) {
+		case *na_pb.KeyValue_StrValue:
+			kv[xmlpath] = v.GetStrValue()
+		case *na_pb.KeyValue_DoubleValue:
+			kv[xmlpath] = v.GetDoubleValue()
+		case *na_pb.KeyValue_IntValue:
+			kv[xmlpath] = float64(v.GetIntValue())
+		case *na_pb.KeyValue_UintValue:
+			kv[xmlpath] = float64(v.GetUintValue())
+		case *na_pb.KeyValue_SintValue:
+			kv[xmlpath] = float64(v.GetSintValue())
+		case *na_pb.KeyValue_BoolValue:
+			kv[xmlpath] = v.GetBoolValue()
+		case *na_pb.KeyValue_BytesValue:
+			kv[xmlpath] = v.GetBytesValue()
+		default:
 		}
 
 		if *genTestData {

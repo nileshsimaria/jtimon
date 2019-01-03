@@ -24,7 +24,6 @@ type Config struct {
 	CID      string        `json:"cid"`
 	Meta     bool          `json:"meta"`
 	EOS      bool          `json:"eos"`
-	API      APIConfig     `json:"api"`
 	GRPC     GRPCConfig    `json:"grpc"`
 	TLS      TLSConfig     `json:"tls"`
 	Influx   InfluxConfig  `json:"influx"`
@@ -166,7 +165,7 @@ func ExploreConfig() (string, error) {
 			return string(b), nil
 		}
 	}
-	return "", errors.New("Something is very wrong - This should have not happened")
+	return "", errors.New("something is wrong, this should have not happened")
 }
 
 // IsVerboseLogging returns true if verbose logging is enabled, false otherwise

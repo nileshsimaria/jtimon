@@ -50,9 +50,6 @@ type LogConfig struct {
 	File          string `json:"file"`
 	PeriodicStats int    `json:"periodic-stats"`
 	Verbose       bool   `json:"verbose"`
-	DropCheck     bool   `json:"drop-check"`
-	LatencyCheck  bool   `json:"latency-check"`
-	CSVStats      bool   `json:"csv-stats"`
 	out           *os.File
 	logger        *log.Logger
 }
@@ -237,7 +234,6 @@ func ConfigRead(jctx *JCtx, init bool) error {
 
 		go periodicStats(jctx)
 		influxInit(jctx)
-		dropInit(jctx)
 	} else {
 		err := ValidateConfigChange(jctx, config)
 		if err == nil {

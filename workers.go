@@ -18,7 +18,6 @@ type JCtx struct {
 	config    Config
 	file      string
 	wg        *sync.WaitGroup
-	dMap      map[uint32]map[uint32]map[string]dropData
 	influxCtx InfluxCtx
 	stats     statsCtx
 	pExporter *jtimonPExporter

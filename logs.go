@@ -47,12 +47,10 @@ func logInit(jctx *JCtx) {
 
 	if out != nil {
 		flags := 0
-		if !jctx.config.Log.CSVStats {
-			flags = log.LstdFlags
-		}
 
 		jctx.config.Log.logger = log.New(out, "", flags)
 		jctx.config.Log.out = out
+
 		log.Printf("logging in %s for %s:%d [periodic stats every %d seconds]\n",
 			jctx.config.Log.File, jctx.config.Host, jctx.config.Port, jctx.config.Log.PeriodicStats)
 	}

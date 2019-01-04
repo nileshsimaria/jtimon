@@ -9,15 +9,6 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-const (
-	// DefaultGRPCWindowSize is the default GRPC Window Size
-	DefaultGRPCWindowSize = 1048576
-	// MatchExpressionXpath is for the pattern matching the xpath and key-value pairs
-	MatchExpressionXpath = "\\/([^\\/]*)\\[(.*?)+?(?:\\])"
-	// MatchExpressionKey is for pattern matching the single and multiple key value pairs
-	MatchExpressionKey = "([A-Za-z0-9-/]*)=(.*?)?(?:and|$)+"
-)
-
 var (
 	configFiles    = flag.StringSlice("config", make([]string, 0), "Config file name(s)")
 	configFileList = flag.String("config-file-list", "", "List of Config files")

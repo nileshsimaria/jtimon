@@ -13,7 +13,7 @@ BUILD_DIR=${GOPATH}/src/github.com/${GITHUB_USERNAME}/${BINARY}
 CURRENT_DIR=$(shell pwd)
 BUILD_DIR_LINK=$(shell readlink ${BUILD_DIR})
 
-all: clean linux darwin windows test ## clean the previous output, run tests and generate linux, darwin and windows binaries
+all: clean linux darwin test ## clean the previous output, run tests and generate linux, and darwin binaries
 
 clean: ## clean the build
 	-rm -f ${BINARY}-*
@@ -27,9 +27,6 @@ linux: ## generate a linux version of the binary
 
 darwin: ## generate a osx version of the binary
 	GOOS=darwin GOARCH=${GOARCH} go build ${LDFLAGS} -o ${BINARY}-darwin-${GOARCH} .
-
-windows: ## generate a windows version of the binary
-	GOOS=windows GOARCH=${GOARCH} go build ${LDFLAGS} -o ${BINARY}-windows-${GOARCH}.exe .
 
 docker: ## build a docker image that can be used to execute the binary
 	docker build -t jtimon .
@@ -52,5 +49,5 @@ test: ## run the go tests
 help: 
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: linux darwin windows docker docker-run docker-sh test help
+.PHONY: linux darwin docker docker-run docker-sh test help
 

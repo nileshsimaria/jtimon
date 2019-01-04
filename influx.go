@@ -13,15 +13,6 @@ import (
 	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 )
 
-var (
-	// DefaultIDBBatchSize to use if user has not provided in the config
-	DefaultIDBBatchSize = 1024 * 1024
-	//DefaultIDBBatchFreq is 2 seconds
-	DefaultIDBBatchFreq = 2000
-	//DefaultIDBAccumulatorFreq is 2 seconds
-	DefaultIDBAccumulatorFreq = 2000
-)
-
 // InfluxCtx is run time info of InfluxDB data structures
 type InfluxCtx struct {
 	sync.Mutex

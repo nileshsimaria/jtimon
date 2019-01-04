@@ -134,6 +134,49 @@ func TestJTISIMSigInt(t *testing.T) {
 	}
 }
 
+func TestInflux(t *testing.T) {
+	flag.Parse()
+	host := "127.0.0.1"
+	port := 50052
+	tests := []struct {
+		name   string
+		config string
+		total  int
+		maxRun int64
+	}{
+		{
+			name:   "influx-1",
+			config: "tests/data/juniper-junos/config/jtisim-influx.json",
+			maxRun: 25,
+			total:  1,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			*noppgoroutines = true
+			configFiles = &[]string{test.config}
+			err := GetConfigFiles(configFiles, "")
+			if err != nil {
+				t.Errorf("config parsing error: %s", err)
+			}
+			if err := influxStore(host, port, STOREOPEN, test.config+".exp"); err != nil {
+				t.Errorf("influxStore(open) failed")
+			}
+
+			workers := NewJWorkers(*configFiles, test.config, test.maxRun)
+			workers.StartWorkers()
+			workers.Wait()
+			if err := influxStore(host, port, STORECLOSE, test.config+".exp"); err != nil {
+				t.Errorf("influxStore(close) failed")
+			}
+
+			if len(workers.m) != test.total {
+				t.Errorf("workers does not match: want %d got %d", test.total, len(workers.m))
+			}
+		})
+	}
+}
 func TestJTISIMMaxRun(t *testing.T) {
 	tests := []struct {
 		name        string

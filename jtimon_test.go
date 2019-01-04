@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"testing"
 
 	js "github.com/nileshsimaria/jtisim"
+	lps "github.com/nileshsimaria/lpserver"
 
 	flag "github.com/spf13/pflag"
 )
@@ -24,6 +26,11 @@ func TestMain(m *testing.M) {
 		if err := jtisim.Start(); err != nil {
 			log.Printf("can not start jti simulator: %v", err)
 		}
+	}()
+
+	go func() {
+		s := lps.NewLPServer("127.0.0.1", 50052)
+		s.StartServer()
 	}()
 
 	os.Exit(m.Run())
@@ -63,5 +70,35 @@ func compareResults(jctx *JCtx) error {
 			jctx.file+".testres", jctx.file+".testexp")
 	}
 
+	return nil
+}
+
+type storeType int
+
+const (
+	STOREOPEN = iota
+	STORECLOSE
+)
+
+func influxStore(host string, port int, op storeType, name string) error {
+	url := ""
+	switch op {
+	case STOREOPEN:
+		url = fmt.Sprintf("http://%s:%d/store/open", host, port)
+	case STORECLOSE:
+		url = fmt.Sprintf("http://%s:%d/store/close", host, port)
+	}
+
+	s := fmt.Sprintf(`{"name":"%s"}`, name)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(s)))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	ioutil.ReadAll(resp.Body)
 	return nil
 }

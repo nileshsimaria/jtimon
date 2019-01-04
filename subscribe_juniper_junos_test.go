@@ -183,6 +183,7 @@ func TestInflux(t *testing.T) {
 					if err := compareResults(jctx); err != nil {
 						t.Errorf("%v", err)
 					}
+					jctx.testRes.Close()
 				}
 			}
 		})

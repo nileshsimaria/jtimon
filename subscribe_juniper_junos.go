@@ -126,11 +126,6 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 		jLog(jctx, fmt.Sprintf("  %s: %s", k, v))
 	}
 
-	if jctx.config.Log.CSVStats {
-		jLog(jctx, fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
-			"sensor-path", "sequence-number", "component-id", "sub-component-id", "packet-size", "p-ts", "e-ts", "re-stream-creation-ts", "re-payload-get-ts"))
-	}
-
 	datach := make(chan struct{})
 
 	// inform the caller that streaming has been started
@@ -161,10 +156,6 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 			}
 
 			rtime := time.Now()
-			if jctx.config.Log.DropCheck && !jctx.config.Log.CSVStats {
-				dropCheck(jctx, ocData)
-			}
-
 			if *outJSON {
 				if b, err := json.MarshalIndent(ocData, "", "  "); err == nil {
 					jLog(jctx, fmt.Sprintf("%s\n", b))

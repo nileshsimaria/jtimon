@@ -24,7 +24,6 @@ type Config struct {
 	CID      string        `json:"cid"`
 	Meta     bool          `json:"meta"`
 	EOS      bool          `json:"eos"`
-	API      APIConfig     `json:"api"`
 	GRPC     GRPCConfig    `json:"grpc"`
 	TLS      TLSConfig     `json:"tls"`
 	Influx   InfluxConfig  `json:"influx"`
@@ -50,9 +49,6 @@ type LogConfig struct {
 	File          string `json:"file"`
 	PeriodicStats int    `json:"periodic-stats"`
 	Verbose       bool   `json:"verbose"`
-	DropCheck     bool   `json:"drop-check"`
-	LatencyCheck  bool   `json:"latency-check"`
-	CSVStats      bool   `json:"csv-stats"`
 	out           *os.File
 	logger        *log.Logger
 }
@@ -169,7 +165,7 @@ func ExploreConfig() (string, error) {
 			return string(b), nil
 		}
 	}
-	return "", errors.New("Something is very wrong - This should have not happened")
+	return "", errors.New("something is wrong, this should have not happened")
 }
 
 // IsVerboseLogging returns true if verbose logging is enabled, false otherwise
@@ -237,16 +233,6 @@ func ConfigRead(jctx *JCtx, init bool) error {
 
 		go periodicStats(jctx)
 		influxInit(jctx)
-		dropInit(jctx)
-
-		if *grpcHeaders {
-			pmap := make(map[string]interface{})
-			for i := range jctx.config.Paths {
-				pmap["path"] = jctx.config.Paths[i].Path
-				pmap["reporting-rate"] = float64(jctx.config.Paths[i].Freq)
-				addGRPCHeader(jctx, pmap)
-			}
-		}
 	} else {
 		err := ValidateConfigChange(jctx, config)
 		if err == nil {

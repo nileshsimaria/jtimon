@@ -134,31 +134,86 @@ func TestJTISIMSigInt(t *testing.T) {
 	}
 }
 
-func TestJTISIMMaxRun(t *testing.T) {
+func TestInflux(t *testing.T) {
+	flag.Parse()
+	host := "127.0.0.1"
+	port := 50052
 	tests := []struct {
-		name    string
-		config  string
-		total   int
-		maxRun  int64
-		totalIn uint64
-		totalKV uint64
+		name   string
+		config string
+		total  int
+		maxRun int64
 	}{
 		{
-			name:    "multi-file-list-1",
-			config:  "tests/data/juniper-junos/config/jtisim-interfaces-file-list.json",
-			total:   2,
-			maxRun:  25,   // if you change maxRun, please change totalIn and totalKV as well
-			totalIn: 120,  // for 25 seconds
-			totalKV: 5940, // for 25 seconds
+			name:   "influx-1",
+			config: "tests/data/juniper-junos/config/jtisim-influx.json",
+			maxRun: 25,
+			total:  1,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			*noppgoroutines = true
+			configFiles = &[]string{test.config}
+			err := GetConfigFiles(configFiles, "")
+			if err != nil {
+				t.Errorf("config parsing error: %s", err)
+			}
+			if err := influxStore(host, port, STOREOPEN, test.config+".exp"); err != nil {
+				t.Errorf("influxStore(open) failed")
+			}
+
+			workers := NewJWorkers(*configFiles, test.config, test.maxRun)
+			workers.StartWorkers()
+			workers.Wait()
+			if err := influxStore(host, port, STORECLOSE, test.config+".exp"); err != nil {
+				t.Errorf("influxStore(close) failed")
+			}
+
+			if len(workers.m) != test.total {
+				t.Errorf("workers does not match: want %d got %d", test.total, len(workers.m))
+			}
+		})
+	}
+}
+func TestJTISIMMaxRun(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      string
+		total       int
+		maxRun      int64
+		totalIn     uint64
+		totalKV     uint64
+		compression string
+	}{
+		{
+			name:        "multi-file-list-1",
+			config:      "tests/data/juniper-junos/config/jtisim-interfaces-file-list.json",
+			total:       2,
+			maxRun:      25,   // if you change maxRun, please change totalIn and totalKV as well
+			totalIn:     120,  // for 25 seconds
+			totalKV:     5940, // for 25 seconds
+			compression: "gzip",
+		},
+		{
+			name:        "multi-file-list-1",
+			config:      "tests/data/juniper-junos/config/jtisim-interfaces-file-list.json",
+			total:       2,
+			maxRun:      25,   // if you change maxRun, please change totalIn and totalKV as well
+			totalIn:     120,  // for 25 seconds
+			totalKV:     5940, // for 25 seconds
+			compression: "",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name+test.compression, func(t *testing.T) {
 			flag.Parse()
 			*noppgoroutines = true
 			*stateHandler = true
 			*prefixCheck = true
+			*compression = test.compression
 
 			err := GetConfigFiles(configFiles, test.config)
 			if err != nil {
@@ -180,6 +235,19 @@ func TestJTISIMMaxRun(t *testing.T) {
 				}
 				if test.totalKV != jctx.stats.totalKV {
 					t.Errorf("totalKV failed for config : %s wanted %v got %v", jctx.file, test.totalKV, jctx.stats.totalKV)
+				}
+				switch test.compression {
+				case "gzip":
+					if jctx.stats.totalInPayloadWireLength >= jctx.stats.totalInPayloadLength {
+						t.Errorf("gzip compression failed: totalInPayloadWireLength = %v totalInPayloadLength = %v",
+							jctx.stats.totalInPayloadWireLength, jctx.stats.totalInPayloadLength)
+					}
+				case "":
+					if jctx.stats.totalInPayloadWireLength != jctx.stats.totalInPayloadLength {
+						t.Errorf("no compression failed: totalInPayloadWireLength = %v totalInPayloadLength = %v",
+							jctx.stats.totalInPayloadWireLength, jctx.stats.totalInPayloadLength)
+					}
+
 				}
 			}
 		})

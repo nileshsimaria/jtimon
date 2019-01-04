@@ -18,7 +18,6 @@ type JCtx struct {
 	config    Config
 	file      string
 	wg        *sync.WaitGroup
-	dMap      map[uint32]map[uint32]map[string]dropData
 	influxCtx InfluxCtx
 	stats     statsCtx
 	pExporter *jtimonPExporter
@@ -220,9 +219,9 @@ func NewJWorker(file string, wg *sync.WaitGroup) (*JWorker, error) {
 					if *genTestData {
 						testTearDown(&jctx)
 					}
+					jctx.wg.Done()
 					// let the downstream subscribe go routines know we are done and no need to restart
 					jctx.control <- os.Interrupt
-					jctx.wg.Done()
 					logStop(&jctx)
 					return
 				case syscall.SIGHUP:

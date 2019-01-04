@@ -7,3 +7,4 @@ jtimon-linux-amd64
 .*
 debug.test
 jtimon-windows-amd64.exe
+coverage.out

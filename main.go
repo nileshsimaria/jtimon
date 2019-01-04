@@ -29,16 +29,12 @@ var (
 	maxRun         = flag.Int64("max-run", 0, "Max run time in seconds")
 	stateHandler   = flag.Bool("stats-handler", false, "Use GRPC statshandler")
 	versionOnly    = flag.Bool("version", false, "Print version and build-time of the binary and exit")
-	compression    = flag.String("compression", "", "Enable HTTP/2 compression (gzip, deflate)")
-	latencyProfile = flag.Bool("latency-profile", false, "Profile latencies. Place them in TSDB")
+	compression    = flag.String("compression", "", "Enable HTTP/2 compression (gzip)")
 	prom           = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
 	promPort       = flag.Int32("prometheus-port", 8090, "Prometheus port")
 	prefixCheck    = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
-	apiControl     = flag.Bool("api", false, "Receive HTTP commands when running")
 	pProf          = flag.Bool("pprof", false, "Profile JTIMON")
 	pProfPort      = flag.Int32("pprof-port", 6060, "Profile port")
-	gtrace         = flag.Bool("gtrace", false, "Collect GRPC traces")
-	grpcHeaders    = flag.Bool("grpc-headers", false, "Add grpc headers in DB")
 	noppgoroutines = flag.Bool("no-per-packet-goroutines", false, "Spawn per packet go routines")
 	genTestData    = flag.Bool("generate-test-data", false, "Generate test data")
 	conTestData    = flag.Bool("consume-test-data", false, "Consume test data")
@@ -60,7 +56,6 @@ func main() {
 	if *prom {
 		exporter = promInit()
 	}
-	startGtrace(*gtrace)
 
 	log.Printf("Version: %s BuildTime %s\n", jtimonVersion, buildTime)
 	if *versionOnly {

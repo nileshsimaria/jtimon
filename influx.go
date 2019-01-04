@@ -40,7 +40,6 @@ type InfluxConfig struct {
 	Password             string `json:"password"`
 	Recreate             bool   `json:"recreate"`
 	Measurement          string `json:"measurement"`
-	Diet                 bool   `json:"diet"`
 	BatchSize            int    `json:"batchsize"`
 	BatchFrequency       int    `json:"batchfrequency"`
 	RetentionPolicy      string `json:"retention-policy"`
@@ -309,68 +308,6 @@ func mName(ocData *na_pb.OpenConfigData, cfg Config) string {
 	return ""
 }
 
-// A go routine to add header of gRPC in to influxDB
-func addGRPCHeader(jctx *JCtx, hmap map[string]interface{}) {
-	cfg := jctx.config
-
-	if jctx.influxCtx.influxClient == nil {
-		return
-	}
-
-	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  cfg.Influx.Dbname,
-		Precision: "us",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if len(hmap) != 0 {
-		m := mName(nil, jctx.config)
-		m = fmt.Sprintf("%s-%s-HDR", m, jctx.config.Host)
-		tags := make(map[string]string)
-		pt, err := client.NewPoint(m, tags, hmap, time.Now())
-		if err != nil {
-			log.Fatal(err)
-		}
-		bp.AddPoint(pt)
-		if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
-// A go routine to add summary of stats collection in to influxDB
-func addIDBSummary(jctx *JCtx, stmap map[string]interface{}) {
-	cfg := jctx.config
-
-	if jctx.influxCtx.influxClient == nil {
-		return
-	}
-
-	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  cfg.Influx.Dbname,
-		Precision: "us",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if len(stmap) != 0 {
-		m := mName(nil, jctx.config)
-		m = fmt.Sprintf("%s-%s-LOG", m, jctx.config.Host)
-		tags := make(map[string]string)
-		pt, err := client.NewPoint(m, tags, stmap, time.Now())
-		if err != nil {
-			log.Fatal(err)
-		}
-		bp.AddPoint(pt)
-		if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
 // A go routine to add one telemetry packet in to InfluxDB
 func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	cfg := jctx.config
@@ -380,23 +317,6 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 
 	for _, v := range ocData.Kv {
 		kv := make(map[string]interface{})
-		if *stateHandler && *latencyProfile {
-			kv["platency"] = rtime.UnixNano()/1000000 - int64(ocData.Timestamp)
-			if v.Key == "__timestamp__" {
-				if rtime.UnixNano()/1000000 < int64(v.GetUintValue()) {
-					kv["elatency"] = 0
-				} else {
-					kv["elatency"] = rtime.UnixNano()/1000000 - int64(v.GetUintValue())
-				}
-				kv["ilatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
-			}
-			if v.Key == "__agentd_rx_timestamp__" {
-				kv["arxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
-			}
-			if v.Key == "__agentd_tx_timestamp__" {
-				kv["atxlatency"] = int64(v.GetUintValue()) - int64(ocData.Timestamp)
-			}
-		}
 
 		switch {
 		case v.Key == "__prefix__":
@@ -415,24 +335,22 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 		tags["device"] = cfg.Host
 		tags["sensor"] = ocData.Path
 
-		if !cfg.Influx.Diet {
-			switch v.Value.(type) {
-			case *na_pb.KeyValue_StrValue:
-				kv[xmlpath] = v.GetStrValue()
-			case *na_pb.KeyValue_DoubleValue:
-				kv[xmlpath] = v.GetDoubleValue()
-			case *na_pb.KeyValue_IntValue:
-				kv[xmlpath] = float64(v.GetIntValue())
-			case *na_pb.KeyValue_UintValue:
-				kv[xmlpath] = float64(v.GetUintValue())
-			case *na_pb.KeyValue_SintValue:
-				kv[xmlpath] = float64(v.GetSintValue())
-			case *na_pb.KeyValue_BoolValue:
-				kv[xmlpath] = v.GetBoolValue()
-			case *na_pb.KeyValue_BytesValue:
-				kv[xmlpath] = v.GetBytesValue()
-			default:
-			}
+		switch v.Value.(type) {
+		case *na_pb.KeyValue_StrValue:
+			kv[xmlpath] = v.GetStrValue()
+		case *na_pb.KeyValue_DoubleValue:
+			kv[xmlpath] = v.GetDoubleValue()
+		case *na_pb.KeyValue_IntValue:
+			kv[xmlpath] = float64(v.GetIntValue())
+		case *na_pb.KeyValue_UintValue:
+			kv[xmlpath] = float64(v.GetUintValue())
+		case *na_pb.KeyValue_SintValue:
+			kv[xmlpath] = float64(v.GetSintValue())
+		case *na_pb.KeyValue_BoolValue:
+			kv[xmlpath] = v.GetBoolValue()
+		case *na_pb.KeyValue_BytesValue:
+			kv[xmlpath] = v.GetBytesValue()
+		default:
 		}
 
 		if *genTestData {

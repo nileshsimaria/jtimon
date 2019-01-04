@@ -160,19 +160,30 @@ func TestInflux(t *testing.T) {
 			if err != nil {
 				t.Errorf("config parsing error: %s", err)
 			}
-			if err := influxStore(host, port, STOREOPEN, test.config+".exp"); err != nil {
+			if err := influxStore(host, port, STOREOPEN, test.config+".testres"); err != nil {
 				t.Errorf("influxStore(open) failed")
 			}
 
 			workers := NewJWorkers(*configFiles, test.config, test.maxRun)
 			workers.StartWorkers()
 			workers.Wait()
-			if err := influxStore(host, port, STORECLOSE, test.config+".exp"); err != nil {
+			if err := influxStore(host, port, STORECLOSE, test.config+".testres"); err != nil {
 				t.Errorf("influxStore(close) failed")
 			}
 
 			if len(workers.m) != test.total {
 				t.Errorf("workers does not match: want %d got %d", test.total, len(workers.m))
+			}
+
+			for _, w := range workers.m {
+				jctx := w.jctx
+				if jctx.testRes, err = os.Open(test.config + ".testres"); err != nil {
+					t.Errorf("could not open %s", test.config+".testres")
+				} else {
+					if err := compareResults(jctx); err != nil {
+						t.Errorf("%v", err)
+					}
+				}
 			}
 		})
 	}

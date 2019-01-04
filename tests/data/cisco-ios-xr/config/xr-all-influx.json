@@ -1,0 +1,31 @@
+{
+    "host": "172.27.113.191",
+    "port": 32767,
+    "user": "admin",
+    "password": "admin",
+    "vendor": {
+        "name": "cisco-iosxr",
+        "remove-namespace": true,
+        "schema" : [{
+            "path": "tests/data/cisco-ios-xr/schema/"
+        }]
+    },
+    "cid": "1001",
+    "paths": [{
+        "path": "SUB_JTIMON_ALL",
+        "freq": 10000
+    }],
+    "influx" : {
+        "server": "127.0.0.1",
+        "port": 50052,
+        "dbname": "test-db",
+        "user": "influx",
+        "password": "influxdb",
+        "recreate": false,
+        "measurement": "test-m"
+    },
+    "log": {
+        "file": "tests/data/cisco-ios-xr/config/xr-all-influx.log",
+        "verbose": false
+    }
+}

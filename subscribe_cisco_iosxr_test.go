@@ -7,11 +7,135 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/nileshsimaria/jtimon/multi-vendor/cisco/iosxr/telemetry-proto"
 	flag "github.com/spf13/pflag"
 )
+
+func TestXRInflux(t *testing.T) {
+	host := "127.0.0.1"
+	port := 50052
+
+	tt := []struct {
+		name   string
+		config string
+		jctx   *JCtx
+	}{
+		{
+			name:   "xr-all",
+			config: "tests/data/cisco-ios-xr/config/xr-all-influx.json",
+			jctx: &JCtx{
+				file: "tests/data/cisco-ios-xr/config/xr-all-influx.json",
+			},
+		},
+		{
+			name:   "xr-wdsysmon",
+			config: "tests/data/cisco-ios-xr/config/xr-wdsysmon-influx.json",
+			jctx: &JCtx{
+				file: "tests/data/cisco-ios-xr/config/xr-wdsysmon-influx.json",
+			},
+		},
+	}
+
+	for _, test := range tt {
+		t.Run(test.name, func(t *testing.T) {
+			if err := influxStore(host, port, STOREOPEN, test.config+".testres"); err != nil {
+				t.Errorf("influxStore(open) failed")
+			}
+
+			jctx := test.jctx
+			err := ConfigRead(jctx, true)
+			if err != nil {
+				t.Errorf("error %v for test config %s", err, test.config)
+			}
+
+			schema, err := getXRSchema(jctx)
+			if err != nil {
+				t.Errorf("error %v for test config %s", err, test.config)
+			}
+
+			sizeFileContent, err := ioutil.ReadFile(jctx.file + ".testmeta")
+			if err != nil {
+				t.Errorf("error %v for test config %s", err, test.config)
+			}
+
+			data, err := os.Open(jctx.file + ".testbytes")
+			if err != nil {
+				t.Errorf("error %v for test config %s", err, test.config)
+			}
+			defer data.Close()
+
+			testRes, err := os.Create(jctx.file + ".testres")
+			if err != nil {
+				t.Errorf("error %v for test config %s", err, test.config)
+			}
+			defer testRes.Close()
+			jctx.testRes = testRes
+
+			sizes := strings.Split(string(sizeFileContent), ":")
+			for _, size := range sizes {
+				if size != "" {
+					n, err := strconv.ParseInt(size, 10, 64)
+					if err != nil {
+						t.Errorf("error %v for test config %s", err, test.config)
+					}
+					d := make([]byte, n)
+					bytesRead, err := data.Read(d)
+					if err != nil {
+						t.Errorf("error %v for test config %s", err, test.config)
+					}
+					if int64(bytesRead) != n {
+						t.Errorf("want %d got %d from testbytes", n, bytesRead)
+					}
+					message := new(telemetry.Telemetry)
+					err = proto.Unmarshal(d, message)
+					if err != nil {
+						t.Errorf("error %v for test config %s", err, test.config)
+					}
+					path := message.GetEncodingPath()
+					if path == "" {
+						continue
+					}
+
+					ePath := strings.Split(path, "/")
+					if len(ePath) == 1 {
+						for _, nodes := range schema.nodes {
+							for _, node := range nodes {
+								if strings.Compare(ePath[0], node.Name) == 0 {
+									for _, fields := range message.GetDataGpbkv() {
+										parentPath := []string{node.Name}
+										processTopLevelMsg(jctx, node, fields, parentPath)
+									}
+								}
+							}
+						}
+					} else if len(ePath) >= 2 {
+						for _, nodes := range schema.nodes {
+							for _, node := range nodes {
+								if strings.Compare(ePath[0], node.Name) == 0 {
+									processMultiLevelMsg(jctx, node, ePath, message)
+								}
+							}
+						}
+
+					}
+				}
+			}
+
+			// we will need to give LPServer some time to process all the points
+			time.Sleep(time.Duration(8) * time.Second)
+			if err := influxStore(host, port, STORECLOSE, test.config+".testres"); err != nil {
+				t.Errorf("influxStore(close) failed")
+			}
+
+			if err := compareResults(jctx); err != nil {
+				t.Log(err)
+			}
+		})
+	}
+}
 
 func TestXRTagsPoints(t *testing.T) {
 	flag.Parse()

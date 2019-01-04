@@ -2,5 +2,5 @@
   go:
     - "1.10"
   script:
-    - go get -v ./...
-    - go build ./...  
+    - make darwin
+    - make linux

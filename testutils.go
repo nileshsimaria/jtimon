@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"sort"
 	"strings"
@@ -17,46 +18,45 @@ const (
 	GENTESTRESDATA
 )
 
-func testSetup(jctx *JCtx) {
+func testSetup(jctx *JCtx) error {
 	file := jctx.file
 	if *genTestData {
-		var errf error
-		jctx.testMeta, errf = os.Create(file + ".testmeta")
-		if errf != nil {
-			jLog(jctx, fmt.Sprintf("Could not create 'testmeta' for file %s\n", file+".testmeta"))
+		var err error
+		if jctx.testMeta, err = os.Create(file + ".testmeta"); err != nil {
+			return err
 		}
-
-		jctx.testBytes, errf = os.Create(file + ".testbytes")
-		if errf != nil {
-			jLog(jctx, fmt.Sprintf("Could not create 'testbytes' for file %s\n", file+".testbytes"))
+		if jctx.testBytes, err = os.Create(file + ".testbytes"); err != nil {
+			return err
 		}
-
-		jctx.testExp, errf = os.Create(file + ".testexp")
-		if errf != nil {
-			jLog(jctx, fmt.Sprintf("Could not create 'testexp' for file %s\n", file+".testexp"))
+		if jctx.testExp, err = os.Create(file + ".testexp"); err != nil {
+			return err
 		}
 	}
+	return nil
 }
 
 func testTearDown(jctx *JCtx) {
 	if *genTestData {
 		if jctx.testMeta != nil {
 			jctx.testMeta.Close()
+			jctx.testMeta = nil
 		}
 		if jctx.testBytes != nil {
 			jctx.testBytes.Close()
+			jctx.testBytes = nil
 		}
 		if jctx.testExp != nil {
 			jctx.testExp.Close()
+			jctx.testExp = nil
 		}
 	}
 }
 
 func generateTestData(jctx *JCtx, data []byte) {
-	fmt.Printf("data len = %d\n", len(data))
+	log.Printf("data len = %d", len(data))
 	if jctx.testMeta != nil {
-		dat := fmt.Sprintf("%d:", len(data))
-		jctx.testMeta.WriteString(dat)
+		d := fmt.Sprintf("%d:", len(data))
+		jctx.testMeta.WriteString(d)
 	}
 	if jctx.testBytes != nil {
 		jctx.testBytes.Write(data)

@@ -297,6 +297,7 @@ connect:
 			jLog(jctx, fmt.Sprintf("%v", err))
 			time.Sleep(10 * time.Second)
 			retry = true
+			conn.Close()
 			goto connect
 		}
 	}

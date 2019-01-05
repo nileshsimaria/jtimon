@@ -1,0 +1,14 @@
+{
+    "host": "127.0.0.1",
+    "port": 50051,
+    "cid": "jtisim-prom",
+    "paths": [{
+        "path": "/interfaces",
+        "freq": 20000
+    }],
+    "log": {
+        "file": "tests/data/juniper-junos/config/jtisim-prometheus.log",
+        "verbose": false,
+        "periodic-stats": 2
+    }
+}

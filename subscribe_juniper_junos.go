@@ -166,14 +166,20 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 				handleOnePacket(ocData, jctx)
 			}
 
+			// to influxdb
 			if *noppgoroutines {
 				addIDB(ocData, jctx, rtime)
 			} else {
 				go addIDB(ocData, jctx, rtime)
 			}
 
+			// to prometheus
 			if *prom {
-				go addPrometheus(ocData, jctx)
+				if *noppgoroutines {
+					addPrometheus(ocData, jctx)
+				} else {
+					go addPrometheus(ocData, jctx)
+				}
 			}
 		}
 	}()

@@ -133,7 +133,76 @@ func TestJTISIMSigInt(t *testing.T) {
 		}
 	}
 }
+func TestPrometheus(t *testing.T) {
+	flag.Parse()
+	tests := []struct {
+		name   string
+		config string
+		total  int
+		maxRun int64
+	}{
+		{
+			name:   "influx-1",
+			config: "tests/data/juniper-junos/config/jtisim-prometheus.json",
+			maxRun: 6,
+			total:  1,
+		},
+	}
 
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			host := "127.0.0.1"
+			port := 8090
+
+			*noppgoroutines = true
+			*stateHandler = true
+			*prom = true
+			exporter = promInit()
+
+			defer func() {
+				*prom = false
+				exporter = nil
+			}()
+
+			configFiles = &[]string{test.config}
+
+			err := GetConfigFiles(configFiles, "")
+			if err != nil {
+				t.Errorf("config parsing error: %s", err)
+			}
+
+			workers := NewJWorkers(*configFiles, test.config, test.maxRun)
+			workers.StartWorkers()
+			workers.Wait()
+
+			if len(workers.m) != test.total {
+				t.Errorf("workers does not match: want %d got %d", test.total, len(workers.m))
+			}
+
+			if len(workers.m) != 1 {
+				t.Errorf("cant't run prometheus test for more than one worker")
+			}
+
+			if w, ok := workers.m[test.config]; !ok {
+				t.Errorf("could not found worker for config %s", test.config)
+			} else {
+				jctx := w.jctx
+				if err := prometheusCollect(host, port, jctx); err != nil {
+					t.Errorf("%v", err)
+				} else {
+					if jctx.testRes, err = os.Open(test.config + ".testres"); err != nil {
+						t.Errorf("could not open %s", test.config+".testres")
+					} else {
+						if err := compareResults(jctx); err != nil {
+							t.Errorf("%v", err)
+						}
+						jctx.testRes.Close()
+					}
+				}
+			}
+		})
+	}
+}
 func TestInflux(t *testing.T) {
 	flag.Parse()
 	host := "127.0.0.1"

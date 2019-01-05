@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 
 	js "github.com/nileshsimaria/jtisim"
@@ -100,5 +101,37 @@ func influxStore(host string, port int, op storeType, name string) error {
 	}
 	defer resp.Body.Close()
 	ioutil.ReadAll(resp.Body)
+	return nil
+}
+
+func prometheusCollect(host string, port int, jctx *JCtx) error {
+	var f *os.File
+	var err error
+
+	if f, err = os.Create(jctx.file + ".testres"); err != nil {
+		return err
+	}
+	defer f.Close()
+
+	url := fmt.Sprintf("http://%s:%d/metrics", host, port)
+
+	var resp *http.Response
+	if resp, err = http.Get(url); err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	var body []byte
+	if body, err = ioutil.ReadAll(resp.Body); err != nil {
+		return err
+	}
+
+	strs := strings.Split(string(body), "\n")
+	for _, str := range strs {
+		if strings.HasPrefix(str, "_interfaces_interface") {
+			f.WriteString(str + "\n")
+		}
+	}
+
 	return nil
 }

@@ -150,6 +150,12 @@ func TestInflux(t *testing.T) {
 			maxRun: 25,
 			total:  1,
 		},
+		{
+			name:   "influx-alias",
+			config: "tests/data/juniper-junos/config/jtisim-influx-alias.json",
+			maxRun: 8,
+			total:  1,
+		},
 	}
 
 	for _, test := range tests {

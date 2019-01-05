@@ -1,0 +1,13 @@
+{
+    "host": "127.0.0.1",
+    "port": 50051,
+    "cid": "jtisim-1",
+    "paths": [{
+        "path": "/interfaces",
+        "freq": 10000
+    }],
+    "alias" : "tests/data/juniper-junos/alias/alias.txt",
+    "log": {
+        "file": "tests/data/juniper-junos/config/jtisim-alias-interfaces.log"
+    }
+}

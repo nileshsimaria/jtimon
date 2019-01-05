@@ -1,0 +1,10 @@
+ifd : /interfaces/interface/name         
+physical_interface /interfaces/interface/@name  
+ifd-admin-status : /interfaces/interface/state/admin-status
+ifd-oper-status : /interfaces/interface/state/oper-status
+ifd-in-pkts:/interfaces/interface/state/counters/in-pkts
+ifd-in-octets:/interfaces/interface/state/counters/in-octets
+ifl:/interfaces/interface/subinterfaces/subinterface/index
+logical-interface-index:/interfaces/interface/subinterfaces/subinterface/@index
+ifl-in-ucast-pkts:/interfaces/interface/subinterfaces/subinterface/state/counters/in-unicast-pkts
+ifl-in-mcast-pkts:/interfaces/interface/subinterfaces/subinterface/state/counters/in-multicast-pkts

@@ -12,7 +12,6 @@ import (
 var (
 	configFiles    = flag.StringSlice("config", make([]string, 0), "Config file name(s)")
 	configFileList = flag.String("config-file-list", "", "List of Config files")
-	aliasFile      = flag.String("alias-file", "", "File containing aliasing information")
 	expConfig      = flag.Bool("explore-config", false, "Explore full config of JTIMON and exit")
 	print          = flag.Bool("print", false, "Print Telemetry data")
 	outJSON        = flag.Bool("json", false, "Convert telemetry packet into JSON")
@@ -69,13 +68,9 @@ func main() {
 		return
 	}
 
-	if *aliasFile != "" {
-		aliasInit()
-	}
-
 	workers := NewJWorkers(*configFiles, *configFileList, *maxRun)
 	workers.StartWorkers()
 	workers.Wait()
 
-	log.Printf("All done ... exiting!\n")
+	log.Printf("all done ... exiting!")
 }

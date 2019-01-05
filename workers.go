@@ -23,6 +23,7 @@ type JCtx struct {
 	pExporter *jtimonPExporter
 	control   chan os.Signal
 	running   bool
+	alias     *Alias
 	testMeta  *os.File
 	testBytes *os.File
 	testExp   *os.File
@@ -206,7 +207,9 @@ func NewJWorker(file string, wg *sync.WaitGroup) (*JWorker, error) {
 		log.Println(err)
 		return w, err
 	}
-
+	if alias, err := NewAlias(jctx.config.Alias); err == nil {
+		jctx.alias = alias
+	}
 	go func() {
 		for {
 			select {

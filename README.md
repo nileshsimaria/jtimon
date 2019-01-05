@@ -67,30 +67,27 @@ Enter config file name: bla.json
 
 ## CLI Options
 
-```sh
-$ ./jtimon --help
-Usage of ./jtimon:
-      --compression string      Enable HTTP/2 compression (gzip)
-      --config strings          Config file name(s)
-      --explore-config          Explore full config of JTIMON and exit
-      --gnmi                    Use gnmi proto
-      --gnmi-encoding string    gnmi encoding (proto | json | bytes | ascii | ietf-json (default "proto")
-      --gnmi-mode string        Mode of gnmi (stream | once | poll (default "stream")
-      --grpc-headers            Add grpc headers in DB
-      --gtrace                  Collect GRPC traces
-      --json                    Convert telemetry packet into JSON
-      --latency-profile         Profile latencies. Place them in TSDB
-      --log-mux-stdout          All logs to stdout
-      --max-run int             Max run time in seconds
-      --pprof                   Profile JTIMON
-      --pprof-port int32        Profile port (default 6060)
-      --prefix-check            Report missing __prefix__ in telemetry packet
-      --print                   Print Telemetry data
-      --prometheus              Stats for prometheus monitoring system
-      --prometheus-port int32   Prometheus port (default 8090)
-      --stats-handler           Use GRPC statshandler
-      --version                 Print version and build-time of the binary and exit
-pflag: help requested
+```
+$ ./jtimon-darwin-amd64 --help
+Usage of ./jtimon-darwin-amd64:
+      --compression string         Enable HTTP/2 compression (gzip)
+      --config strings             Config file name(s)
+      --config-file-list string    List of Config files
+      --consume-test-data          Consume test data
+      --explore-config             Explore full config of JTIMON and exit
+      --generate-test-data         Generate test data
+      --json                       Convert telemetry packet into JSON
+      --log-mux-stdout             All logs to stdout
+      --max-run int                Max run time in seconds
+      --no-per-packet-goroutines   Spawn per packet go routines
+      --pprof                      Profile JTIMON
+      --pprof-port int32           Profile port (default 6060)
+      --prefix-check               Report missing __prefix__ in telemetry packet
+      --print                      Print Telemetry data
+      --prometheus                 Stats for prometheus monitoring system
+      --prometheus-port int32      Prometheus port (default 8090)
+      --stats-handler              Use GRPC statshandler
+      --version                    Print version and build-time of the binary and exit
 ```
 
 ## Config

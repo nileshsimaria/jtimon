@@ -96,21 +96,18 @@ To explore what can go in config, please use --explore-config option.
 
 Except connection details like host, port, etc no other part of the config is mandatory e.g. do not use influx in your config if you dont want to insert data into it.
 
-```sh
+```
 $ ./jtimon-darwin-amd64 --explore-config
-Version: 0ba993049ca2ac9690b0440df88ae4f5c3d26d37-master BuildTime 2018-05-23T23:47:27-0700
-
+2019/01/04 18:21:08 Version: e0ce6eccd0a02cc346bcd4e5e038d19b6747d33b-master BuildTime 2019-01-04T18:18:55-0800
+2019/01/04 18:21:08
 {
-    "host": "",
     "port": 0,
+    "host": "",
     "user": "",
     "password": "",
+    "cid": "",
     "meta": false,
     "eos": false,
-    "cid": "",
-    "api": {
-        "port": 0
-    },
     "grpc": {
         "ws": 0
     },
@@ -130,7 +127,8 @@ Version: 0ba993049ca2ac9690b0440df88ae4f5c3d26d37-master BuildTime 2018-05-23T23
         "measurement": "",
         "batchsize": 0,
         "batchfrequency": 0,
-        "retention-policy": ""
+        "retention-policy": "",
+        "accumulator-frequency": 0
     },
     "paths": [
         {
@@ -141,14 +139,15 @@ Version: 0ba993049ca2ac9690b0440df88ae4f5c3d26d37-master BuildTime 2018-05-23T23
     ],
     "log": {
         "file": "",
-        "verbose": false,
         "periodic-stats": 0,
-        "drop-check": false,
-        "latency-check": false,
-        "csv-stats": false,
-        "FileHandle": null,
-        "Logger": null
-    }
+        "verbose": false
+    },
+    "vendor": {
+        "name": "",
+        "remove-namespace": false,
+        "schema": null
+    },
+    "alias": ""
 }
 ```
 

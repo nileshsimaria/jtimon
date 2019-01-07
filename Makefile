@@ -42,7 +42,7 @@ docker-sh: ## start the docker container and exec into shell, ensure you have pr
 
 test: ## run the go tests
 	go vet
-	go test --cover -v --coverprofile=coverage.out
+	go test --covermode=count -v --coverprofile=coverage.out
 	## go tool cover --html=coverage.out
 	go tool cover --func=coverage.out
 

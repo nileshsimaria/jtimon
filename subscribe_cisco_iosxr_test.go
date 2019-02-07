@@ -14,6 +14,58 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
+func TestTransformPath(t *testing.T) {
+	tests := []struct {
+		name   string
+		setEnv bool
+		input  string
+		output string
+	}{
+		{
+			name:   "noenv1",
+			setEnv: false,
+			input:  "/interfaces",
+			output: "/interfaces",
+		},
+		{
+			name:   "env1",
+			setEnv: true,
+			input:  "/interfaces",
+			output: "hbot_interfaces",
+		},
+		{
+			name:   "noenv2",
+			setEnv: false,
+			input:  "/interfaces/interfaces",
+			output: "/interfaces/interfaces",
+		},
+		{
+			name:   "env2",
+			setEnv: true,
+			input:  "/interfaces/interface",
+			output: "hbot_interfaces_interface",
+		},
+		{
+			name:   "env3",
+			setEnv: true,
+			input:  "/interfaces/interface[name=\"xe-0/0/0\"]/state/mtu",
+			output: "hbot_interfaces_interface_name__xe_0_0_0___state_mtu",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.setEnv {
+				os.Setenv("MV_CISCO_IOSXR_XFORM_PATH", "yes")
+				defer os.Unsetenv("MV_CISCO_IOSXR_XFORM_PATH")
+			}
+			op := transformPath(test.input)
+			if op != test.output {
+				t.Errorf("got: %s, want: %s", op, test.output)
+			}
+		})
+	}
+}
+
 func TestXRInflux(t *testing.T) {
 	host := "127.0.0.1"
 	port := 50052
@@ -316,20 +368,44 @@ func TestXRSchema(t *testing.T) {
 						subinterface
 							index[key]`,
 		},
+		{
+			name:       "env",
+			schemaPath: "",
+			schemaStr: `openconfig-interfaces:interfaces
+				interface
+					name[key]
+					subinterfaces
+						subinterface
+							index[key]`,
+		},
 	}
 
 	for _, test := range tt {
 		t.Run(test.name, func(t *testing.T) {
-			jctx := &JCtx{
-				config: Config{
-					Vendor: VendorConfig{
-						Name:     "cisco-iosxr",
-						RemoveNS: true,
-						Schema: []VendorSchema{
-							{test.schemaPath},
+			var jctx *JCtx
+			if test.schemaPath == "" {
+				os.Setenv("MV_CISCO_IOSXR_SCHEMA", "tests/data/cisco-ios-xr/schema/interfaces.json")
+				defer os.Unsetenv("MV_CISCO_IOSXR_SCHEMA")
+				jctx = &JCtx{
+					config: Config{
+						Vendor: VendorConfig{
+							Name:     "cisco-iosxr",
+							RemoveNS: true,
 						},
 					},
-				},
+				}
+			} else {
+				jctx = &JCtx{
+					config: Config{
+						Vendor: VendorConfig{
+							Name:     "cisco-iosxr",
+							RemoveNS: true,
+							Schema: []VendorSchema{
+								{test.schemaPath},
+							},
+						},
+					},
+				}
 			}
 
 			if schema, err := getXRSchema(jctx); err != nil {

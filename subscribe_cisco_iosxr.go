@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"unicode"
 
 	"github.com/golang/protobuf/proto"
 	pb "github.com/nileshsimaria/jtimon/multi-vendor/cisco/iosxr/grpc-proto"
@@ -113,12 +114,35 @@ func getXRSchemaNode(jctx *JCtx, name string) ([]*schemaNode, error) {
 	return node, nil
 }
 
+func getXRSchemaPaths(jctx *JCtx) ([]string, error) {
+	paths := []string{}
+
+	for _, s := range jctx.config.Vendor.Schema {
+		name := s.Path
+		fmt.Println("name:", name)
+		if name == "" {
+			return nil, fmt.Errorf("Vendor schema is missing")
+		}
+		paths = append(paths, name)
+	}
+
+	// pick up the path location from ENV variable
+	if envPath, found := os.LookupEnv("MV_CISCO_IOSXR_SCHEMA"); found {
+		paths = append(paths, envPath)
+		fmt.Println("envPath:", envPath)
+	}
+	return paths, nil
+}
+
 // Load schemas. Schema helps to identify keys which are needed
 // as tags
 func getXRSchema(jctx *JCtx) (*schema, error) {
 	schema := newSchema()
-	for _, s := range jctx.config.Vendor.Schema {
-		name := s.Path
+	paths, err := getXRSchemaPaths(jctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, name := range paths {
 		if name == "" {
 			return nil, fmt.Errorf("Vendor schema is missing")
 		}
@@ -151,13 +175,33 @@ func getXRSchema(jctx *JCtx) (*schema, error) {
 	return schema, nil
 }
 
+func transformPath(path string) string {
+	mfunc := func(r rune) rune {
+		switch {
+		case unicode.IsLetter(r):
+			return r
+		case unicode.IsDigit(r):
+			return r
+		default:
+			return '_'
+		}
+	}
+
+	if _, found := os.LookupEnv("MV_CISCO_IOSXR_XFORM_PATH"); found {
+		return "hbot" + strings.Map(mfunc, path)
+	}
+
+	return path
+}
+
 func handleOnePath(schema *schema, id int64, path string, conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool, datach chan<- struct{}) {
 	c := pb.NewGRPCConfigOperClient(conn)
 
+	jLog(jctx, fmt.Sprintf("path transformation: %s --> %s", path, transformPath(path)))
 	subsArg := pb.CreateSubsArgs{
 		ReqId:    id,
 		Encode:   CISCOGPBKV,
-		Subidstr: path,
+		Subidstr: transformPath(path),
 	}
 
 	stream, err := c.CreateSubs(context.Background(), &subsArg)

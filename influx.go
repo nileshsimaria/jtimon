@@ -141,9 +141,12 @@ func pointAcculumator(jctx *JCtx) {
 						}
 					}
 				}
-				// See if we need to add lastPoint we are processing
-				if eq := reflect.DeepEqual(points[len(points)-1], lastPoint); !eq {
-					points = append(points, lastPoint)
+
+				if len(points) > 0 {
+					// See if we need to add lastPoint we are processing
+					if eq := reflect.DeepEqual(points[len(points)-1], lastPoint); !eq {
+						points = append(points, lastPoint)
+					}
 				}
 
 				if len(points) > 0 {

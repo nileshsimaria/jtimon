@@ -388,7 +388,6 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 
 		if len(kv) != 0 {
 			if len(rows) != 0 {
-				fmt.Printf("\nbefore: %q\n", rows)
 				lastRow := rows[len(rows)-1]
 				eq := reflect.DeepEqual(tags, lastRow.tags)
 				if eq {
@@ -396,7 +395,6 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 					for k, v := range kv {
 						lastRow.fields[k] = v
 					}
-					fmt.Printf("\nafter: %q\n", rows)
 				} else {
 					// Could not merge as tags are different
 					rw, err := newRow(tags, kv)

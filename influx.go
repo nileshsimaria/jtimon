@@ -302,12 +302,31 @@ func mName(ocData *na_pb.OpenConfigData, cfg Config) string {
 	return ""
 }
 
+type row struct {
+	tags   map[string]string
+	fields map[string]interface{}
+}
+
+func newRow(tags map[string]string, fields map[string]interface{}) (*row, error) {
+	return &row{
+		tags:   tags,
+		fields: fields,
+	}, nil
+}
+
 // A go routine to add one telemetry packet in to InfluxDB
 func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	cfg := jctx.config
 
 	prefix := ""
+	prefixXmlpath := ""
+	var prefixTags map[string]string
+	var tags map[string]string
+	var xmlpath string
+	prefixTags = nil
+
 	points := make([]*client.Point, 0)
+	rows := make([]*row, 0)
 
 	for _, v := range ocData.Kv {
 		kv := make(map[string]interface{})
@@ -315,17 +334,26 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 		switch {
 		case v.Key == "__prefix__":
 			prefix = v.GetStrValue()
+			prefixXmlpath, prefixTags = spitTagsNPath(jctx, prefix)
 			continue
 		case strings.HasPrefix(v.Key, "__"):
 			continue
 		}
 
 		key := v.Key
-		if !strings.HasPrefix(key, "/") {
-			key = prefix + v.Key
+		if key[0] != '/' {
+			if strings.Contains(key, "[") {
+				key = prefix + v.Key
+				xmlpath, tags = spitTagsNPath(jctx, key)
+			} else {
+				xmlpath = prefixXmlpath + key
+				tags = prefixTags
+				xmlpath = getAlias(jctx.alias, xmlpath)
+			}
+		} else {
+			xmlpath, tags = spitTagsNPath(jctx, key)
 		}
 
-		xmlpath, tags := spitTagsNPath(jctx, key)
 		tags["device"] = cfg.Host
 		tags["sensor"] = ocData.Path
 
@@ -359,45 +387,42 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 		}
 
 		if len(kv) != 0 {
-			if len(points) != 0 {
-				lastPoint := points[len(points)-1]
-				eq := reflect.DeepEqual(tags, lastPoint.Tags())
+			if len(rows) != 0 {
+				lastRow := rows[len(rows)-1]
+				eq := reflect.DeepEqual(tags, lastRow.tags)
 				if eq {
 					// We can merge
-					lastKV, err := lastPoint.Fields()
-					if err != nil {
-						jLog(jctx, fmt.Sprintf("addIDB: Could not get fields of the last point: %v\n", err))
-						continue
+					for k, v := range kv {
+						lastRow.fields[k] = v
 					}
-					// get the fields from last point for merging
-					for k, v := range lastKV {
-						kv[k] = v
-					}
-					pt, err := client.NewPoint(mName(ocData, jctx.config), tags, kv, rtime)
-					if err != nil {
-						jLog(jctx, fmt.Sprintf("addIDB: Could not get NewPoint (merging): %v\n", err))
-						continue
-					}
-					// Replace last point with new point having merged fields
-					points[len(points)-1] = pt
 				} else {
 					// Could not merge as tags are different
-					pt, err := client.NewPoint(mName(ocData, jctx.config), tags, kv, rtime)
+					rw, err := newRow(tags, kv)
 					if err != nil {
-						jLog(jctx, fmt.Sprintf("addIDB: Could not get NewPoint (no merge): %v\n", err))
+						jLog(jctx, fmt.Sprintf("addIDB: Could not get NewRow (no merge): %v", err))
 						continue
 					}
-					points = append(points, pt)
+					rows = append(rows, rw)
 				}
 			} else {
-				// First point for this sensor
-				pt, err := client.NewPoint(mName(ocData, jctx.config), tags, kv, rtime)
+				// First row for this sensor
+				rw, err := newRow(tags, kv)
 				if err != nil {
-					jLog(jctx, fmt.Sprintf("addIDB: Could not get NewPoint (first point): %v\n", err))
+					jLog(jctx, fmt.Sprintf("addIDB: Could not get NewRow (first row): %v", err))
 					continue
 				}
-				points = append(points, pt)
+				rows = append(rows, rw)
 			}
+		}
+	}
+	if len(rows) > 0 {
+		for _, row := range rows {
+			pt, err := client.NewPoint(mName(ocData, jctx.config), row.tags, row.fields, rtime)
+			if err != nil {
+				jLog(jctx, fmt.Sprintf("addIDB: Could not get NewPoint : %v", err))
+				continue
+			}
+			points = append(points, pt)
 		}
 	}
 
@@ -408,7 +433,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 			jLog(jctx, fmt.Sprintf("Sending %d points to batch channel for path: %s\n", len(points), ocData.Path))
 			for i := 0; i < len(points); i++ {
 				jLog(jctx, fmt.Sprintf("Tags: %+v\n", points[i].Tags()))
-				if f, err := points[i].Fields(); err != nil {
+				if f, err := points[i].Fields(); err == nil {
 					jLog(jctx, fmt.Sprintf("KVs : %+v\n", f))
 				}
 			}

@@ -5,7 +5,7 @@ const (
 	DefaultGRPCWindowSize = 1048576
 
 	// DefaultIDBBatchSize to use if user has not provided in the config
-	DefaultIDBBatchSize = 1024 * 1024
+	DefaultIDBBatchSize = 1024 * 100
 	//DefaultIDBBatchFreq is 2 seconds
 	DefaultIDBBatchFreq = 2000
 	//DefaultIDBAccumulatorFreq is 2 seconds

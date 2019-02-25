@@ -206,7 +206,7 @@ func handleOnePath(schema *schema, id int64, path string, conn *grpc.ClientConn,
 
 	stream, err := c.CreateSubs(context.Background(), &subsArg)
 	if err != nil {
-		jLog(jctx, "Could not create subscription - retry")
+		jLog(jctx, fmt.Sprintf("Could not create subscription: %v (retry)", err))
 		datach <- struct{}{}
 		return
 	}

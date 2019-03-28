@@ -62,6 +62,15 @@ func TestSpitTagsNPath(t *testing.T) {
 				"/junos/events/event/attributes/@key": "message",
 			},
 		},
+		{
+			"events-2",
+			"/junos/rpm/history-results/history-test-results/history-single-test-results[owner='orlando' and test-name='orlando']/",
+			"/junos/rpm/history-results/history-test-results/history-single-test-results/",
+			map[string]string{
+				"/junos/rpm/history-results/history-test-results/history-single-test-results/@owner":     "orlando",
+				"/junos/rpm/history-results/history-test-results/history-single-test-results/@test-name": "orlando",
+			},
+		},
 	}
 
 	for _, test := range tests {

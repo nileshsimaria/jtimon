@@ -14,5 +14,5 @@ const (
 	// MatchExpressionXpath is for the pattern matching the xpath and key-value pairs
 	MatchExpressionXpath = "\\/([^\\/]*)\\[(.*?)+?(?:\\])"
 	// MatchExpressionKey is for pattern matching the single and multiple key value pairs
-	MatchExpressionKey = "([A-Za-z0-9-/]*)=(.*?)?(?:and|$)+"
+	MatchExpressionKey = "([A-Za-z0-9-/]*)=(.*?)?(?: and |$)+"
 )

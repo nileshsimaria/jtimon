@@ -33,6 +33,7 @@ type InfluxConfig struct {
 	Measurement          string `json:"measurement"`
 	BatchSize            int    `json:"batchsize"`
 	BatchFrequency       int    `json:"batchfrequency"`
+	HTTPTimeout          int    `json:"http-timeout"`
 	RetentionPolicy      string `json:"retention-policy"`
 	AccumulatorFrequency int    `json:"accumulator-frequency"`
 }
@@ -66,8 +67,8 @@ func pointAcculumator(jctx *JCtx) {
 	go func() {
 		for range ticker.C {
 			n := len(accumulatorCh)
-			jLog(jctx, fmt.Sprintf("Accumulated points : %d\n", n))
 			if n != 0 {
+				jLog(jctx, fmt.Sprintf("Accumulated points : %d\n", n))
 				var lastPoint *client.Point
 				var points []*client.Point
 				for i := 0; i < n; i++ {
@@ -441,7 +442,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	}
 }
 
-func getInfluxClient(cfg Config) *client.Client {
+func getInfluxClient(cfg Config, timeout time.Duration) *client.Client {
 	if cfg.Influx.Server == "" {
 		return nil
 	}
@@ -450,6 +451,7 @@ func getInfluxClient(cfg Config) *client.Client {
 		Addr:     addr,
 		Username: cfg.Influx.User,
 		Password: cfg.Influx.Password,
+		Timeout:  timeout,
 	})
 
 	if err != nil {
@@ -476,7 +478,9 @@ func queryIDB(clnt client.Client, cmd string, db string) (res []client.Result, e
 
 func influxInit(jctx *JCtx) {
 	cfg := jctx.config
-	c := getInfluxClient(cfg)
+	jLog(jctx, "invoking getInfluxClient for init")
+
+	c := getInfluxClient(cfg, time.Duration(10*cfg.Influx.HTTPTimeout)*time.Second) // high timeout for init
 
 	if cfg.Influx.Server != "" && c != nil {
 		if cfg.Influx.Recreate {
@@ -491,7 +495,8 @@ func influxInit(jctx *JCtx) {
 		}
 	}
 
-	jctx.influxCtx.influxClient = c
+	jLog(jctx, "invoking getInfluxClient")
+	jctx.influxCtx.influxClient = getInfluxClient(cfg, time.Duration(cfg.Influx.HTTPTimeout)*time.Second)
 	jctx.influxCtx.reXpath = regexp.MustCompile(MatchExpressionXpath)
 	jctx.influxCtx.reKey = regexp.MustCompile(MatchExpressionKey)
 	if cfg.Influx.Server != "" && c != nil {

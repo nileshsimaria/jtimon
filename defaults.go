@@ -10,6 +10,8 @@ const (
 	DefaultIDBBatchFreq = 2000
 	//DefaultIDBAccumulatorFreq is 2 seconds
 	DefaultIDBAccumulatorFreq = 2000
+	//DefaultIDBTimeout is 30 seconds
+	DefaultIDBTimeout = 30
 
 	// MatchExpressionXpath is for the pattern matching the xpath and key-value pairs
 	MatchExpressionXpath = "\\/([^\\/]*)\\[(.*?)+?(?:\\])"

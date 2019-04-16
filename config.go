@@ -104,6 +104,9 @@ func fillupDefaults(config *Config) {
 	if config.Influx.BatchSize == 0 {
 		config.Influx.BatchSize = DefaultIDBBatchSize
 	}
+	if config.Influx.HTTPTimeout == 0 {
+		config.Influx.HTTPTimeout = DefaultIDBTimeout
+	}
 	if config.Influx.AccumulatorFrequency == 0 {
 		config.Influx.AccumulatorFrequency = DefaultIDBAccumulatorFreq
 	}

@@ -19,21 +19,21 @@ type ConfigFileList struct {
 
 // Config struct
 type Config struct {
-	Port       int           `json:"port"`
-	Host       string        `json:"host"`
-	User       string        `json:"user"`
-	Password   string        `json:"password"`
-	CID        string        `json:"cid"`
-	Meta       bool          `json:"meta"`
-	EOS        bool          `json:"eos"`
-	GRPC       GRPCConfig    `json:"grpc"`
-	TLS        TLSConfig     `json:"tls"`
-	Influx     InfluxConfig  `json:"influx"`
-	Paths      []PathsConfig `json:"paths"`
-	Log        LogConfig     `json:"log"`
-	Vendor     VendorConfig  `json:"vendor"`
-	Alias      string        `json:"alias"`
-	DecodeUtil string        `json:"decode-util"`
+	Port            int           `json:"port"`
+	Host            string        `json:"host"`
+	User            string        `json:"user"`
+	Password        string        `json:"password"`
+	CID             string        `json:"cid"`
+	Meta            bool          `json:"meta"`
+	EOS             bool          `json:"eos"`
+	GRPC            GRPCConfig    `json:"grpc"`
+	TLS             TLSConfig     `json:"tls"`
+	Influx          InfluxConfig  `json:"influx"`
+	Paths           []PathsConfig `json:"paths"`
+	Log             LogConfig     `json:"log"`
+	Vendor          VendorConfig  `json:"vendor"`
+	Alias           string        `json:"alias"`
+	PasswordDecoder string        `json:"password-decoder"`
 }
 
 // VendorConfig definition
@@ -231,9 +231,9 @@ func ConfigRead(jctx *JCtx, init bool) error {
 
 		jLog(jctx, fmt.Sprintf("Running config of JTIMON:\n %s", string(b)))
 		// Decode the password if the config has provided the decode util
-		if len(config.DecodeUtil) > 0 {
+		if len(config.PasswordDecoder) > 0 {
 			// Run the decode util with the input file as argument
-			cmd := exec.Command(config.DecodeUtil, jctx.file)
+			cmd := exec.Command(config.PasswordDecoder, jctx.file)
 			var stdout, stderr bytes.Buffer
 			cmd.Stdout = &stdout
 			cmd.Stderr = &stderr

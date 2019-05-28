@@ -236,14 +236,14 @@ func TestInflux(t *testing.T) {
 				t.Errorf("config parsing error: %s", err)
 			}
 			if err := influxStore(host, port, STOREOPEN, test.config+".testres"); err != nil {
-				t.Errorf("influxStore(open) failed")
+				t.Errorf("influxStore(open) failed: %v", err)
 			}
 
 			workers := NewJWorkers(*configFiles, test.config, test.maxRun)
 			workers.StartWorkers()
 			workers.Wait()
 			if err := influxStore(host, port, STORECLOSE, test.config+".testres"); err != nil {
-				t.Errorf("influxStore(close) failed")
+				t.Errorf("influxStore(close) failed: %v", err)
 			}
 
 			if len(workers.m) != test.total {

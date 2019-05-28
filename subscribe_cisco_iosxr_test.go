@@ -94,7 +94,7 @@ func TestXRInflux(t *testing.T) {
 	for _, test := range tt {
 		t.Run(test.name, func(t *testing.T) {
 			if err := influxStore(host, port, STOREOPEN, test.config+".testres"); err != nil {
-				t.Errorf("influxStore(open) failed")
+				t.Errorf("influxStore(open) failed: %v", err)
 			}
 
 			jctx := test.jctx
@@ -179,7 +179,7 @@ func TestXRInflux(t *testing.T) {
 			// we will need to give LPServer some time to process all the points
 			time.Sleep(time.Duration(8) * time.Second)
 			if err := influxStore(host, port, STORECLOSE, test.config+".testres"); err != nil {
-				t.Errorf("influxStore(close) failed")
+				t.Errorf("influxStore(close) failed: %v", err)
 			}
 
 			if err := compareResults(jctx); err != nil {

@@ -176,7 +176,7 @@ func promInit() *jtimonPExporter {
 	go func() {
 		go c.processJTIMONMetric()
 
-		addr := fmt.Sprintf("localhost:%d", *promPort)
+		addr := fmt.Sprintf("%s:%d", *promHost,  *promPort)
 		http.Handle("/metrics", promhttp.Handler())
 		fmt.Println(http.ListenAndServe(addr, nil))
 	}()

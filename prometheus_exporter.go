@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -149,6 +150,12 @@ func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 			} else {
 				fieldValue = 0
 			}
+		case *na_pb.KeyValue_StrValue:
+			floatVal, err := strconv.ParseFloat(v.GetStrValue(), 64)
+			if err != nil {
+				continue
+			}
+			fieldValue = floatVal
 		default:
 			continue
 		}
@@ -176,7 +183,7 @@ func promInit() *jtimonPExporter {
 	go func() {
 		go c.processJTIMONMetric()
 
-		addr := fmt.Sprintf("%s:%d", *promHost,  *promPort)
+		addr := fmt.Sprintf("%s:%d", *promHost, *promPort)
 		http.Handle("/metrics", promhttp.Handler())
 		fmt.Println(http.ListenAndServe(addr, nil))
 	}()

@@ -1,0 +1,8 @@
+---
+"state/session-state":
+   IDLE: 1
+   CONNECT: 2
+   OPEN_SENT: 3
+   OPEN_CONFIRM: 4
+   ACTIVE: 5
+   ESTABLISHED: 6

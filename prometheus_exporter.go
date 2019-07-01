@@ -115,6 +115,11 @@ func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 
 	prefix := ""
 
+	var string_maps map[string]map[string]int
+	if *promValueMap != "" {
+		string_maps = promInitializeMappings()
+	}
+
 	for _, v := range ocData.Kv {
 		switch {
 		case v.Key == "__prefix__":
@@ -151,11 +156,16 @@ func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 				fieldValue = 0
 			}
 		case *na_pb.KeyValue_StrValue:
-			floatVal, err := strconv.ParseFloat(v.GetStrValue(), 64)
-			if err != nil {
-				continue
+			floatVal, err_1 := strconv.ParseFloat(v.GetStrValue(), 64)
+			if err_1 == nil {
+				fieldValue = floatVal
+			} else if *promValueMap {
+				convFloat, err_2 := promTranslateString(v, string_maps)
+				if err_2 != nil {
+					continue
+				}
+				fieldValue = convFloat
 			}
-			fieldValue = floatVal
 		default:
 			continue
 		}

@@ -23,6 +23,7 @@ var (
 	prom           = flag.Bool("prometheus", false, "Stats for prometheus monitoring system")
 	promHost       = flag.String("prometheus-host", "127.0.0.1", "IP to bind Prometheus service to")
 	promPort       = flag.Int32("prometheus-port", 8090, "Prometheus port")
+	promValueMap   = flag.String("prometheus-value-map", "", "Convert string values to floats for prometheus.")
 	prefixCheck    = flag.Bool("prefix-check", false, "Report missing __prefix__ in telemetry packet")
 	pProf          = flag.Bool("pprof", false, "Profile JTIMON")
 	pProfPort      = flag.Int32("pprof-port", 6060, "Profile port")

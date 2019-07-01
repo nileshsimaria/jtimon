@@ -11,7 +11,7 @@ import (
 
 func promInitializeMappings() map[string]map[string]int {
 	mappings := make(map[string]map[string]int)
-	yamlFile, _ := ioutil.ReadFile(promValueMap)
+	yamlFile, _ := ioutil.ReadFile(*promValueMap)
 	yaml.Unmarshal(yamlFile, &mappings)
 	return mappings
 }

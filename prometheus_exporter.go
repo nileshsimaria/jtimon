@@ -159,7 +159,7 @@ func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 			floatVal, err_1 := strconv.ParseFloat(v.GetStrValue(), 64)
 			if err_1 == nil {
 				fieldValue = floatVal
-			} else if *promValueMap {
+			} else if *promValueMap != "" {
 				convFloat, err_2 := promTranslateString(v, string_maps)
 				if err_2 != nil {
 					continue

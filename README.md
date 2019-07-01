@@ -70,24 +70,26 @@ Enter config file name: bla.json
 ```
 $ ./jtimon-darwin-amd64 --help
 Usage of ./jtimon-darwin-amd64:
-      --compression string         Enable HTTP/2 compression (gzip)
-      --config strings             Config file name(s)
-      --config-file-list string    List of Config files
-      --consume-test-data          Consume test data
-      --explore-config             Explore full config of JTIMON and exit
-      --generate-test-data         Generate test data
-      --json                       Convert telemetry packet into JSON
-      --log-mux-stdout             All logs to stdout
-      --max-run int                Max run time in seconds
-      --no-per-packet-goroutines   Spawn per packet go routines
-      --pprof                      Profile JTIMON
-      --pprof-port int32           Profile port (default 6060)
-      --prefix-check               Report missing __prefix__ in telemetry packet
-      --print                      Print Telemetry data
-      --prometheus                 Stats for prometheus monitoring system
-      --prometheus-port int32      Prometheus port (default 8090)
-      --stats-handler              Use GRPC statshandler
-      --version                    Print version and build-time of the binary and exit
+      --compression string            Enable HTTP/2 compression (gzip)
+      --config strings                Config file name(s)
+      --config-file-list string       List of Config files
+      --consume-test-data             Consume test data
+      --explore-config                Explore full config of JTIMON and exit
+      --generate-test-data            Generate test data
+      --json                          Convert telemetry packet into JSON
+      --log-mux-stdout                All logs to stdout
+      --max-run int                   Max run time in seconds
+      --no-per-packet-goroutines      Spawn per packet go routines
+      --pprof                         Profile JTIMON
+      --pprof-port int32              Profile port (default 6060)
+      --prefix-check                  Report missing __prefix__ in telemetry packet
+      --print                         Print Telemetry data
+      --prometheus                    Stats for prometheus monitoring system
+      --prometheus-host string        IP to bind Prometheus service to (default "127.0.0.1")
+      --prometheus-port int32         Prometheus port (default 8090)
+      --prometheus-value-map string   Convert string values to floats for prometheus.
+      --stats-handler                 Use GRPC statshandler
+      --version                       Print version and build-time of the binary and exit
 ```
 
 ## Config
@@ -154,7 +156,7 @@ $ ./jtimon-darwin-amd64 --explore-config
 I am explaining some config options which are not self-explanatory.
 
 <pre>
-meta : send username and password over gRPC meta instead of invoking LoginCheck() RPC for authentication. 
+meta : send username and password over gRPC meta instead of invoking LoginCheck() RPC for authentication.
 Please use SSL/TLS for security. For more details on how to use SSL/TLS, please refer wiki
 https://github.com/nileshsimaria/jtimon/wiki/SSL
 </pre>

@@ -165,7 +165,10 @@ func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 					continue
 				}
 				fieldValue = convFloat
+			} else {
+				continue
 			}
+
 		default:
 			continue
 		}

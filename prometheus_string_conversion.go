@@ -18,15 +18,15 @@ func promInitializeMappings() map[string]map[string]int {
 
 func promTranslateString(kvpair *na_pb.KeyValue, m map[string]map[string]int) (float64, error) {
 	ret := float64(0)
-	for key_1, kv := range m {
-		if !(strings.Contains(kvpair.Key, key_1)) {
+	for metricPath, kv := range m {
+		if !(strings.Contains(kvpair.Key, metricPath)) {
 			continue
 		}
-		for key_2, value := range kv {
-			if !(strings.Contains(kvpair.GetStrValue(), key_2)) {
+		for from, to := range kv {
+			if !(strings.Contains(kvpair.GetStrValue(), from)) {
 				continue
 			}
-			ret = float64(value)
+			ret = float64(to)
 			return ret, nil
 		}
 	}

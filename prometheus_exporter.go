@@ -165,7 +165,7 @@ func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 			metricLabels:     map[string]string{},
 		}
 		for k, v := range tags {
-			metric.metricLabels[promName(k, cfg.DropTagPrefix)] = v
+			metric.metricLabels[promName(k, cfg.DropLabelPrefix)] = v
 		}
 
 		metric.mapKey = getMapKey(metric)

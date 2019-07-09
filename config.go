@@ -34,6 +34,7 @@ type Config struct {
 	Vendor          VendorConfig  `json:"vendor"`
 	Alias           string        `json:"alias"`
 	PasswordDecoder string        `json:"password-decoder"`
+	DropTagPrefix	bool          `json:"dropTagPrefix"`
 }
 
 // VendorConfig definition

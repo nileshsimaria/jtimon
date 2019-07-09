@@ -19,8 +19,13 @@ var (
 )
 
 // Prometheus does not like special characters, handle them.
-func promName(input string) string {
-	return promNameRegex.ReplaceAllString(input, "_")
+func promName(input string, dropPrefix bool) string {
+	convStr := promNameRegex.ReplaceAllString(input, "_")
+	if dropPrefix {
+		strParts := strings.Split(convStr, "_")
+		convStr = strParts[len(strParts)-1]
+	}
+	return convStr
 }
 
 type jtimonMetric struct {
@@ -154,13 +159,13 @@ func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 		}
 
 		metric := &jtimonMetric{
-			metricName:       promName(field),
+			metricName:       promName(field, false),
 			metricExpiration: time.Now(),
 			metricValue:      fieldValue,
 			metricLabels:     map[string]string{},
 		}
 		for k, v := range tags {
-			metric.metricLabels[promName(k)] = v
+			metric.metricLabels[promName(k, cfg.DropTagPrefix)] = v
 		}
 
 		metric.mapKey = getMapKey(metric)

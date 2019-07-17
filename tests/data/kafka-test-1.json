@@ -1,0 +1,50 @@
+{
+    "port": 9999,
+    "host": "127.0.0.1",
+    "user": "regress",
+    "password": "MaRtInI",
+    "cid": "cid1",
+    "influx": {
+        "server": "",
+        "port": 0,
+        "dbname": "",
+        "user": "",
+        "password": "",
+        "recreate": false,
+        "measurement": "",
+        "batchsize": 0,
+        "batchfrequency": 0,
+        "http-timeout": 0,
+        "retention-policy": "",
+        "accumulator-frequency": 0
+    },
+    "kafka1": {
+        "brokers": ["nsimaria-mbp.jnpr.net:9094"],
+        "topic": "foo",
+        "client-id": "jtimon1",
+        "routing-tag": "",
+        "routing-key": "",
+        "compression-codec": 0,
+        "required-acks": 0,
+        "version": "",
+        "sasl-username1": "hbot",
+        "sasl-password1": "hbot",
+        "tls-ca": "",
+        "tls-cert": "",
+        "tls-key": "",
+        "insecure-skip-verify": true
+    },
+    "kafka": {
+        "brokers": ["nsimaria-mbp.jnpr.net:9094"],
+        "client-id": "jtimon11"
+    },
+
+    "paths": [
+        {
+            "path": "/interfaces",
+            "freq": 2000
+        }
+    ],
+    "log": {
+    }
+}

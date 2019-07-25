@@ -1,16 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"reflect"
-	"strings"
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/golang/protobuf/proto"
 	"github.com/influxdata/influxdb/client/v2"
 	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 )
@@ -115,7 +113,6 @@ func KafkaInit(jctx *JCtx) error {
 		return err
 	}
 
-	kafkaBatchWrite(jctx)
 	return nil
 }
 
@@ -124,174 +121,19 @@ func addKafka(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 		return
 	}
 
-	cfg := jctx.config
-
-	prefix := ""
-	prefixXmlpath := ""
-	var prefixTags map[string]string
-	var tags map[string]string
-	var xmlpath string
-	prefixTags = nil
-
-	points := make([]*client.Point, 0)
-	rows := make([]*row, 0)
-
-	for _, v := range ocData.Kv {
-		kv := make(map[string]interface{})
-
-		switch {
-		case v.Key == "__prefix__":
-			prefix = v.GetStrValue()
-			prefixXmlpath, prefixTags = spitTagsNPath(jctx, prefix)
-			continue
-		case strings.HasPrefix(v.Key, "__"):
-			continue
-		}
-
-		key := v.Key
-		if key[0] != '/' {
-			if strings.Contains(key, "[") {
-				key = prefix + v.Key
-				xmlpath, tags = spitTagsNPath(jctx, key)
-			} else {
-				xmlpath = prefixXmlpath + key
-				tags = prefixTags
-				xmlpath = getAlias(jctx.alias, xmlpath)
-			}
-		} else {
-			xmlpath, tags = spitTagsNPath(jctx, key)
-		}
-
-		tags["device"] = cfg.Host
-		tags["sensor"] = ocData.Path
-
-		switch v.Value.(type) {
-		case *na_pb.KeyValue_StrValue:
-			kv[xmlpath] = v.GetStrValue()
-		case *na_pb.KeyValue_DoubleValue:
-			kv[xmlpath] = v.GetDoubleValue()
-		case *na_pb.KeyValue_IntValue:
-			kv[xmlpath] = float64(v.GetIntValue())
-		case *na_pb.KeyValue_UintValue:
-			kv[xmlpath] = float64(v.GetUintValue())
-		case *na_pb.KeyValue_SintValue:
-			kv[xmlpath] = float64(v.GetSintValue())
-		case *na_pb.KeyValue_BoolValue:
-			kv[xmlpath] = v.GetBoolValue()
-		case *na_pb.KeyValue_BytesValue:
-			kv[xmlpath] = v.GetBytesValue()
-		default:
-		}
-
-		if len(kv) != 0 {
-			if len(rows) != 0 {
-				lastRow := rows[len(rows)-1]
-				eq := reflect.DeepEqual(tags, lastRow.tags)
-				if eq {
-					// We can merge
-					for k, v := range kv {
-						lastRow.fields[k] = v
-					}
-				} else {
-					// Could not merge as tags are different
-					rw, err := newRow(tags, kv)
-					if err != nil {
-						jLog(jctx, fmt.Sprintf("addIDB: Could not get NewRow (no merge): %v", err))
-						continue
-					}
-					rows = append(rows, rw)
-				}
-			} else {
-				// First row for this sensor
-				rw, err := newRow(tags, kv)
-				if err != nil {
-					jLog(jctx, fmt.Sprintf("addIDB: Could not get NewRow (first row): %v", err))
-					continue
-				}
-				rows = append(rows, rw)
-			}
-		}
-	}
-	if len(rows) > 0 {
-		for _, row := range rows {
-			pt, err := client.NewPoint(mName(ocData, jctx.config), row.tags, row.fields, rtime)
-			if err != nil {
-				jLog(jctx, fmt.Sprintf("addIDB: Could not get NewPoint : %v", err))
-				continue
-			}
-			points = append(points, pt)
-		}
+	b, err := proto.Marshal(ocData)
+	if err != nil {
+		jLog(jctx, fmt.Sprintf("Kafka proto marsha error: %v", err))
 	}
 
-	if len(points) > 0 {
-		jctx.config.Kafka.kbatchCh <- points
-
-		if IsVerboseLogging(jctx) {
-			jLog(jctx, fmt.Sprintf("Sending %d points to batch channel for path: %s\n", len(points), ocData.Path))
-			for i := 0; i < len(points); i++ {
-				jLog(jctx, fmt.Sprintf("Tags: %+v\n", points[i].Tags()))
-				if f, err := points[i].Fields(); err == nil {
-					jLog(jctx, fmt.Sprintf("KVs : %+v\n", f))
-				}
-			}
-		}
+	m := &sarama.ProducerMessage{
+		Topic: "test",
+		Value: sarama.ByteEncoder(b),
 	}
-}
 
-func kafkaBatchWrite(jctx *JCtx) {
-	kbatchSize := 1024
-	kbatchCh := make(chan []*client.Point, kbatchSize)
-	jctx.config.Kafka.kbatchCh = kbatchCh
-	bFreq := 2000
-
-	jLog(jctx, fmt.Sprintln("kafka batch size:", kbatchSize, "batch frequency:", bFreq))
-
-	ticker := time.NewTicker(time.Duration(bFreq) * time.Millisecond)
-	go func() {
-		for range ticker.C {
-			n := len(kbatchCh)
-			if n != 0 {
-				bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-					Database:        jctx.config.Influx.Dbname,
-					Precision:       "us",
-					RetentionPolicy: jctx.config.Influx.RetentionPolicy,
-				})
-
-				if err != nil {
-					jLog(jctx, fmt.Sprintf("NewBatchPoints failed, error: %v", err))
-					return
-				}
-
-				for i := 0; i < n; i++ {
-					packet := <-kbatchCh
-					for j := 0; j < len(packet); j++ {
-						bp.AddPoint(packet[j])
-					}
-				}
-
-				jLog(jctx, fmt.Sprintf("Kafka batch processing: #packets:%d #points:%d", n, len(bp.Points())))
-
-				var b bytes.Buffer
-				for _, p := range bp.Points() {
-					if _, err := b.WriteString(p.PrecisionString(bp.Precision())); err != nil {
-						jLog(jctx, fmt.Sprintf("Kafka SendMessage prep-1 failed, error: %v", err))
-					}
-
-					if err := b.WriteByte('\n'); err != nil {
-						jLog(jctx, fmt.Sprintf("Kafka SendMessage prep-2 failed, error: %v", err))
-					}
-				}
-
-				m := &sarama.ProducerMessage{
-					Topic: "test",
-					Value: sarama.StringEncoder(b.String()),
-				}
-				if _, _, err := jctx.config.Kafka.producer.SendMessage(m); err != nil {
-					jLog(jctx, fmt.Sprintf("Kafka SendMessage failed, error: %v", err))
-				}
-			}
-		}
-	}()
+	if _, _, err := jctx.config.Kafka.producer.SendMessage(m); err != nil {
+		jLog(jctx, fmt.Sprintf("Kafka SendMessage failed, error: %v", err))
+	}
 }
 
 func getCertPool(certFiles []string) (*x509.CertPool, error) {

@@ -204,6 +204,13 @@ func GetConfigFiles(cfgFile *[]string, cfgFileList string) error {
 // ValidateConfigChange to check which config changes are allowed
 func ValidateConfigChange(jctx *JCtx, config Config) error {
 	runningCfg := jctx.config
+	// check verbose log change
+	if jctx.config.Log.Verbose != config.Log.Verbose {
+		if IsVerboseLogging(jctx) {
+			jLog(jctx, fmt.Sprintf("Log level has been changed to %v", config.Log.Verbose))
+		}
+		jctx.config.Log.Verbose = config.Log.Verbose
+	}
 	if !reflect.DeepEqual(runningCfg, config) {
 		// config change is now only for path, it can be extended.
 		if !reflect.DeepEqual(runningCfg.Paths, config.Paths) {
@@ -255,6 +262,7 @@ func ConfigRead(jctx *JCtx, init bool) error {
 		go periodicStats(jctx)
 		influxInit(jctx)
 	} else {
+		jLog(jctx, fmt.Sprintf("Config re-read request"))
 		err := ValidateConfigChange(jctx, config)
 		if err == nil {
 			jctx.config.Paths = config.Paths

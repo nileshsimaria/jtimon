@@ -201,21 +201,37 @@ func GetConfigFiles(cfgFile *[]string, cfgFileList string) error {
 	return nil
 }
 
-// ValidateConfigChange to check which config changes are allowed
-func ValidateConfigChange(jctx *JCtx, config Config) error {
-	runningCfg := jctx.config
-	if !reflect.DeepEqual(runningCfg, config) {
-		// config change is now only for path, it can be extended.
-		if !reflect.DeepEqual(runningCfg.Paths, config.Paths) {
-			return nil
+// HandleConfigChange to check which config changes are allowed
+func HandleConfigChange(jctx *JCtx, config Config, restart *bool) error {
+	// check verbose log change
+	changed := false
+	if !reflect.DeepEqual(jctx.config, config) {
+		// config changed
+		if !reflect.DeepEqual(jctx.config.Paths, config.Paths) {
+			jctx.config.Paths = config.Paths
+			if restart != nil {
+				*restart = true
+			}
+			changed = true
+		}
+		if jctx.config.Log.Verbose != config.Log.Verbose {
+			if IsVerboseLogging(jctx) {
+				jLog(jctx, fmt.Sprintf("Log level has been changed to %v", config.Log.Verbose))
+			}
+			jctx.config.Log.Verbose = config.Log.Verbose
+			changed = true
+		}
+		if !changed {
+			// Currently only path and log-level changes are allowed. rest will be ignored
+			return fmt.Errorf("ValidateConfigChange: only paths and log-level changes are allowed")
 		}
 	}
-	return fmt.Errorf("ValidateConfigChange: only paths are allowed to be changed")
+	return nil
 }
 
 // ConfigRead will read the config and init the services.
 // In case of config changes, it will update the existing config
-func ConfigRead(jctx *JCtx, init bool) error {
+func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 	var err error
 
 	config, err := NewJTIMONConfig(jctx.file)
@@ -255,12 +271,12 @@ func ConfigRead(jctx *JCtx, init bool) error {
 		go periodicStats(jctx)
 		influxInit(jctx)
 	} else {
-		err := ValidateConfigChange(jctx, config)
+		jLog(jctx, fmt.Sprintf("Config re-read request"))
+		err := HandleConfigChange(jctx, config, restart)
 		if err == nil {
-			jctx.config.Paths = config.Paths
 			jLog(jctx, fmt.Sprintf("config has been updated"))
 		} else {
-			return fmt.Errorf("no change in subscription path, ignoring config changes")
+			return err
 		}
 	}
 	return nil

@@ -201,28 +201,32 @@ func GetConfigFiles(cfgFile *[]string, cfgFileList string) error {
 	return nil
 }
 
-// ValidateConfigChange to check which config changes are allowed
-func ValidateConfigChange(jctx *JCtx, config Config) error {
-	runningCfg := jctx.config
+// HandleConfigChange to check which config changes are allowed
+func HandleConfigChange(jctx *JCtx, config Config, reload *bool) error {
 	// check verbose log change
-	if jctx.config.Log.Verbose != config.Log.Verbose {
-		if IsVerboseLogging(jctx) {
-			jLog(jctx, fmt.Sprintf("Log level has been changed to %v", config.Log.Verbose))
+	if !reflect.DeepEqual(jctx.config, config) {
+		// config changed
+		if !reflect.DeepEqual(jctx.config.Paths, config.Paths) {
+			jctx.config.Paths = config.Paths
+			if reload != nil {
+				*reload = true
+			}
+		} else if jctx.config.Log.Verbose != config.Log.Verbose {
+			if IsVerboseLogging(jctx) {
+				jLog(jctx, fmt.Sprintf("Log level has been changed to %v", config.Log.Verbose))
+			}
+			jctx.config.Log.Verbose = config.Log.Verbose
+		} else {
+			// Currently only path and log-level changes are allowed. rest will be ignored
+			return fmt.Errorf("ValidateConfigChange: only paths and log-level changes are allowed")
 		}
-		jctx.config.Log.Verbose = config.Log.Verbose
 	}
-	if !reflect.DeepEqual(runningCfg, config) {
-		// config change is now only for path, it can be extended.
-		if !reflect.DeepEqual(runningCfg.Paths, config.Paths) {
-			return nil
-		}
-	}
-	return fmt.Errorf("ValidateConfigChange: only paths are allowed to be changed")
+	return nil
 }
 
 // ConfigRead will read the config and init the services.
 // In case of config changes, it will update the existing config
-func ConfigRead(jctx *JCtx, init bool) error {
+func ConfigRead(jctx *JCtx, reload *bool) error {
 	var err error
 
 	config, err := NewJTIMONConfig(jctx.file)
@@ -231,7 +235,7 @@ func ConfigRead(jctx *JCtx, init bool) error {
 		return fmt.Errorf("config parsing (json unmarshal) error for %s: %v", jctx.file, err)
 	}
 
-	if init {
+	if reload == nil {
 		jctx.config = config
 		logInit(jctx)
 		b, err := json.MarshalIndent(jctx.config, "", "    ")
@@ -263,12 +267,11 @@ func ConfigRead(jctx *JCtx, init bool) error {
 		influxInit(jctx)
 	} else {
 		jLog(jctx, fmt.Sprintf("Config re-read request"))
-		err := ValidateConfigChange(jctx, config)
+		err := HandleConfigChange(jctx, config, reload)
 		if err == nil {
-			jctx.config.Paths = config.Paths
 			jLog(jctx, fmt.Sprintf("config has been updated"))
 		} else {
-			return fmt.Errorf("no change in subscription path, ignoring config changes")
+			return err
 		}
 	}
 	return nil

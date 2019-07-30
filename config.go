@@ -204,6 +204,7 @@ func GetConfigFiles(cfgFile *[]string, cfgFileList string) error {
 // HandleConfigChange to check which config changes are allowed
 func HandleConfigChange(jctx *JCtx, config Config, reload *bool) error {
 	// check verbose log change
+	changed := false
 	if !reflect.DeepEqual(jctx.config, config) {
 		// config changed
 		if !reflect.DeepEqual(jctx.config.Paths, config.Paths) {
@@ -211,12 +212,16 @@ func HandleConfigChange(jctx *JCtx, config Config, reload *bool) error {
 			if reload != nil {
 				*reload = true
 			}
-		} else if jctx.config.Log.Verbose != config.Log.Verbose {
+			changed = true
+		}
+		if jctx.config.Log.Verbose != config.Log.Verbose {
 			if IsVerboseLogging(jctx) {
 				jLog(jctx, fmt.Sprintf("Log level has been changed to %v", config.Log.Verbose))
 			}
 			jctx.config.Log.Verbose = config.Log.Verbose
-		} else {
+			changed = true
+		}
+		if !changed {
 			// Currently only path and log-level changes are allowed. rest will be ignored
 			return fmt.Errorf("ValidateConfigChange: only paths and log-level changes are allowed")
 		}

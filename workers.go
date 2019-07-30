@@ -202,7 +202,7 @@ func NewJWorker(file string, wg *sync.WaitGroup) (*JWorker, error) {
 		testSetup(&jctx)
 	}
 
-	err := ConfigRead(&jctx, nil)
+	err := ConfigRead(&jctx, true, nil)
 	if err != nil {
 		log.Println(err)
 		return w, err
@@ -233,12 +233,12 @@ func NewJWorker(file string, wg *sync.WaitGroup) (*JWorker, error) {
 					// not establihsed and it is trying to connect.
 					// ConfigRead will re-parse the config and updates jctx so
 					// when we retry Dial, it will do it with updated config
-					reload := false
-					err := ConfigRead(&jctx, &reload)
+					restart := false
+					err := ConfigRead(&jctx, false, &restart)
 					if err != nil {
 						jLog(&jctx, fmt.Sprintln(err))
 					} else if jctx.running {
-						if reload {
+						if restart {
 							jctx.control <- syscall.SIGHUP
 							jctx.running = false
 						}

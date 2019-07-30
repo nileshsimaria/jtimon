@@ -202,15 +202,15 @@ func GetConfigFiles(cfgFile *[]string, cfgFileList string) error {
 }
 
 // HandleConfigChange to check which config changes are allowed
-func HandleConfigChange(jctx *JCtx, config Config, reload *bool) error {
+func HandleConfigChange(jctx *JCtx, config Config, restart *bool) error {
 	// check verbose log change
 	changed := false
 	if !reflect.DeepEqual(jctx.config, config) {
 		// config changed
 		if !reflect.DeepEqual(jctx.config.Paths, config.Paths) {
 			jctx.config.Paths = config.Paths
-			if reload != nil {
-				*reload = true
+			if restart != nil {
+				*restart = true
 			}
 			changed = true
 		}
@@ -231,7 +231,7 @@ func HandleConfigChange(jctx *JCtx, config Config, reload *bool) error {
 
 // ConfigRead will read the config and init the services.
 // In case of config changes, it will update the existing config
-func ConfigRead(jctx *JCtx, reload *bool) error {
+func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 	var err error
 
 	config, err := NewJTIMONConfig(jctx.file)
@@ -240,7 +240,7 @@ func ConfigRead(jctx *JCtx, reload *bool) error {
 		return fmt.Errorf("config parsing (json unmarshal) error for %s: %v", jctx.file, err)
 	}
 
-	if reload == nil {
+	if init {
 		jctx.config = config
 		logInit(jctx)
 		b, err := json.MarshalIndent(jctx.config, "", "    ")
@@ -272,7 +272,7 @@ func ConfigRead(jctx *JCtx, reload *bool) error {
 		influxInit(jctx)
 	} else {
 		jLog(jctx, fmt.Sprintf("Config re-read request"))
-		err := HandleConfigChange(jctx, config, reload)
+		err := HandleConfigChange(jctx, config, restart)
 		if err == nil {
 			jLog(jctx, fmt.Sprintf("config has been updated"))
 		} else {

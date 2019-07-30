@@ -362,7 +362,7 @@ func TestVMXTagsPoints(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			jctx := test.jctx
-			err := ConfigRead(jctx, nil)
+			err := ConfigRead(jctx, true, nil)
 			if err != nil {
 				t.Errorf("error %v for test config %s", err, test.config)
 			}

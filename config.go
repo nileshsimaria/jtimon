@@ -233,7 +233,7 @@ func HandleConfigChange(jctx *JCtx, config Config, restart *bool) error {
 	config.Password = value
 	// Compare the new config and the running config
 	if !reflect.DeepEqual(jctx.config, config) {
-		jLog(jctx, fmt.Sprintf("Config re-read request"))
+		jLog(jctx, fmt.Sprintf("Processing config changes"))
 		// config changed
 		if !reflect.DeepEqual(jctx.config.Influx, config.Influx) {
 			return fmt.Errorf("HandleConfigChange : Influxdb config changes are not allowed")
@@ -242,7 +242,7 @@ func HandleConfigChange(jctx *JCtx, config Config, restart *bool) error {
 		// No need to disturb the subscription.
 		if jctx.config.Log != config.Log {
 			if IsVerboseLogging(jctx) {
-				jLog(jctx, fmt.Sprintf("Log config has been changed"))
+				jLog(jctx, fmt.Sprintf("Log config has been updated"))
 			}
 			logStop(jctx)
 			jctx.config.Log = config.Log
@@ -255,7 +255,6 @@ func HandleConfigChange(jctx *JCtx, config Config, restart *bool) error {
 				jLog(jctx, fmt.Sprintf("Restarting worker process to spawn new device connection"))
 				*restart = true
 			}
-			jLog(jctx, fmt.Sprintf("config has been updated"))
 		}
 	}
 	return nil
@@ -293,7 +292,6 @@ func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 		go periodicStats(jctx)
 		influxInit(jctx)
 	} else {
-		jLog(jctx, fmt.Sprintf("Config re-read request"))
 		err := HandleConfigChange(jctx, config, restart)
 		if err != nil {
 			return err

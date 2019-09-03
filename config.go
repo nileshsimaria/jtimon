@@ -218,7 +218,6 @@ func DecodePassword(jctx *JCtx, config Config) (string, error) {
 			return "", err
 		}
 		password = outStr
-		jLog(jctx, fmt.Sprintf("Decoded Password is %v", password))
 	}
 	return password, nil
 }

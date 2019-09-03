@@ -201,36 +201,68 @@ func GetConfigFiles(cfgFile *[]string, cfgFileList string) error {
 	return nil
 }
 
+// DecodePassword will decode the password if decoder util is present in the config
+func DecodePassword(jctx *JCtx, config Config) (string, error) {
+	// Default is the current passsword value
+	password := config.Password
+	if len(config.PasswordDecoder) > 0 {
+		// Run the decode util with the input file as argument
+		cmd := exec.Command(config.PasswordDecoder, jctx.file)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
+		if err != nil {
+			log.Fatalf("cmd.Run() failed with %s:%s\n", err, errStr)
+			return "", err
+		}
+		password = outStr
+		jLog(jctx, fmt.Sprintf("Decoded Password is %v", password))
+	}
+	return password, nil
+}
+
 // HandleConfigChange to check which config changes are allowed
 func HandleConfigChange(jctx *JCtx, config Config, restart *bool) error {
-	// check verbose log change
-	changed := false
+	// In the config get the decoded password as the running config will
+	// have the decoded password.
+	value, err := DecodePassword(jctx, config)
+	if err != nil {
+		return err
+	}
+	config.Password = value
+	// Compare the new config and the running config
 	if !reflect.DeepEqual(jctx.config, config) {
+		jLog(jctx, fmt.Sprintf("Config re-read request"))
 		// config changed
-		if !reflect.DeepEqual(jctx.config.Paths, config.Paths) {
-			jctx.config.Paths = config.Paths
+		if !reflect.DeepEqual(jctx.config.Influx, config.Influx) {
+			return fmt.Errorf("HandleConfigChange : Influxdb config changes are not allowed")
+		}
+		// In case if there is a change only in Log. stop the log and start it again.
+		// No need to disturb the subscription.
+		if jctx.config.Log != config.Log {
+			if IsVerboseLogging(jctx) {
+				jLog(jctx, fmt.Sprintf("Log config has been changed"))
+			}
+			logStop(jctx)
+			jctx.config.Log = config.Log
+			logInit(jctx)
+		}
+		// Check if any change in config post the log updation changes
+		if !reflect.DeepEqual(jctx.config, config) {
+			jctx.config = config
 			if restart != nil {
+				jLog(jctx, fmt.Sprintf("Restarting worker process to spawn new device connection"))
 				*restart = true
 			}
-			changed = true
-		}
-		if jctx.config.Log.Verbose != config.Log.Verbose {
-			if IsVerboseLogging(jctx) {
-				jLog(jctx, fmt.Sprintf("Log level has been changed to %v", config.Log.Verbose))
-			}
-			jctx.config.Log.Verbose = config.Log.Verbose
-			changed = true
-		}
-		if !changed {
-			// Currently only path and log-level changes are allowed. rest will be ignored
-			return fmt.Errorf("ValidateConfigChange: only paths and log-level changes are allowed")
+			jLog(jctx, fmt.Sprintf("config has been updated"))
 		}
 	}
 	return nil
 }
 
-// ConfigRead will read the config and init the services.
-// In case of config changes, it will update the existing config
+// ConfigRead will read the config and init the services. In case of config changes, it will update the existing config
 func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 	var err error
 
@@ -250,20 +282,11 @@ func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 
 		jLog(jctx, fmt.Sprintf("Running config of JTIMON:\n %s", string(b)))
 		// Decode the password if the config has provided the decode util
-		if len(config.PasswordDecoder) > 0 {
-			// Run the decode util with the input file as argument
-			cmd := exec.Command(config.PasswordDecoder, jctx.file)
-			var stdout, stderr bytes.Buffer
-			cmd.Stdout = &stdout
-			cmd.Stderr = &stderr
-			err := cmd.Run()
-			outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
-			if err != nil {
-				log.Fatalf("cmd.Run() failed with %s:%s\n", err, errStr)
-				return err
-			}
-			jctx.config.Password = outStr
+		value, err := DecodePassword(jctx, config)
+		if err != nil {
+			return err
 		}
+		jctx.config.Password = value
 		// subscription channel (subch) is used to let go routine receiving telemetry
 		// data know about certain events like sighup.
 		jctx.control = make(chan os.Signal)
@@ -273,9 +296,7 @@ func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 	} else {
 		jLog(jctx, fmt.Sprintf("Config re-read request"))
 		err := HandleConfigChange(jctx, config, restart)
-		if err == nil {
-			jLog(jctx, fmt.Sprintf("config has been updated"))
-		} else {
+		if err != nil {
 			return err
 		}
 	}

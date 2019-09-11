@@ -269,6 +269,8 @@ func work(jctx *JCtx, statusch chan bool) {
 	var retry bool
 	var opts []grpc.DialOption
 
+connect:
+	// Read the host-name and vendor from the config as they might be changed
 	vendor, err := getVendor(jctx)
 	if opts, err = getGPRCDialOptions(jctx, vendor); err != nil {
 		jLog(jctx, fmt.Sprintf("%v", err))
@@ -277,12 +279,13 @@ func work(jctx *JCtx, statusch chan bool) {
 	}
 
 	hostname := jctx.config.Host + ":" + strconv.Itoa(jctx.config.Port)
+	fmt.Println(strconv.Itoa(jctx.config.Port))
 	if hostname == ":0" {
 		statusch <- false
+		jLog(jctx, fmt.Sprintf("Not a valid host-name %s", hostname))
 		return
 	}
 
-connect:
 	if retry {
 		jLog(jctx, fmt.Sprintf("Reconnecting to %s", hostname))
 	} else {

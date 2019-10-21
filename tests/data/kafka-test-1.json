@@ -1,6 +1,6 @@
 {
-    "port": 9999,
-    "host": "127.0.0.1",
+    "host": "10.53.33.103",
+    "port": 50051,
     "user": "regress",
     "password": "MaRtInI",
     "cid": "cid1",

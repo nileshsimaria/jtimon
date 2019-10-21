@@ -127,7 +127,7 @@ func addKafka(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	}
 
 	m := &sarama.ProducerMessage{
-		Topic: "test",
+		Topic: "healthbot",
 		Value: sarama.ByteEncoder(b),
 	}
 

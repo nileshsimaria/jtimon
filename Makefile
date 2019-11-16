@@ -29,7 +29,7 @@ darwin: ## generate a osx version of the binary
 	GOOS=darwin GOARCH=${GOARCH} go build ${LDFLAGS} -o ${BINARY}-darwin-${GOARCH} .
 
 docker: ## build a docker image that can be used to execute the binary
-	docker build -t jtimon .
+	docker build --build-arg COMMIT=${COMMIT} --build-arg BRANCH=${BRANCH} --build-arg TIME=${TIME} -t jtimon . 
 	ln -sf launch-docker-container.sh jtimon
 	@echo "Usage: docker run -ti --rm jtimon --help"
 	@echo "or simply call the shell script './jtimon --help"

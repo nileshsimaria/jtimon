@@ -1,16 +1,17 @@
 # Copyright (c) 2018, Juniper Networks, Inc.
 # All rights reserved.
 
-FROM alpine:3.7
-RUN apk add --no-cache ethtool
-RUN apk add --no-cache --virtual build-dependencies git go musl-dev \
-  && mkdir -p /root/go/src/github.com/nileshsimaria \
-  && cd /root/go/src/github.com/nileshsimaria \
-  && git clone https://github.com/nileshsimaria/jtimon.git \
-  && cd jtimon && go build && strip jtimon && mv jtimon /usr/local/bin \
-  && cd / \
-  && rm -fr /root/go \
-  && apk del build-dependencies
+FROM golang:1.13.4-alpine3.10
+ARG COMMIT
+ARG BRANCH
+ARG TIME
+
+WORKDIR /go/src/app
+COPY . .
+
+RUN GO111MODULE=on go build -mod vendor \
+    --ldflags="-X main.jtimonVersion=${COMMIT}-${BRANCH} -X main.buildTime=${TIME}" \
+    -o /usr/local/bin/jtimon
 
 VOLUME /u
 WORKDIR /u

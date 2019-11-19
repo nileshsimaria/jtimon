@@ -173,7 +173,6 @@ func TestJTISIMRetrySigInt(t *testing.T) {
 				t.Errorf("Interrupt signal is not handled at connection for %s", jctx.file)
 			}
 		default:
-			// No signal recieved, Continue the connection attempt
 		}
 	}
 }

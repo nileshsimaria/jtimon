@@ -218,7 +218,7 @@ func NewJWorker(file string, wg *sync.WaitGroup) (*JWorker, error) {
 				case os.Interrupt:
 					// we are asked to stop
 					printSummary(&jctx)
-					jLog(&jctx, fmt.Sprintf("Streaming for host %s has been stopped (SIGINT)", jctx.config.Host))
+					jLog(&jctx, fmt.Sprintf("Streaming for host %s will be stopped (SIGINT)", jctx.config.Host))
 					if *genTestData {
 						testTearDown(&jctx)
 					}
@@ -283,6 +283,21 @@ connect:
 		statusch <- false
 		jLog(jctx, fmt.Sprintf("Not a valid host-name %s", hostname))
 		return
+	}
+
+	// Check signals
+	select {
+	case s := <-jctx.control:
+		switch s {
+		case os.Interrupt:
+			// we are done
+			jLog(jctx, fmt.Sprintf("Connection for %s has been interrupted", hostname))
+			return
+		}
+		// Sighup need not be handled as the config is re-read for
+		// each connection attempt
+	default:
+		// No signal recieved, Continue the connection attempt
 	}
 
 	if retry {

@@ -133,6 +133,50 @@ func TestJTISIMSigInt(t *testing.T) {
 		}
 	}
 }
+
+func TestJTISIMRetrySigInt(t *testing.T) {
+	flag.Parse()
+	*noppgoroutines = true
+	*stateHandler = true
+	*prefixCheck = true
+
+	config := "tests/data/juniper-junos/config/jtisim-interfaces-file-list-sig-int.json"
+	total := 1
+	runTime := 10
+	retryTime := 10
+
+	err := GetConfigFiles(configFiles, config)
+	if err != nil {
+		t.Errorf("config parsing error: %s", err)
+	}
+
+	workers := NewJWorkers(*configFiles, config, 0)
+	workers.StartWorkers()
+
+	if len(workers.m) != total {
+		t.Errorf("workers does not match: want %d got %d", total, len(workers.m))
+	}
+
+	time.Sleep(time.Duration(runTime) * time.Second)
+	workers.EndWorkers()
+	// Wait for the signal to be consumed as the worker may be already waiting
+	// in retry Timer
+	time.Sleep(time.Duration(retryTime+5) * time.Second)
+
+	for _, w := range workers.m {
+		jctx := w.jctx
+		// Check the the interrupt in the control channel is received.
+		select {
+		case s := <-jctx.control:
+			switch s {
+			case os.Interrupt:
+				t.Errorf("Interrupt signal is not handled at connection for %s", jctx.file)
+			}
+		default:
+		}
+	}
+}
+
 func TestPrometheus(t *testing.T) {
 	flag.Parse()
 	tests := []struct {

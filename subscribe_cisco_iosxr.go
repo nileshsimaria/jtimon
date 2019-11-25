@@ -271,6 +271,13 @@ func handleOnePath(schema *schema, id int64, path string, conn *grpc.ClientConn,
 			for _, nodes := range schema.nodes {
 				for _, node := range nodes {
 					if strings.Compare(ePath[0], node.Name) == 0 {
+						if jctx.config.Vendor.RemoveNS {
+							strs := strings.Split(ePath[0], ":")
+							if len(strs) == 2 {
+								ePath[0] = strs[1]
+							}
+						}
+
 						processMultiLevelMsg(jctx, node, ePath, message)
 					}
 				}

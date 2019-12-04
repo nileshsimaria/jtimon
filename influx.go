@@ -18,8 +18,14 @@ type InfluxCtx struct {
 	sync.Mutex
 	influxClient   *client.Client
 	batchWCh       chan []*client.Point
+	batchWMCh      chan *batchWMData
 	accumulatorCh  chan (*metricIDB)
 	reXpath, reKey *regexp.Regexp
+}
+
+type batchWMData struct {
+	measurement string
+	points      []*client.Point
 }
 
 // InfluxConfig is the config of InfluxDB
@@ -36,6 +42,7 @@ type InfluxConfig struct {
 	HTTPTimeout          int    `json:"http-timeout"`
 	RetentionPolicy      string `json:"retention-policy"`
 	AccumulatorFrequency int    `json:"accumulator-frequency"`
+	WritePerMeasurement  bool   `json:"write-per-measurement"`
 }
 
 type metricIDB struct {
@@ -187,6 +194,67 @@ func pointAcculumator(jctx *JCtx) {
 						jLog(jctx, fmt.Sprintln("Batch write successful! Number of points written post merge logic: ", len(points)))
 					}
 
+				}
+			}
+		}
+	}()
+}
+
+func dbBatchWriteM(jctx *JCtx) {
+	if jctx.influxCtx.influxClient == nil {
+		return
+	}
+
+	batchSize := jctx.config.Influx.BatchSize
+	batchMCh := make(chan *batchWMData, batchSize)
+	jctx.influxCtx.batchWMCh = batchMCh
+
+	// wake up periodically and perform batch write into InfluxDB
+	bFreq := jctx.config.Influx.BatchFrequency
+	jLog(jctx, fmt.Sprintln("batch size:", batchSize, "batch frequency:", bFreq))
+
+	ticker := time.NewTicker(time.Duration(bFreq) * time.Millisecond)
+	go func() {
+		for range ticker.C {
+			m := map[string][]*batchWMData{}
+			n := len(batchMCh)
+			if n != 0 {
+				jLog(jctx, fmt.Sprintln("#elements in the batchMCh channel : ", n))
+				for i := 0; i < n; i++ {
+					d := <-batchMCh
+					v := m[d.measurement]
+					m[d.measurement] = append(v, d)
+				}
+				jLog(jctx, fmt.Sprintln("#elements in the measurement map : ", len(m)))
+
+			}
+
+			for measurement, data := range m {
+				jLog(jctx, fmt.Sprintf("measurement: %s, data len: %d", measurement, len(data)))
+
+				bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+					Database:        jctx.config.Influx.Dbname,
+					Precision:       "us",
+					RetentionPolicy: jctx.config.Influx.RetentionPolicy,
+				})
+
+				if err != nil {
+					jLog(jctx, fmt.Sprintf("NewBatchPoints failed, error: %v", err))
+					continue
+				}
+
+				for j := 0; j < len(data); j++ {
+					packet := data[j].points
+					for k := 0; k < len(packet); k++ {
+						bp.AddPoint(packet[k])
+					}
+				}
+
+				jLog(jctx, fmt.Sprintf("Attempt to write %d points in %s", len(bp.Points()), measurement))
+				if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
+					jLog(jctx, fmt.Sprintf("Batch DB write failed for measurement %s: %v", measurement, err))
+				} else {
+					jLog(jctx, fmt.Sprintln("Batch write successful for measurement: ", measurement))
 				}
 			}
 		}
@@ -428,7 +496,14 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	}
 
 	if len(points) > 0 {
-		jctx.influxCtx.batchWCh <- points
+		if jctx.config.Influx.WritePerMeasurement {
+			jctx.influxCtx.batchWMCh <- &batchWMData{
+				measurement: mName(ocData, jctx.config),
+				points:      points,
+			}
+		} else {
+			jctx.influxCtx.batchWCh <- points
+		}
 
 		if IsVerboseLogging(jctx) {
 			jLog(jctx, fmt.Sprintf("Sending %d points to batch channel for path: %s\n", len(points), ocData.Path))
@@ -500,7 +575,11 @@ func influxInit(jctx *JCtx) {
 	jctx.influxCtx.reXpath = regexp.MustCompile(MatchExpressionXpath)
 	jctx.influxCtx.reKey = regexp.MustCompile(MatchExpressionKey)
 	if cfg.Influx.Server != "" && c != nil {
-		dbBatchWrite(jctx)
+		if cfg.Influx.WritePerMeasurement {
+			dbBatchWriteM(jctx)
+		} else {
+			dbBatchWrite(jctx)
+		}
 		pointAcculumator(jctx)
 		jLog(jctx, "Successfully initialized InfluxDB Client")
 	}

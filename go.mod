@@ -7,7 +7,7 @@ require (
 	github.com/golang/protobuf v1.0.0
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/mux v1.6.2 // indirect
-	github.com/influxdata/influxdb v1.5.2
+	github.com/influxdata/influxdb v1.7.9
 	github.com/matttproud/golang_protobuf_extensions v1.0.0 // indirect
 	github.com/nileshsimaria/jtisim v0.0.0-20190103005352-93e1756cba8f
 	github.com/nileshsimaria/lpserver v0.0.0-20190104003445-1fca7666fe3e

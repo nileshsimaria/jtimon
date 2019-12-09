@@ -588,5 +588,7 @@ func influxInit(jctx *JCtx) {
 		jLog(jctx, "Successfully initialized InfluxDB Client")
 	}
 
-	closeInfluxClient(*c)
+	if c != nil {
+		closeInfluxClient(*c)
+	}
 }

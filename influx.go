@@ -551,6 +551,10 @@ func queryIDB(clnt client.Client, cmd string, db string) (res []client.Result, e
 	return res, nil
 }
 
+func closeInfluxClient(clnt client.Client) {
+	_ = clnt.Close()
+}
+
 func influxInit(jctx *JCtx) {
 	cfg := jctx.config
 	jLog(jctx, "invoking getInfluxClient for init")
@@ -583,4 +587,6 @@ func influxInit(jctx *JCtx) {
 		pointAcculumator(jctx)
 		jLog(jctx, "Successfully initialized InfluxDB Client")
 	}
+
+	closeInfluxClient(*c)
 }

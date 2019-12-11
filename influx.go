@@ -245,16 +245,38 @@ func dbBatchWriteM(jctx *JCtx) {
 
 				for j := 0; j < len(data); j++ {
 					packet := data[j].points
-					for k := 0; k < len(packet); k++ {
+					k := 0
+					for k = 0; k < len(packet); k++ {
 						bp.AddPoint(packet[k])
+						if len(bp.Points()) >= batchSize {
+							jLog(jctx, fmt.Sprintf("Attempt to write %d points in %s", len(bp.Points()), measurement))
+							if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
+								jLog(jctx, fmt.Sprintf("Batch DB write failed for measurement %s: %v", measurement, err))
+							} else {
+								jLog(jctx, fmt.Sprintln("Batch write successful for measurement: ", measurement))
+							}
+
+							bp, err = client.NewBatchPoints(client.BatchPointsConfig{
+								Database:        jctx.config.Influx.Dbname,
+								Precision:       "us",
+								RetentionPolicy: jctx.config.Influx.RetentionPolicy,
+							})
+						}
 					}
 				}
+				if len(bp.Points()) > 0 {
+					jLog(jctx, fmt.Sprintf("Attempt to write %d points in %s", len(bp.Points()), measurement))
+					if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
+						jLog(jctx, fmt.Sprintf("Batch DB write failed for measurement %s: %v", measurement, err))
+					} else {
+						jLog(jctx, fmt.Sprintln("Batch write successful for measurement: ", measurement))
+					}
 
-				jLog(jctx, fmt.Sprintf("Attempt to write %d points in %s", len(bp.Points()), measurement))
-				if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
-					jLog(jctx, fmt.Sprintf("Batch DB write failed for measurement %s: %v", measurement, err))
-				} else {
-					jLog(jctx, fmt.Sprintln("Batch write successful for measurement: ", measurement))
+					bp, err = client.NewBatchPoints(client.BatchPointsConfig{
+						Database:        jctx.config.Influx.Dbname,
+						Precision:       "us",
+						RetentionPolicy: jctx.config.Influx.RetentionPolicy,
+					})
 				}
 			}
 		}

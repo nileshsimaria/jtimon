@@ -99,8 +99,7 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 //			code
 //		- In case of an error, Set the error code to restart the connection.
 func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
-	subReqM na_pb.SubscriptionRequest,
-	statusch chan<- bool) SubErrorCode {
+	subReqM na_pb.SubscriptionRequest) SubErrorCode {
 
 	var ctx context.Context
 	c := na_pb.NewOpenConfigTelemetryClient(conn)
@@ -128,8 +127,6 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 
 	datach := make(chan struct{})
 
-	// inform the caller that streaming has been started
-	statusch <- true
 	go func() {
 		// Go Routine which actually starts the streaming connection and receives the data
 		jLog(jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
@@ -206,7 +203,7 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 //
 // In case of SIGHUP, the paths are formed again and streaming
 // is restarted.
-func subscribeJunos(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
+func subscribeJunos(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 	var subReqM na_pb.SubscriptionRequest
 	var additionalConfigM na_pb.SubscriptionAdditionalConfig
 
@@ -220,7 +217,7 @@ func subscribeJunos(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) Sub
 	additionalConfigM.NeedEos = jctx.config.EOS
 	subReqM.AdditionalConfig = &additionalConfigM
 
-	return subSendAndReceive(conn, jctx, subReqM, statusch)
+	return subSendAndReceive(conn, jctx, subReqM)
 }
 
 func loginCheckJunos(jctx *JCtx, conn *grpc.ClientConn) error {

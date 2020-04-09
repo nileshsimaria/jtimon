@@ -194,7 +194,7 @@ func transformPath(path string) string {
 	return path
 }
 
-func handleOnePath(schema *schema, id int64, path string, conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool, datach chan<- struct{}) {
+func handleOnePath(schema *schema, id int64, path string, conn *grpc.ClientConn, jctx *JCtx, datach chan<- struct{}) {
 	c := pb.NewGRPCConfigOperClient(conn)
 
 	jLog(jctx, fmt.Sprintf("path transformation: %s --> %s", path, transformPath(path)))
@@ -221,11 +221,10 @@ func handleOnePath(schema *schema, id int64, path string, conn *grpc.ClientConn,
 		jLog(jctx, fmt.Sprintf("  %s: %s\n", k, v))
 	}
 
-	// Inform the caller that streaming has started.
-	statusch <- true
-	// Go Routine which actually starts the streaming connection and receives the data
-	jLog(jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
 	for {
+		// Go Routine which actually starts the streaming connection and receives the data
+		jLog(jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
+
 		d, err := stream.Recv()
 		if err == io.EOF {
 			datach <- struct{}{}
@@ -292,7 +291,7 @@ func handleOnePath(schema *schema, id int64, path string, conn *grpc.ClientConn,
 	}
 }
 
-func subscribeXR(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErrorCode {
+func subscribeXR(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 	schema, err := getXRSchema(jctx)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("%s", err))
@@ -308,7 +307,7 @@ func subscribeXR(conn *grpc.ClientConn, jctx *JCtx, statusch chan<- bool) SubErr
 	}
 
 	for index, path := range jctx.config.Paths {
-		go handleOnePath(schema, id+int64(index), path.Path, conn, jctx, statusch, datach)
+		go handleOnePath(schema, id+int64(index), path.Path, conn, jctx, datach)
 	}
 
 	for {

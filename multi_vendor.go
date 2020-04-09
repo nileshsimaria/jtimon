@@ -13,7 +13,7 @@ type vendor struct {
 	loginCheckRequired bool
 	sendLoginCheck     func(*JCtx, *grpc.ClientConn) error
 	dialExt            func(*JCtx) grpc.DialOption
-	subscribe          func(*grpc.ClientConn, *JCtx, chan<- bool) SubErrorCode
+	subscribe          func(*grpc.ClientConn, *JCtx) SubErrorCode
 }
 
 func getVendor(jctx *JCtx) (*vendor, error) {

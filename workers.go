@@ -186,7 +186,7 @@ func NewJWorker(file string, wg *sync.WaitGroup) (*JWorker, error) {
 	w := &JWorker{}
 
 	signalch := make(chan os.Signal)
-	statusch := make(chan bool)
+	statusch := make(chan struct{})
 	jctx := JCtx{
 		file:      file,
 		wg:        wg,
@@ -237,35 +237,28 @@ func NewJWorker(file string, wg *sync.WaitGroup) (*JWorker, error) {
 					err := ConfigRead(&jctx, false, &restart)
 					if err != nil {
 						jLog(&jctx, fmt.Sprintln(err))
-					} else if jctx.running {
-						if restart {
-							jctx.control <- syscall.SIGHUP
-							jctx.running = false
-						}
+					} else if restart {
+						jctx.control <- syscall.SIGHUP
 					} else {
 						jLog(&jctx, fmt.Sprintf("config re-parse, data streaming has not started yet"))
 					}
 				case syscall.SIGCONT:
 					go work(&jctx, statusch)
 				}
-			case status := <-statusch:
-				switch status {
-				case false:
-					// worker must have encountered error
-					printSummary(&jctx)
-					jctx.wg.Done()
-					logStop(&jctx)
-					return
-				case true:
-					jctx.running = true
-				}
+			case <-statusch:
+				// worker must have encountered error
+				printSummary(&jctx)
+				jctx.wg.Done()
+				logStop(&jctx)
+				return
+
 			}
 		}
 	}()
 	return w, nil
 }
 
-func work(jctx *JCtx, statusch chan bool) {
+func work(jctx *JCtx, statusch chan struct{}) {
 	var retry bool
 	var opts []grpc.DialOption
 
@@ -274,13 +267,13 @@ connect:
 	vendor, err := getVendor(jctx)
 	if opts, err = getGPRCDialOptions(jctx, vendor); err != nil {
 		jLog(jctx, fmt.Sprintf("%v", err))
-		statusch <- false
+		statusch <- struct{}{}
 		return
 	}
 
 	hostname := jctx.config.Host + ":" + strconv.Itoa(jctx.config.Port)
 	if hostname == ":0" {
-		statusch <- false
+		statusch <- struct{}{}
 		jLog(jctx, fmt.Sprintf("Not a valid host-name %s", hostname))
 		return
 	}
@@ -328,7 +321,7 @@ connect:
 	if vendor.subscribe == nil {
 		panic(fmt.Sprintf("could not found subscribe implementation for vendor %s", vendor.name))
 	}
-	code := vendor.subscribe(conn, jctx, statusch)
+	code := vendor.subscribe(conn, jctx)
 
 	// close the current connection and retry
 	conn.Close()

@@ -21,5 +21,5 @@ require (
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a // indirect
 	golang.org/x/text v0.3.0 // indirect
 	google.golang.org/genproto v0.0.0-20180413175816-7fd901a49ba6 // indirect
-	google.golang.org/grpc v1.11.3
+	google.golang.org/grpc v1.28.1
 )

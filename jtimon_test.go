@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	js "github.com/nileshsimaria/jtisim"
 	lps "github.com/nileshsimaria/lpserver"
@@ -33,6 +34,9 @@ func TestMain(m *testing.M) {
 		s := lps.NewLPServer("127.0.0.1", 50052)
 		s.StartServer()
 	}()
+	fmt.Println("TestMain - waiting 3s for JTISIM and Influx Store to come up")
+	time.Sleep(3 * time.Second)	
+	fmt.Println("TestMain - done waiting")
 
 	os.Exit(m.Run())
 }

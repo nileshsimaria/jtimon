@@ -321,7 +321,9 @@ connect:
 	if vendor.subscribe == nil {
 		panic(fmt.Sprintf("could not found subscribe implementation for vendor %s", vendor.name))
 	}
+	fmt.Println("Calling subscribe() :::", jctx.file)
 	code := vendor.subscribe(conn, jctx)
+	fmt.Println("Returns subscribe() :::", jctx.file, "CODE ::: ", code)
 
 	// close the current connection and retry
 	conn.Close()

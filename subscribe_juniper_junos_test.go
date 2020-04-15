@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -34,6 +35,33 @@ func TestJTISIMSigHup(t *testing.T) {
 	// run them for 4 seconds
 	time.Sleep(time.Duration(4) * time.Second)
 
+	wx := workers.m
+	testsx := []struct {
+		config  string
+		totalIn uint64
+	}{
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-1.json",
+			totalIn: 40, // after 2nd sighup its new worker
+		},
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-2.json",
+			totalIn: 40, // after 2nd sighup its new worker
+		},
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-3.json",
+			totalIn: 80, // this worker was running from beginning (it got two sighup though)
+		},
+	}
+
+	for _, test := range testsx {
+		if v, ok := wx[test.config]; !ok {
+			t.Errorf("workers map is missing entry for worker %s", test.config)
+		} else {
+			fmt.Println("[1] ----- ", test.config, v.jctx.stats.totalIn)
+		}
+	}
+
 	// we should have three workers
 	if len(workers.m) != total {
 		t.Errorf("workers does not match: want %d got %d", total, len(workers.m))
@@ -49,6 +77,25 @@ func TestJTISIMSigHup(t *testing.T) {
 	// we should have only one worker
 	if len(workers.m) != total {
 		t.Errorf("after sighup, workers does not match: want %d got %d", total, len(workers.m))
+	}
+
+	wy := workers.m
+	testsy := []struct {
+		config  string
+		totalIn uint64
+	}{
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-3.json",
+			totalIn: 80, // this worker was running from beginning (it got two sighup though)
+		},
+	}
+
+	for _, test := range testsy {
+		if v, ok := wy[test.config]; !ok {
+			t.Errorf("workers map is missing entry for worker %s", test.config)
+		} else {
+			fmt.Println("[2] ----- ", test.config, v.jctx.stats.totalIn)
+		}
 	}
 
 	// change file list again, bring back all three workers again
@@ -78,13 +125,15 @@ func TestJTISIMSigHup(t *testing.T) {
 			config:  "tests/data/juniper-junos/config/jtisim-interfaces-2.json",
 			totalIn: 40, // after 2nd sighup its new worker
 		},
-		//{
-		// TODO: Fix me - ideally since we are not changing config for worker-3,
-		// the total received packet should be 40 only. That would indicate that
-		// on SIGHUP, the connection to JTISIM is not reestablished.
-		//	config:  "tests/data/juniper-junos/config/jtisim-interfaces-3.json",
-		//	totalIn: 80, // this worker was running from beginning (it got two sighup though)
-		//},
+		{
+			config: "tests/data/juniper-junos/config/jtisim-interfaces-3.json",
+			// this worker was running from beginning, it got two SIGHUPs but it's
+			// config wasnt changed so it should not attempt to re-established the
+			// connection with JTISIM. Total run time was 4 + 6 + 4 = 14seconds,
+			// hence it must have received data twice since freq of subscription for
+			// this worker is 10 seconds.
+			totalIn: 80,
+		},
 	}
 
 	for _, test := range tests {
@@ -98,6 +147,140 @@ func TestJTISIMSigHup(t *testing.T) {
 	}
 }
 
+// Same as TestJTISIMSigHupChanged, with config change for
+// worker-3.
+func TestJTISIMSigHupChanged(t *testing.T) {
+	flag.Parse()
+	*noppgoroutines = true
+	*stateHandler = true
+	*prefixCheck = true
+
+	config := "tests/data/juniper-junos/config/jtisim-interfaces-file-list-sig.json"
+	total := 3 // this file has three workers config
+
+	err := GetConfigFiles(configFiles, config)
+	if err != nil {
+		t.Errorf("config parsing error: %s", err)
+	}
+
+	// create and start workers group with three workers
+	workers := NewJWorkers(*configFiles, config, 0)
+	workers.StartWorkers()
+
+	// run them for 4 seconds
+	time.Sleep(time.Duration(4) * time.Second)
+
+	wx := workers.m
+	testsx := []struct {
+		config  string
+		totalIn uint64
+	}{
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-1.json",
+			totalIn: 40, // after 2nd sighup its new worker
+		},
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-2.json",
+			totalIn: 40, // after 2nd sighup its new worker
+		},
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-3.json",
+			totalIn: 80, // this worker was running from beginning (it got two sighup though)
+		},
+	}
+
+	for _, test := range testsx {
+		if v, ok := wx[test.config]; !ok {
+			t.Errorf("workers map is missing entry for worker %s", test.config)
+		} else {
+			fmt.Println("[1] ----- ", test.config, v.jctx.stats.totalIn)
+		}
+	}
+
+	// we should have three workers
+	if len(workers.m) != total {
+		t.Errorf("workers does not match: want %d got %d", total, len(workers.m))
+	}
+
+	// change fileList
+	workers.fileList = "tests/data/juniper-junos/config/jtisim-interfaces-file-list-sig-delete.json"
+	total = 1               // two deleted so we end up with only one worker config
+	workers.SIGHUPWorkers() // send sighup
+
+	// run updated workers for six seconds
+	time.Sleep(time.Duration(6) * time.Second)
+	// we should have only one worker
+	if len(workers.m) != total {
+		t.Errorf("after sighup, workers does not match: want %d got %d", total, len(workers.m))
+	}
+
+	wy := workers.m
+	testsy := []struct {
+		config  string
+		totalIn uint64
+	}{
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-3.json",
+			totalIn: 80, // this worker was running from beginning (it got two sighup though)
+		},
+	}
+
+	for _, test := range testsy {
+		if v, ok := wy[test.config]; !ok {
+			t.Errorf("workers map is missing entry for worker %s", test.config)
+		} else {
+			fmt.Println("[2] ----- ", test.config, v.jctx.stats.totalIn)
+		}
+	}
+
+	// change file list again, bring back all three workers again with changed
+	// config for worker-3
+	workers.fileList = "tests/data/juniper-junos/config/jtisim-interfaces-file-list-chg.json"
+	total = 3 // another sighup, we should have three workers now
+	workers.SIGHUPWorkers()
+
+	// run the stest for 4 seconds. this includes two new workers and one existing worker
+	time.Sleep(time.Duration(4) * time.Second)
+	if len(workers.m) != total {
+		t.Errorf("after sighup, workers does not match: want %d got %d", total, len(workers.m))
+	}
+
+	workers.EndWorkers() // end all workers, this will retain workers map for us to peek data for test
+	workers.Wait()       // this should not block as we have stopped all workers
+
+	w := workers.m
+	tests := []struct {
+		config  string
+		totalIn uint64
+	}{
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-1.json",
+			totalIn: 40, // after 2nd sighup its new worker
+		},
+		{
+			config:  "tests/data/juniper-junos/config/jtisim-interfaces-2.json",
+			totalIn: 40, // after 2nd sighup its new worker
+		},
+		{
+			config: "tests/data/juniper-junos/config/jtisim-interfaces-6.json",
+			// we started this worker as part of config change test in which
+			// jtisim-interfaces-3.json's config is changed so its being deleted
+			// and jtisim-interfaces-6.json is introduced. It got chance to run
+			// only for last 4 seconds so it must have received data only once.
+			totalIn: 40,
+		},
+	}
+
+	for _, test := range tests {
+		if v, ok := w[test.config]; !ok {
+			t.Errorf("workers map is missing entry for worker %s", test.config)
+		} else {
+			if v.jctx.stats.totalIn != test.totalIn {
+				t.Errorf("totalIn mismatch for %s, want %d got %d", test.config, test.totalIn, v.jctx.stats.totalIn)
+			}
+		}
+	}
+}
 func TestJTISIMSigInt(t *testing.T) {
 	flag.Parse()
 	*noppgoroutines = true

@@ -222,6 +222,47 @@ func DecodePassword(jctx *JCtx, config Config) (string, error) {
 	return password, nil
 }
 
+func (jctx *JCtx) isConfigChanged(new Config) bool {
+	old := jctx.config
+	switch {
+	case old.Host != new.Host:
+		return true
+	case old.Port != new.Port:
+		return true
+	case old.User != new.User:
+		return true
+	case old.Password != new.Password:
+		return true
+	case old.CID != new.CID:
+		return true
+	case old.Alias != new.Alias:
+		return true
+	case old.EOS != new.EOS:
+		return true
+	case old.Meta != new.Meta:
+		return true
+	case old.GRPC.WS != new.GRPC.WS:
+		return true
+	case old.Log.File != new.Log.File:
+		return true
+	}
+
+	if !reflect.DeepEqual(old.Paths, new.Paths) {
+		return true
+	}
+	if !reflect.DeepEqual(old.TLS, new.TLS) {
+		return true
+	}
+	if !reflect.DeepEqual(old.Vendor, new.Vendor) {
+		return true
+	}
+	if !reflect.DeepEqual(old.Influx, new.Influx) {
+		return true
+	}
+
+	return false
+}
+
 // HandleConfigChange to check which config changes are allowed
 func HandleConfigChange(jctx *JCtx, config Config, restart *bool) error {
 	// In the config get the decoded password as the running config will
@@ -231,32 +272,23 @@ func HandleConfigChange(jctx *JCtx, config Config, restart *bool) error {
 		return err
 	}
 	config.Password = value
+	//logConfigChanged := false
 	// Compare the new config and the running config
-	if !reflect.DeepEqual(jctx.config, config) {
-		jLog(jctx, fmt.Sprintf("Processing config changes"))
-		// config changed
-		if !reflect.DeepEqual(jctx.config.Influx, config.Influx) {
-			return fmt.Errorf("HandleConfigChange : Influxdb config changes are not allowed")
+
+	configChanged := jctx.isConfigChanged(config)
+	if configChanged {
+		jLog(jctx, fmt.Sprintf("Config is changed for: %s", jctx.file))
+		logStop(jctx)
+		jctx.config = config
+		logInit(jctx)
+		if restart != nil {
+			jLog(jctx, fmt.Sprintf("Restarting worker process to spawn new device connection for: %s", jctx.file))
+			*restart = true
 		}
-		// In case if there is a change only in Log. stop the log and start it again.
-		// No need to disturb the subscription.
-		if jctx.config.Log != config.Log {
-			if IsVerboseLogging(jctx) {
-				jLog(jctx, fmt.Sprintf("Log config has been updated"))
-			}
-			logStop(jctx)
-			jctx.config.Log = config.Log
-			logInit(jctx)
-		}
-		// Check if any change in config post the log updation changes
-		if !reflect.DeepEqual(jctx.config, config) {
-			jctx.config = config
-			if restart != nil {
-				jLog(jctx, fmt.Sprintf("Restarting worker process to spawn new device connection"))
-				*restart = true
-			}
-		}
+	} else {
+		jLog(jctx, fmt.Sprintf("No config changed for: %s", jctx.file))
 	}
+
 	return nil
 }
 

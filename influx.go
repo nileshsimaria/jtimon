@@ -206,7 +206,7 @@ func dbBatchWriteM(jctx *JCtx) {
 	}
 
 	batchSize := jctx.config.Influx.BatchSize
-	batchMCh := make(chan *batchWMData, batchSize)
+	batchMCh := make(chan *batchWMData, batchSize/4)
 	jctx.influxCtx.batchWMCh = batchMCh
 
 	// wake up periodically and perform batch write into InfluxDB

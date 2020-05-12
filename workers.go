@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"google.golang.org/grpc/codes"
+
 	"google.golang.org/grpc"
 )
 
@@ -259,12 +261,15 @@ func NewJWorker(file string, wg *sync.WaitGroup) (*JWorker, error) {
 }
 
 func work(jctx *JCtx, statusch chan struct{}) {
-	var retry bool
-	var opts []grpc.DialOption
+	var (
+		retry   bool
+		opts    []grpc.DialOption
+		tryGnmi = jctx.config.Vendor.Gnmi
+	)
 
 connect:
 	// Read the host-name and vendor from the config as they might be changed
-	vendor, err := getVendor(jctx)
+	vendor, err := getVendor(jctx, tryGnmi)
 	if opts, err = getGPRCDialOptions(jctx, vendor); err != nil {
 		jLog(jctx, fmt.Sprintf("%v", err))
 		statusch <- struct{}{}
@@ -324,6 +329,12 @@ connect:
 	fmt.Println("Calling subscribe() :::", jctx.file)
 	code := vendor.subscribe(conn, jctx)
 	fmt.Println("Returns subscribe() :::", jctx.file, "CODE ::: ", code)
+
+	if tryGnmi &&
+		(code == SubErrorCode(codes.Unimplemented) ||
+			code == SubErrorCode(codes.InvalidArgument)) {
+		tryGnmi = false // fallback to vendor mode
+	}
 
 	// close the current connection and retry
 	conn.Close()

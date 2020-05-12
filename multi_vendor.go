@@ -6,7 +6,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var vendors = []*vendor{newJuniperJUNOS(), newCiscoIOSXR()}
+var vendors = []*vendor{newGNMI(), newJuniperJUNOS(), newCiscoIOSXR()}
 
 type vendor struct {
 	name               string
@@ -16,8 +16,12 @@ type vendor struct {
 	subscribe          func(*grpc.ClientConn, *JCtx) SubErrorCode
 }
 
-func getVendor(jctx *JCtx) (*vendor, error) {
+func getVendor(jctx *JCtx, tryGnmi bool) (*vendor, error) {
 	name := jctx.config.Vendor.Name
+
+	if tryGnmi {
+		name = "gnmi"
+	}
 	// juniper-junos is default
 	if name == "" {
 		name = "juniper-junos"
@@ -47,5 +51,15 @@ func newCiscoIOSXR() *vendor {
 		sendLoginCheck:     nil,
 		dialExt:            dialExtensionXR,
 		subscribe:          subscribeXR,
+	}
+}
+
+func newGNMI() *vendor {
+	return &vendor{
+		name:               "gnmi",
+		loginCheckRequired: false,
+		sendLoginCheck:     nil,
+		dialExt:            nil,
+		subscribe:          subscribegNMI,
 	}
 }

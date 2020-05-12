@@ -53,7 +53,7 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 
 	prefixSeen := false
 	for _, kv := range ocData.Kv {
-		updateStatsKV(jctx, true)
+		updateStatsKV(jctx, true, 1)
 
 		if *print || (IsVerboseLogging(jctx) && !*print) {
 			s += fmt.Sprintf("  key: %s\n", kv.Key)

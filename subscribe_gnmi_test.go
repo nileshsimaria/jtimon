@@ -76,78 +76,6 @@ func TestConvToFloatForPrometheus(t *testing.T) {
 	}
 }
 
-func TestPublishToPrometheus(t *testing.T) {
-	// tests := []struct {
-	// 	name   string
-	// 	input  interface{}
-	// 	err    bool
-	// 	output float64
-	// }{
-	// 	{
-	// 		name:   "int",
-	// 		input:  100,
-	// 		err:    false,
-	// 		output: float64(100),
-	// 	},
-	// 	{
-	// 		name:   "uint",
-	// 		input:  100,
-	// 		err:    false,
-	// 		output: float64(100),
-	// 	},
-	// 	{
-	// 		name:   "bool",
-	// 		input:  true,
-	// 		err:    false,
-	// 		output: float64(1),
-	// 	},
-	// 	{
-	// 		name:   "string",
-	// 		input:  "100",
-	// 		err:    false,
-	// 		output: float64(100),
-	// 	},
-	// 	{
-	// 		name:  "string-err",
-	// 		input: "helloe",
-	// 		err:   true,
-	// 	},
-	// }
-
-	// for _, test := range tests {
-	// 	t.Run(test.name, func(t *testing.T) {
-	// 		output, err := convToFloatForPrometheus(test.input)
-	// 		if !test.err {
-	// 			if err != nil || !reflect.DeepEqual(test.output, output) {
-	// 				var errMsg string
-	// 				errMsg = fmt.Sprintf("\nexpected:%v\nGot:%v", test.output, output)
-	// 				t.Errorf(errMsg)
-	// 			}
-	// 		}
-
-	// 		if test.err {
-	// 			if err == nil && reflect.DeepEqual(test.output, output) {
-	// 				var errMsg string
-	// 				errMsg = fmt.Sprintf("\nexpected:%v\nGot:%v", test.output, output)
-	// 				t.Errorf(errMsg)
-	// 			}
-	// 		}
-	// 	})
-	// }
-}
-
-func TestPublishToInflux(t *testing.T) {
-
-}
-
-func TestGnmiParseHeader(t *testing.T) {
-
-}
-
-func TestGnmiParseNotification(t *testing.T) {
-
-}
-
 func TestGnmiHandleResponse(t *testing.T) {
 	*prom = true
 	gGnmiUnitTestCoverage = true
@@ -345,6 +273,23 @@ func TestGnmiHandleResponse(t *testing.T) {
 	*prom = false
 }
 
-// The below functions should have been already covered by now, so no need to UT them
+// For the below function, better change jtisim?
 func TestSubscribegNMI(t *testing.T) {
+}
+
+// The below functions should have been already covered by now, so no need to UT them
+func TestPublishToPrometheus(t *testing.T) {
+
+}
+
+func TestPublishToInflux(t *testing.T) {
+
+}
+
+func TestGnmiParseHeader(t *testing.T) {
+
+}
+
+func TestGnmiParseNotification(t *testing.T) {
+
 }

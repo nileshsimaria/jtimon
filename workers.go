@@ -10,8 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"google.golang.org/grpc/codes"
-
 	"google.golang.org/grpc"
 )
 
@@ -330,9 +328,7 @@ connect:
 	code := vendor.subscribe(conn, jctx)
 	fmt.Println("Returns subscribe() :::", jctx.file, "CODE ::: ", code)
 
-	if tryGnmi &&
-		(code == SubErrorCode(codes.Unimplemented) ||
-			code == SubErrorCode(codes.InvalidArgument)) {
+	if tryGnmi && code == SubRcRPCFailedNoRetry {
 		tryGnmi = false // fallback to vendor mode
 	}
 

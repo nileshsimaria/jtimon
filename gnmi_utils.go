@@ -120,7 +120,7 @@ func gnmiFreq(mode gnmi.SubscriptionMode, inFreq uint64) uint64 {
 		return 0
 	}
 
-	freq := (inFreq / 1000) * gGnmiFreqUnits
+	freq := (inFreq * gGnmiFreqUnits) / 1000
 
 	if freq != 0 && freq < gGnmiFreqMin {
 		freq = gGnmiFreqMin
@@ -288,18 +288,40 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue) interface{} {
 		value = gnmiValue.GetAnyVal()
 	case *gnmi.TypedValue_DecimalVal:
 		d64Val := gnmiValue.GetDecimalVal()
-		f64Val := float64(d64Val.GetDigits()) / math.Pow10(int(d64Val.GetPrecision()))
-		value = f64Val
+		value = ((float64(d64Val.GetDigits())) / math.Pow10(int(d64Val.GetPrecision())))
 	case *gnmi.TypedValue_FloatVal:
-		value = gnmiValue.GetFloatVal()
+		value = float64(gnmiValue.GetFloatVal())
 	case *gnmi.TypedValue_LeaflistVal:
-		var sa []interface{}
+		var (
+			saVal      interface{}
+			intVals    []int64
+			floatVals  []float64
+			boolVals   []bool
+			stringVals []string
+			byteVals   [][]byte
+		)
+
 		vals := gnmiValue.GetLeaflistVal().GetElement()
 		for _, val := range vals {
-			sa = append(sa, gnmiParseValue(val))
+			saVal = gnmiParseValue(val)
+			switch saVal.(type) {
+			case int64:
+				intVals = append(intVals, saVal.(int64))
+				value = intVals
+			case float64:
+				floatVals = append(floatVals, saVal.(float64))
+				value = floatVals
+			case bool:
+				boolVals = append(boolVals, saVal.(bool))
+				value = boolVals
+			case string:
+				stringVals = append(stringVals, saVal.(string))
+				value = stringVals
+			case []byte:
+				byteVals = append(byteVals, saVal.([]byte))
+				value = byteVals
+			}
 		}
-
-		value = sa
 	default:
 		value = gnmiValue.GetStringVal()
 	}
@@ -320,6 +342,9 @@ func formJuniperTelemetryHdr(jXpaths *jnprXpathDetails, gnmiExt []*gnmi_ext1.Ext
 
 	if jXpaths != nil {
 		hdrXpathValue, jHdrPresent = jXpaths.xPaths[jXpaths.hdrXpath]
+		if !jHdrPresent {
+			errMsg = fmt.Sprintf("Juniper header not present in updates")
+		}
 	} else {
 		var extIds []gnmi_ext1.ExtensionID
 		for _, ext := range gnmiExt {
@@ -334,7 +359,7 @@ func formJuniperTelemetryHdr(jXpaths *jnprXpathDetails, gnmiExt []*gnmi_ext1.Ext
 		}
 
 		if !jHdrPresent {
-			errMsg = fmt.Sprintf("Available extensions: %v", extIds)
+			errMsg = fmt.Sprintf("Juniper header extension not present, available extensions: %v", extIds)
 		}
 	}
 

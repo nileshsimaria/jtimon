@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	google_protobuf "github.com/golang/protobuf/ptypes/any"
@@ -20,6 +21,9 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Only for unit test and coverage purposes
+var gGnmiUnitTestCoverage bool
+
 // Convert data to float64, Prometheus sampling is only in float64
 func convToFloatForPrometheus(v interface{}) (float64, error) {
 	var fieldValue float64
@@ -27,10 +31,6 @@ func convToFloatForPrometheus(v interface{}) (float64, error) {
 	switch v.(type) {
 	case int64:
 		fieldValue = float64(v.(int64))
-	case uint64:
-		fieldValue = float64(v.(uint64))
-	case float32:
-		fieldValue = float64(v.(float32))
 	case float64:
 		fieldValue = v.(float64)
 	case bool:
@@ -98,7 +98,9 @@ func publishToPrometheus(jctx *JCtx, parseOutput *gnmiParseOutputT) {
 			jLog(jctx, fmt.Sprintf("metricName: %v, metricValue: %v, metricLabels: %v, mapKey: %v \n", metric.metricName, metric.metricValue, metric.metricLabels, metric.mapKey))
 		}
 
-		exporter.ch <- metric
+		if !gGnmiUnitTestCoverage {
+			exporter.ch <- metric
+		}
 	}
 
 	return
@@ -109,7 +111,7 @@ func publishToPrometheus(jctx *JCtx, parseOutput *gnmiParseOutputT) {
  * floats and strings. Influx Line Protocol doesn't support other types
  */
 func publishToInflux(jctx *JCtx, mName string, prefixPath string, kvpairs map[string]string, xpaths map[string]interface{}) error {
-	if jctx.influxCtx.influxClient == nil {
+	if !gGnmiUnitTestCoverage && jctx.influxCtx.influxClient == nil {
 		return nil
 	}
 
@@ -126,9 +128,11 @@ func publishToInflux(jctx *JCtx, mName string, prefixPath string, kvpairs map[st
 			jLog(jctx, msg)
 		}
 
-		jctx.influxCtx.batchWMCh <- &batchWMData{
-			measurement: mName,
-			points:      []*client.Point{pt},
+		if !gGnmiUnitTestCoverage {
+			jctx.influxCtx.batchWMCh <- &batchWMData{
+				measurement: mName,
+				points:      []*client.Point{pt},
+			}
 		}
 	} else {
 		if *print || IsVerboseLogging(jctx) {
@@ -136,7 +140,9 @@ func publishToInflux(jctx *JCtx, mName string, prefixPath string, kvpairs map[st
 			jLog(jctx, msg)
 		}
 
-		jctx.influxCtx.batchWCh <- []*client.Point{pt}
+		if !gGnmiUnitTestCoverage {
+			jctx.influxCtx.batchWCh <- []*client.Point{pt}
+		}
 	}
 
 	return nil
@@ -282,7 +288,6 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 	// 4. Extract prefix, tags, values and juniper speecific header info if present
 	//gnmiParseUpdate(notif.GetPrefix(), notif.GetUpdate())
 	//gnmiParseDelete(notif.GetPrefix(), notif.Get
-	jLog(jctx, fmt.Sprintf("gNMI host: %v, timestamp: %v", hostname, rsp.GetUpdate().GetTimestamp()))
 	parseOutput, err = gnmiParseNotification(rsp, parseOutput)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("gNMI host: %v, parsing notification failed: %v", hostname, err.Error()))
@@ -293,8 +298,8 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 	updateStatsKV(jctx, true, parseOutput.inKvs)
 
 	if parseOutput.mName == "" {
-		jLog(jctx, fmt.Sprintf("gNMI host: %v, invalid measurement name", hostname))
-		return err
+		jLog(jctx, fmt.Sprintf("gNMI host: %v, measurement name extraction failed", hostname))
+		return errors.New("Measurement name extraction failed")
 	}
 
 	parseOutput.kvpairs["device"] = jctx.config.Host
@@ -310,16 +315,20 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 	}
 
 	if *print || IsVerboseLogging(jctx) {
-		jLog(jctx, fmt.Sprintf("prefix: %v", parseOutput.prefixPath))
-		jLog(jctx, fmt.Sprintf("kvpairs: %v", parseOutput.kvpairs))
-		jLog(jctx, fmt.Sprintf("xpathVal: %v", parseOutput.xpaths))
+		var (
+			jxpaths  map[string]interface{}
+			jGnmiHdr string
+		)
+
 		if parseOutput.jXpaths != nil {
-			jLog(jctx, fmt.Sprintf("juniperXpathVal: %v", parseOutput.jXpaths.xPaths))
+			jxpaths = parseOutput.jXpaths.xPaths
 		}
 		if parseOutput.jHeader != nil {
-			jLog(jctx, fmt.Sprintf("juniperhdr: %v", parseOutput.jHeader.hdr.String()))
+			jGnmiHdr = parseOutput.jHeader.hdr.String()
 		}
-		jLog(jctx, fmt.Sprintf("measurement: %v\n\n", parseOutput.mName))
+
+		jLog(jctx, fmt.Sprintf("prefix: %v, kvpairs: %v, xpathVal: %v, juniperXpathVal: %v, juniperhdr: %v, measurement: %v\n\n",
+			parseOutput.prefixPath, parseOutput.kvpairs, parseOutput.xpaths, jxpaths, jGnmiHdr, parseOutput.mName))
 	}
 
 	err = publishToInflux(jctx, parseOutput.mName, parseOutput.prefixPath, parseOutput.kvpairs, parseOutput.xpaths)
@@ -372,14 +381,19 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 	gNMISubHandle, err := gnmi.NewGNMIClient(conn).Subscribe(context.Background())
 	if err != nil {
 		sc, _ := status.FromError(err)
+		if sc.Code() == codes.Unimplemented || sc.Code() == codes.InvalidArgument {
+			jLog(jctx, fmt.Sprintf("gNMI host: %v, subscribe handle creation failed, code: %v, err: %v", hostname, sc.Code(), err))
+			return SubRcRPCFailedNoRetry
+		}
+
 		jLog(jctx, fmt.Sprintf("gNMI host: %v, subscribe handle creation failed, code: %v, err: %v", hostname, sc.Code(), err))
-		return SubErrorCode(sc.Code())
+		return SubRcConnRetry
 	}
 
 	err = gNMISubHandle.Send(&req)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("gNMI host: %v, send request failed: %v", hostname, err))
-		return -1
+		return SubRcConnRetry
 	}
 
 	datach := make(chan struct{})

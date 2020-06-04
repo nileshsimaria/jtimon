@@ -163,7 +163,7 @@ func gnmiParseHeader(rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT)
 		ok                bool
 		err               error
 
-		verboseSensorDetails string
+		verboseSensorDetails, mName string
 	)
 
 	prefixPath := parseOutput.prefixPath
@@ -185,31 +185,31 @@ func gnmiParseHeader(rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT)
 		return parseOutput, err
 	}
 
-	hdr := juniperHdrDetails.hdr
-
-	if !juniperHdrDetails.presentInExtension {
-		verboseSensorDetails = hdr.GetSensorName()
+	if juniperHdrDetails.hdr != nil {
+		var hdr = juniperHdrDetails.hdr
+		verboseSensorDetails = hdr.GetPath()
 		splits := strings.Split(verboseSensorDetails, gGnmiVerboseSensorDetailsDelim)
-		hdr.SensorName = splits[0]
-		hdr.StreamedPath = splits[1]
-		hdr.SubscribedPath = splits[2]
-		hdr.Component = splits[3]
+
+		mName = splits[2] // Denotes subscribed path
 		if jXpaths.publishTsXpath != "" {
 			xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonExportTsName] = jXpaths.xPaths[jXpaths.publishTsXpath]
 		}
-		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = rsp.GetUpdate().GetTimestamp()
+		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = (rsp.GetUpdate().GetTimestamp() / gGnmiFreqToMilli)
 	} else {
+		var hdr = juniperHdrDetails.hdrExt
 		verboseSensorDetails = hdr.GetSensorName() + gGnmiVerboseSensorDetailsDelim +
 			hdr.GetStreamedPath() + gGnmiVerboseSensorDetailsDelim +
 			hdr.GetSubscribedPath() + gGnmiVerboseSensorDetailsDelim +
 			hdr.GetComponent()
+
+		mName = hdr.GetSubscribedPath()
 		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonExportTsName] = hdr.GetExportTimestamp()
-		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = rsp.GetUpdate().GetTimestamp()
+		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = (rsp.GetUpdate().GetTimestamp() / gGnmiFreqToMilli)
 	}
 
 	parseOutput.jHeader = juniperHdrDetails
 	parseOutput.sensorVal = verboseSensorDetails
-	parseOutput.mName = hdr.GetSubscribedPath()
+	parseOutput.mName = mName
 	return parseOutput, nil
 }
 
@@ -285,9 +285,11 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 		return nil
 	}
 
-	// 4. Extract prefix, tags, values and juniper speecific header info if present
-	//gnmiParseUpdate(notif.GetPrefix(), notif.GetUpdate())
-	//gnmiParseDelete(notif.GetPrefix(), notif.Get
+	/*
+	 * Extract prefix, tags, values and juniper speecific header info if present
+	 * gnmiParseUpdate(notif.GetPrefix(), notif.GetUpdate())
+	 * gnmiParseDelete(notif.GetPrefix(), notif.Get
+	 */
 	parseOutput, err = gnmiParseNotification(rsp, parseOutput)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("gNMI host: %v, parsing notification failed: %v", hostname, err.Error()))
@@ -324,7 +326,11 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 			jxpaths = parseOutput.jXpaths.xPaths
 		}
 		if parseOutput.jHeader != nil {
-			jGnmiHdr = parseOutput.jHeader.hdr.String()
+			if parseOutput.jHeader.hdr != nil {
+				jGnmiHdr = "updates header{" + parseOutput.jHeader.hdr.String() + "}"
+			} else {
+				jGnmiHdr = "extension header{" + parseOutput.jHeader.hdrExt.String() + "}"
+			}
 		}
 
 		jLog(jctx, fmt.Sprintf("prefix: %v, kvpairs: %v, xpathVal: %v, juniperXpathVal: %v, juniperhdr: %v, measurement: %v\n\n",
@@ -380,13 +386,7 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 	// 2. Subscribe
 	gNMISubHandle, err := gnmi.NewGNMIClient(conn).Subscribe(context.Background())
 	if err != nil {
-		sc, _ := status.FromError(err)
-		if sc.Code() == codes.Unimplemented || sc.Code() == codes.InvalidArgument {
-			jLog(jctx, fmt.Sprintf("gNMI host: %v, subscribe handle creation failed, code: %v, err: %v", hostname, sc.Code(), err))
-			return SubRcRPCFailedNoRetry
-		}
-
-		jLog(jctx, fmt.Sprintf("gNMI host: %v, subscribe handle creation failed, code: %v, err: %v", hostname, sc.Code(), err))
+		jLog(jctx, fmt.Sprintf("gNMI host: %v, subscribe handle creation failed, err: %v", hostname, err))
 		return SubRcConnRetry
 	}
 
@@ -396,7 +396,7 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 		return SubRcConnRetry
 	}
 
-	datach := make(chan struct{})
+	datach := make(chan SubErrorCode)
 
 	// 3. Receive rsp
 	go func() {
@@ -410,13 +410,25 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 			if err == io.EOF {
 				printSummary(jctx)
 				jLog(jctx, fmt.Sprintf("gNMI host: %v, received eof", hostname))
-				datach <- struct{}{}
+				datach <- SubRcConnRetry
 				return
 			}
 
 			if err != nil {
 				jLog(jctx, fmt.Sprintf("gNMI host: %v, receive response failed: %v", hostname, err))
-				datach <- struct{}{}
+				sc, _ := status.FromError(err)
+
+				/*
+				 * Unavailable is just a cover-up for JUNOS, ideally the device is expected to return:
+				 *   1. Unimplemented if RPC is not available yet
+				 *   2. InvalidArgument is RPC is not able to honour the input
+				 */
+				if sc.Code() == codes.Unimplemented || sc.Code() == codes.InvalidArgument || sc.Code() == codes.Unavailable {
+					datach <- SubRcRPCFailedNoRetry
+					return
+				}
+
+				datach <- SubRcConnRetry
 				return
 			}
 
@@ -443,9 +455,9 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 				// we are done
 				return SubRcSighupNoRestart
 			}
-		case <-datach:
-			// data is not received, retry the connection
-			return SubRcConnRetry
+		case subCode := <-datach:
+			// return the subcode, proper action will be taken by caller
+			return subCode
 		}
 	}
 }

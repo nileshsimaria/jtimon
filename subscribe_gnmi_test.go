@@ -10,6 +10,7 @@ import (
 	gnmi "github.com/nileshsimaria/jtimon/gnmi/gnmi"
 	gnmi_ext1 "github.com/nileshsimaria/jtimon/gnmi/gnmi_ext"
 	gnmi_juniper_header "github.com/nileshsimaria/jtimon/gnmi/gnmi_juniper_header"
+	gnmi_juniper_header_ext "github.com/nileshsimaria/jtimon/gnmi/gnmi_juniper_header_ext"
 )
 
 func TestConvToFloatForPrometheus(t *testing.T) {
@@ -80,7 +81,7 @@ func TestGnmiHandleResponse(t *testing.T) {
 	*prom = true
 	gGnmiUnitTestCoverage = true
 
-	var hdrInputExt = gnmi_juniper_header.GnmiJuniperTelemetryHeader{
+	var hdrInputExt = gnmi_juniper_header_ext.GnmiJuniperTelemetryHeaderExtension{
 		SystemId: "my-device", ComponentId: 65535, SubComponentId: 0,
 		SensorName: "sensor_1", SequenceNumber: 1, SubscribedPath: "/interfaces/",
 		StreamedPath: "/interfaces/", Component: "mib2d",
@@ -93,7 +94,7 @@ func TestGnmiHandleResponse(t *testing.T) {
 
 	var hdrInputXpath = gnmi_juniper_header.GnmiJuniperTelemetryHeader{
 		SystemId: "my-device", ComponentId: 65535, SubComponentId: 0,
-		SensorName: "sensor_1:/interfaces/:/interfaces/:mib2d",
+		Path: "sensor_1:/interfaces/:/interfaces/:mib2d", SequenceNumber: 1,
 	}
 
 	hdrInputXpathBytes, err := proto.Marshal(&hdrInputXpath)

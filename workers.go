@@ -340,6 +340,10 @@ connect:
 		jLog(jctx, fmt.Sprintf("sighup detected, reconnect with new config for worker %s", jctx.file))
 		retry = true
 		goto connect
+	case SubRcRPCFailedNoRetry:
+		jLog(jctx, fmt.Sprintf("RPC failed and reconnecting with fallback RPC if available %s", jctx.file))
+		retry = true
+		goto connect
 	case SubRcConnRetry:
 		jLog(jctx, fmt.Sprintf("subscribe returns, reconnecting after 10s for worker %s", jctx.file))
 		time.Sleep(10 * time.Second)

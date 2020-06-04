@@ -11,6 +11,7 @@ import (
 	gnmi "github.com/nileshsimaria/jtimon/gnmi/gnmi"
 	gnmi_ext1 "github.com/nileshsimaria/jtimon/gnmi/gnmi_ext"
 	gnmi_juniper_header "github.com/nileshsimaria/jtimon/gnmi/gnmi_juniper_header"
+	gnmi_juniper_header_ext "github.com/nileshsimaria/jtimon/gnmi/gnmi_juniper_header_ext"
 )
 
 func TestXPathTognmiPath(t *testing.T) {
@@ -89,18 +90,18 @@ func TestXPathTognmiPath(t *testing.T) {
 }
 
 func TestGnmiMode(t *testing.T) {
-		tests := []struct {
-			name    string
-			inMode  string
-			err     bool
-			outMode gnmi.SubscriptionMode
-		}{
-			{
-				name:    "gnmi-mode-on-change",
-				inMode:  "on-change",
-				err:     false,
-				outMode: gnmi.SubscriptionMode_ON_CHANGE,
-			},
+	tests := []struct {
+		name    string
+		inMode  string
+		err     bool
+		outMode gnmi.SubscriptionMode
+	}{
+		{
+			name:    "gnmi-mode-on-change",
+			inMode:  "on-change",
+			err:     false,
+			outMode: gnmi.SubscriptionMode_ON_CHANGE,
+		},
 		{
 			name:    "gnmi-mode-sample",
 			inMode:  "",
@@ -521,10 +522,21 @@ func TestGnmiParseDeletes(t *testing.T) {
 func TestFormJuniperTelemetryHdr(t *testing.T) {
 	var hdrInputXpath = gnmi_juniper_header.GnmiJuniperTelemetryHeader{
 		SystemId: "my-device", ComponentId: 65535, SubComponentId: 0,
-		SensorName: "sensor_1:/a/:/z/:my-app",
+		Path: "sensor_1:/a/:/z/:my-app", SequenceNumber: 100,
 	}
 
 	hdrInputXpathBytes, err := proto.Marshal(&hdrInputXpath)
+	if err != nil {
+		t.Errorf("Error marshalling header for xpath case: %v", err)
+	}
+
+	var hdrInputExt = gnmi_juniper_header_ext.GnmiJuniperTelemetryHeaderExtension{
+		SystemId: "my-device", ComponentId: 65535, SubComponentId: 0,
+		SensorName: "sensor_1:/a/:/z/:my-app", StreamedPath: "/a/", SubscribedPath: "/z/",
+		Component: "my-app", SequenceNumber: 100,
+	}
+
+	hdrInputExtBytes, err := proto.Marshal(&hdrInputExt)
 	if err != nil {
 		t.Errorf("Error marshalling header for xpath case: %v", err)
 	}
@@ -550,8 +562,7 @@ func TestFormJuniperTelemetryHdr(t *testing.T) {
 			},
 			isJuniper: true,
 			output: &juniperGnmiHeaderDetails{
-				presentInExtension: false,
-				hdr:                &hdrInputXpath,
+				hdr: &hdrInputXpath,
 			},
 		},
 		{
@@ -562,15 +573,14 @@ func TestFormJuniperTelemetryHdr(t *testing.T) {
 					Ext: &gnmi_ext1.Extension_RegisteredExt{
 						RegisteredExt: &gnmi_ext1.RegisteredExtension{
 							Id:  gnmi_ext1.ExtensionID_EID_JUNIPER_TELEMETRY_HEADER,
-							Msg: hdrInputXpathBytes,
+							Msg: hdrInputExtBytes,
 						},
 					},
 				},
 			},
 			isJuniper: true,
 			output: &juniperGnmiHeaderDetails{
-				presentInExtension: true,
-				hdr:                &hdrInputXpath,
+				hdrExt: &hdrInputExt,
 			},
 		},
 		{

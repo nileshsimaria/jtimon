@@ -12,6 +12,7 @@ import (
 	gnmi "github.com/nileshsimaria/jtimon/gnmi/gnmi"
 	gnmi_ext1 "github.com/nileshsimaria/jtimon/gnmi/gnmi_ext"
 	gnmi_juniper_header "github.com/nileshsimaria/jtimon/gnmi/gnmi_juniper_header"
+	gnmi_juniper_header_ext "github.com/nileshsimaria/jtimon/gnmi/gnmi_juniper_header_ext"
 )
 
 const (
@@ -34,15 +35,16 @@ const (
 	gGnmiJtimonExportTsName          = "__export_timestamp__"
 	gGnmiJtimonSyncRsp               = "__sync_response__"
 
-	gGnmiFreqUnits = 1000 * 1000 * 1000 // nano secs
-	gGnmiFreqMin   = 2 * gGnmiFreqUnits
+	gGnmiFreqUnits   = 1000 * 1000 * 1000 // nano secs
+	gGnmiFreqMin     = 2 * gGnmiFreqUnits
+	gGnmiFreqToMilli = 1000 * 1000 // milli secs
 
 	gXPathInfluxIndexIdentifier = "@"
 )
 
 type juniperGnmiHeaderDetails struct {
-	presentInExtension bool
-	hdr                *gnmi_juniper_header.GnmiJuniperTelemetryHeader
+	hdr    *gnmi_juniper_header.GnmiJuniperTelemetryHeader
+	hdrExt *gnmi_juniper_header_ext.GnmiJuniperTelemetryHeaderExtension
 }
 
 type jnprXpathDetails struct {
@@ -167,16 +169,17 @@ func gnmiParseUpdates(prefix *gnmi.Path, updates []*gnmi.Update, parseOutput *gn
 
 		xpath, kvpairs, internalFields = gnmiParsePath(prefixPath, path.GetElem(), kvpairs,
 			[]string{gGnmiJuniperHeaderFieldName, gGnmiJuniperPublishTsFieldName})
-		value := gnmiParseValue(update.GetVal())
 
 		if len(internalFields) == 0 {
-			xpathValue[xpath] = value
+			xpathValue[xpath] = gnmiParseValue(update.GetVal(), false)
 		} else {
-			tmpJXpaths.xPaths[xpath] = value
+
 			if _, ok := internalFields[gGnmiJuniperHeaderFieldName]; ok {
 				tmpJXpaths.hdrXpath = xpath
+				tmpJXpaths.xPaths[xpath] = gnmiParseValue(update.GetVal(), false)
 			} else if _, ok := internalFields[gGnmiJuniperPublishTsFieldName]; ok {
 				tmpJXpaths.publishTsXpath = xpath
+				tmpJXpaths.xPaths[xpath] = gnmiParseValue(update.GetVal(), true)
 			}
 
 			if jXpaths == nil {
@@ -262,7 +265,7 @@ func gnmiParsePath(prefix string, pes []*gnmi.PathElem, kvpairs map[string]strin
 }
 
 // Convert gNMI value to data types that Influx Line Protocol supports.
-func gnmiParseValue(gnmiValue *gnmi.TypedValue) interface{} {
+func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool) interface{} {
 	var value interface{}
 
 	switch gnmiValue.GetValue().(type) {
@@ -271,7 +274,11 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue) interface{} {
 	case *gnmi.TypedValue_IntVal:
 		value = gnmiValue.GetIntVal()
 	case *gnmi.TypedValue_UintVal:
-		value = float64(gnmiValue.GetUintVal())
+		if !ts {
+			value = float64(gnmiValue.GetUintVal())
+		} else {
+			value = int64(gnmiValue.GetUintVal())
+		}
 	case *gnmi.TypedValue_JsonIetfVal:
 		value = gnmiValue.GetJsonIetfVal()
 	case *gnmi.TypedValue_JsonVal:
@@ -303,7 +310,7 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue) interface{} {
 
 		vals := gnmiValue.GetLeaflistVal().GetElement()
 		for _, val := range vals {
-			saVal = gnmiParseValue(val)
+			saVal = gnmiParseValue(val, false)
 			switch saVal.(type) {
 			case int64:
 				intVals = append(intVals, saVal.(int64))
@@ -335,7 +342,6 @@ func formJuniperTelemetryHdr(jXpaths *jnprXpathDetails, gnmiExt []*gnmi_ext1.Ext
 		jHdrPresent       bool
 		hdrXpathValue     interface{}
 		regExt            *gnmi_ext1.RegisteredExtension
-		hdr               gnmi_juniper_header.GnmiJuniperTelemetryHeader
 		juniperHdrDetails juniperGnmiHeaderDetails
 		errMsg            string
 	)
@@ -370,6 +376,7 @@ func formJuniperTelemetryHdr(jXpaths *jnprXpathDetails, gnmiExt []*gnmi_ext1.Ext
 	if hdrXpathValue != nil {
 		switch hdrXpathValue.(type) {
 		case *google_protobuf.Any:
+			var hdr gnmi_juniper_header.GnmiJuniperTelemetryHeader
 			anyMsg := hdrXpathValue.(*google_protobuf.Any)
 			anyMsgName, err := ptypes.AnyMessageName(anyMsg)
 			if err != nil {
@@ -381,18 +388,17 @@ func formJuniperTelemetryHdr(jXpaths *jnprXpathDetails, gnmiExt []*gnmi_ext1.Ext
 				ptypes.UnmarshalAny(anyMsg, &hdr) // Beware, we parse old headers with new proto.
 			}
 
-			juniperHdrDetails.presentInExtension = false
 			juniperHdrDetails.hdr = &hdr
 		}
 	} else {
+		var hdr gnmi_juniper_header_ext.GnmiJuniperTelemetryHeaderExtension
 		err := proto.Unmarshal(regExt.GetMsg(), &hdr)
 		if err != nil {
 			errMsg = fmt.Sprintf("Extension message parsing failed: %v", err)
 			return nil, true, errors.New(errMsg)
 		}
 
-		juniperHdrDetails.presentInExtension = true
-		juniperHdrDetails.hdr = &hdr
+		juniperHdrDetails.hdrExt = &hdr
 	}
 
 	return &juniperHdrDetails, true, nil

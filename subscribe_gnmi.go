@@ -281,14 +281,18 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 	updateStats(jctx, nil, true)
 	if syncRsp := rsp.GetSyncResponse(); syncRsp {
 		jLog(jctx, fmt.Sprintf("gNMI host: %v, received sync response", hostname))
-		parseOutput.syncRsp = true // It is better we persist this in jctx
+		parseOutput.syncRsp = true
+		jctx.receivedSyncRsp = true
+		return nil
+	}
+
+	// Ignore all packets till sync response is received.
+	if !jctx.config.EOS && !jctx.receivedSyncRsp {
 		return nil
 	}
 
 	/*
 	 * Extract prefix, tags, values and juniper speecific header info if present
-	 * gnmiParseUpdate(notif.GetPrefix(), notif.GetUpdate())
-	 * gnmiParseDelete(notif.GetPrefix(), notif.Get
 	 */
 	parseOutput, err = gnmiParseNotification(rsp, parseOutput)
 	if err != nil {
@@ -368,6 +372,9 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 
 	// PROTO encoding
 	subs.Encoding = gnmi.Encoding_PROTO
+
+	// Is isync needed?
+	subs.UpdatesOnly = !jctx.config.EOS
 
 	// Form paths
 	for _, p := range jctx.config.Paths {

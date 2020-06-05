@@ -41,6 +41,7 @@ type VendorConfig struct {
 	Name     string         `json:"name"`
 	RemoveNS bool           `json:"remove-namespace"`
 	Schema   []VendorSchema `json:"schema"`
+	Gnmi     bool           `json:"gnmi"`
 }
 
 // VendorSchema definition

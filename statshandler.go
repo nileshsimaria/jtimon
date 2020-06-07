@@ -69,7 +69,7 @@ func updateStats(jctx *JCtx, ocData *na_pb.OpenConfigData, needLock bool) {
 	jctx.stats.totalIn++
 }
 
-func updateStatsKV(jctx *JCtx, needLock bool, count uint64) {
+func updateStatsKV(jctx *JCtx, needLock bool) {
 	if !*stateHandler {
 		return
 	}
@@ -78,7 +78,7 @@ func updateStatsKV(jctx *JCtx, needLock bool, count uint64) {
 		jctx.stats.Lock()
 		defer jctx.stats.Unlock()
 	}
-	jctx.stats.totalKV = jctx.stats.totalKV + count
+	jctx.stats.totalKV++
 }
 
 func periodicStats(jctx *JCtx) {

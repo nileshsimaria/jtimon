@@ -15,19 +15,20 @@ import (
 
 // JCtx is JTIMON run time context
 type JCtx struct {
-	config    Config
-	file      string
-	wg        *sync.WaitGroup
-	influxCtx InfluxCtx
-	stats     statsCtx
-	pExporter *jtimonPExporter
-	control   chan os.Signal
-	running   bool
-	alias     *Alias
-	testMeta  *os.File
-	testBytes *os.File
-	testExp   *os.File
-	testRes   *os.File
+	config          Config
+	file            string
+	wg              *sync.WaitGroup
+	influxCtx       InfluxCtx
+	stats           statsCtx
+	pExporter       *jtimonPExporter
+	control         chan os.Signal
+	running         bool
+	alias           *Alias
+	testMeta        *os.File
+	testBytes       *os.File
+	testExp         *os.File
+	testRes         *os.File
+	receivedSyncRsp bool
 }
 
 // JWorkers holds worker

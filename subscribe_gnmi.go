@@ -306,16 +306,21 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 				if parseOutput.jHeader.hdr != nil {
 					if parseOutput.jHeader.hdr.GetSequenceNumber() >= gGnmiJuniperIsyncSeqNumBegin &&
 						parseOutput.jHeader.hdr.GetSequenceNumber() <= gGnmiJuniperIsyncSeqNumEnd {
-						return nil
+						errMsg := fmt.Sprintf("%s. Dropping initial sync packet, seq num: %v", gGnmiJtimonIgnoreErrorSubstr, parseOutput.jHeader.hdr.GetSequenceNumber())
+						return errors.New(errMsg)
 					}
 				}
 
-				if parseOutput.jHeader.hdrExt.GetSequenceNumber() >= gGnmiJuniperIsyncSeqNumBegin &&
-					parseOutput.jHeader.hdrExt.GetSequenceNumber() <= gGnmiJuniperIsyncSeqNumEnd {
-					return nil
+				if parseOutput.jHeader.hdrExt != nil {
+					if parseOutput.jHeader.hdrExt.GetSequenceNumber() >= gGnmiJuniperIsyncSeqNumBegin &&
+						parseOutput.jHeader.hdrExt.GetSequenceNumber() <= gGnmiJuniperIsyncSeqNumEnd {
+						errMsg := fmt.Sprintf("%s. Dropping initial sync packet, seq num: %v", gGnmiJtimonIgnoreErrorSubstr, parseOutput.jHeader.hdrExt.GetSequenceNumber())
+						return errors.New(errMsg)
+					}
 				}
 			} else {
-				return nil
+				errMsg := fmt.Sprintf("%s. Dropping initial sync packet", gGnmiJtimonIgnoreErrorSubstr)
+				return errors.New(errMsg)
 			}
 		}
 	}
@@ -467,12 +472,17 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 
 			if *noppgoroutines {
 				err = gnmiHandleResponse(jctx, rsp)
-				if err != nil {
+				if err != nil && strings.Contains(err.Error(), gGnmiJtimonIgnoreErrorSubstr) {
 					jLog(jctx, fmt.Sprintf("gNMI host: %v, parsing response failed: %v", hostname, err))
 					continue
 				}
 			} else {
-				go gnmiHandleResponse(jctx, rsp)
+				go func() {
+					err = gnmiHandleResponse(jctx, rsp)
+					if err != nil && strings.Contains(err.Error(), gGnmiJtimonIgnoreErrorSubstr) {
+						jLog(jctx, fmt.Sprintf("gNMI host: %v, parsing response failed: %v", hostname, err))
+					}
+				}()
 			}
 		}
 	}()

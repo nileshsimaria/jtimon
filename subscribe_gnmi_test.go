@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -89,7 +90,7 @@ func TestGnmiHandleResponse(t *testing.T) {
 
 	hdrInputExtBytes, err := proto.Marshal(&hdrInputExt)
 	if err != nil {
-		t.Errorf("Error marshalling header for xpath case: %v", err)
+		t.Errorf("Error marshalling header for ext case: %v", err)
 	}
 
 	var hdrInputXpath = gnmi_juniper_header.GnmiJuniperTelemetryHeader{
@@ -100,6 +101,27 @@ func TestGnmiHandleResponse(t *testing.T) {
 	hdrInputXpathBytes, err := proto.Marshal(&hdrInputXpath)
 	if err != nil {
 		t.Errorf("Error marshalling header for xpath case: %v", err)
+	}
+
+	var hdrInputExtIsync = gnmi_juniper_header_ext.GnmiJuniperTelemetryHeaderExtension{
+		SystemId: "my-device", ComponentId: 65535, SubComponentId: 0,
+		SensorName: "sensor_1", SequenceNumber: gGnmiJuniperIsyncSeqNumBegin, SubscribedPath: "/interfaces/",
+		StreamedPath: "/interfaces/", Component: "mib2d",
+	}
+
+	hdrInputExtIsyncBytes, err := proto.Marshal(&hdrInputExtIsync)
+	if err != nil {
+		t.Errorf("Error marshalling header for ext isync case: %v", err)
+	}
+
+	var hdrInputXpathIsync = gnmi_juniper_header.GnmiJuniperTelemetryHeader{
+		SystemId: "my-device", ComponentId: 65535, SubComponentId: 0,
+		Path: "sensor_1:/interfaces/:/interfaces/:mib2d", SequenceNumber: gGnmiJuniperIsyncSeqNumEnd,
+	}
+
+	hdrInputXpathIsyncBytes, err := proto.Marshal(&hdrInputXpathIsync)
+	if err != nil {
+		t.Errorf("Error marshalling header for xpath isync case: %v", err)
 	}
 
 	tests := []struct {
@@ -247,12 +269,136 @@ func TestGnmiHandleResponse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "rsp-check-not-expecting-eos-juniper-isync-packet-ext",
+			err:  false,
+			jctx: &JCtx{
+				config: Config{
+					Host: "127.0.0.1",
+					Port: 32767,
+					Log: LogConfig{
+						Verbose: true,
+					},
+				},
+			},
+			rsp: &gnmi.SubscribeResponse{
+				Extension: []*gnmi_ext1.Extension{
+					{
+						Ext: &gnmi_ext1.Extension_RegisteredExt{
+							RegisteredExt: &gnmi_ext1.RegisteredExtension{
+								Id:  gnmi_ext1.ExtensionID_EID_JUNIPER_TELEMETRY_HEADER,
+								Msg: hdrInputExtIsyncBytes,
+							},
+						},
+					},
+				},
+				Response: &gnmi.SubscribeResponse_Update{
+					Update: &gnmi.Notification{
+						Timestamp: 1589476296083000000,
+						Prefix: &gnmi.Path{
+							Origin: "",
+							Elem: []*gnmi.PathElem{
+								{Name: "interfaces"},
+								{Name: "interface", Key: map[string]string{"k1": "foo"}},
+								{Name: "subinterfaces"},
+								{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+							},
+						},
+						Update: []*gnmi.Update{
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "description"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_StringVal{StringVal: "Hello"},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "mtu"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_IntVal{IntVal: 1500},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "rsp-check-not-expecting-eos-juniper-isync-packet-xpath",
+			err:  false,
+			jctx: &JCtx{
+				config: Config{
+					Host: "127.0.0.1",
+					Port: 32767,
+					Log: LogConfig{
+						Verbose: true,
+					},
+				},
+			},
+			rsp: &gnmi.SubscribeResponse{
+				Response: &gnmi.SubscribeResponse_Update{
+					Update: &gnmi.Notification{
+						Timestamp: 1589476296083000000,
+						Prefix: &gnmi.Path{
+							Origin: "",
+							Elem: []*gnmi.PathElem{
+								{Name: "interfaces"},
+								{Name: "interface", Key: map[string]string{"k1": "foo"}},
+								{Name: "subinterfaces"},
+								{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+							},
+						},
+						Update: []*gnmi.Update{
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "__juniper_telemetry_header__"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_AnyVal{
+										AnyVal: &google_protobuf.Any{
+											TypeUrl: "type.googleapis.com/GnmiJuniperTelemetryHeader",
+											Value:   hdrInputXpathIsyncBytes,
+										},
+									},
+								},
+							},
+						},
+						Delete: []*gnmi.Path{
+							{
+								Origin: "",
+								Elem: []*gnmi.PathElem{
+									{Name: "state"},
+									{Name: "description"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := gnmiHandleResponse(test.jctx, test.rsp)
 			if !test.err {
+				if err != nil && strings.Contains(err.Error(), gGnmiJtimonIgnoreErrorSubstr) {
+					err = nil
+				}
 				if err != nil {
 					var errMsg string
 					errMsg = fmt.Sprintf("didn't expect error:%v", err)

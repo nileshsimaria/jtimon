@@ -38,6 +38,7 @@ const (
 	gGnmiJtimonProducerTsName        = "__producer_timestamp__"
 	gGnmiJtimonExportTsName          = "__export_timestamp__"
 	gGnmiJtimonSyncRsp               = "__sync_response__"
+	gGnmiJtimonIgnoreErrorSubstr     = "Ignoring error."
 
 	gGnmiFreqUnits   = 1000 * 1000 * 1000 // nano secs
 	gGnmiFreqMin     = 2 * gGnmiFreqUnits

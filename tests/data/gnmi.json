@@ -2,7 +2,9 @@
     "host": "nms5-mx480-b.englab.juniper.net",
     "port": 32767,
     "vendor": {
-        "gnmi": true
+        "gnmi": {
+          "encoding": "protobuf"
+        }
     },
     "paths": [{
         "path": "/interfaces",

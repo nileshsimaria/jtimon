@@ -263,8 +263,12 @@ func work(jctx *JCtx, statusch chan struct{}) {
 	var (
 		retry   bool
 		opts    []grpc.DialOption
-		tryGnmi = jctx.config.Vendor.Gnmi
+		tryGnmi bool
 	)
+
+	if jctx.config.Vendor.Gnmi != nil {
+		tryGnmi = true
+	}
 
 connect:
 	// Read the host-name and vendor from the config as they might be changed

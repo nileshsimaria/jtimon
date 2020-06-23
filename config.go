@@ -36,12 +36,17 @@ type Config struct {
 	PasswordDecoder string        `json:"password-decoder"`
 }
 
+// GnmiConfig definition
+type GnmiConfig struct {
+	Encoding string
+}
+
 // VendorConfig definition
 type VendorConfig struct {
 	Name     string         `json:"name"`
 	RemoveNS bool           `json:"remove-namespace"`
 	Schema   []VendorSchema `json:"schema"`
-	Gnmi     bool           `json:"gnmi"`
+	Gnmi     *GnmiConfig    `json:"gnmi"`
 }
 
 // VendorSchema definition

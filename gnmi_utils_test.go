@@ -362,7 +362,7 @@ func TestGnmiParseUpdates(t *testing.T) {
 				xpaths: map[string]interface{}{
 					"/a/b/c/d/state/mtu":                       int64(1500),
 					"/a/b/c/d/state/counters/in-octets":        float64(40000),
-					"/a/b/c/d/state/counters/out-octets-dec64": 9.007199254740992,
+					"/a/b/c/d/state/counters/out-octets-dec64": float64(9.007199254740992),
 					"/a/b/c/d/state/counters/out-octets-float": float64(float32(32.45)), // Guess this may not always work..
 				},
 			},
@@ -417,6 +417,170 @@ func TestGnmiParseUpdates(t *testing.T) {
 					"/interfaces/interface/subinterfaces/subinterface/@k1": "foo1",
 					"/interfaces/interface/subinterfaces/subinterface/@k2": "bar1"},
 				xpaths: map[string]interface{}{"/interfaces/interface/subinterfaces/subinterface/state/different-mtus": []int64{1500, 1499, 1501}},
+			},
+		},
+		{
+			name: "updates-valid-with-misc-simple-types-json",
+			err:  false,
+			prefix: &gnmi.Path{
+				Origin: "",
+				Elem: []*gnmi.PathElem{
+					{Name: "interfaces"},
+					{Name: "interface", Key: map[string]string{"k1": "foo"}},
+					{Name: "subinterfaces"},
+					{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+				},
+			},
+			updates: []*gnmi.Update{
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "mtu"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte(`1500`)},
+					},
+				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "counters"},
+							{Name: "in-octets"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte(`"40000000000000"`)},
+					},
+				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "counters"},
+							{Name: "out-octets-dec64"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte(`9.007199254740992`)},
+					},
+				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "enabled"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte(`true`)},
+					},
+				},
+			},
+			parseOutput: &gnmiParseOutputT{
+				prefixPath: "/a/b/c/d",
+				kvpairs:    map[string]string{"/a/b/@k1": "foo", "/a/b/c/d/@k1": "foo1", "/a/b/c/d/@k2": "bar1"},
+				xpaths:     map[string]interface{}{},
+			},
+			output: &gnmiParseOutputT{
+				prefixPath: "/a/b/c/d",
+				kvpairs: map[string]string{"/a/b/@k1": "foo",
+					"/a/b/c/d/@k1": "foo1",
+					"/a/b/c/d/@k2": "bar1"},
+				xpaths: map[string]interface{}{
+					"/a/b/c/d/state/mtu":                       int64(1500),
+					"/a/b/c/d/state/counters/in-octets":        "40000000000000",
+					"/a/b/c/d/state/counters/out-octets-dec64": 9.007199254740992,
+					"/a/b/c/d/state/enabled":                   true,
+				},
+			},
+		},
+		{
+			name: "updates-valid-with-misc-simple-types-json_ietf",
+			err:  false,
+			prefix: &gnmi.Path{
+				Origin: "",
+				Elem: []*gnmi.PathElem{
+					{Name: "interfaces"},
+					{Name: "interface", Key: map[string]string{"k1": "foo"}},
+					{Name: "subinterfaces"},
+					{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+				},
+			},
+			updates: []*gnmi.Update{
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "mtu"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte(`1500`)},
+					},
+				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "counters"},
+							{Name: "in-octets"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte(`"40000000000000"`)},
+					},
+				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "counters"},
+							{Name: "out-octets-dec64"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte(`"9.007199254740992"`)},
+					},
+				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "enabled"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte(`true`)},
+					},
+				},
+			},
+			parseOutput: &gnmiParseOutputT{
+				prefixPath: "/a/b/c/d",
+				kvpairs:    map[string]string{"/a/b/@k1": "foo", "/a/b/c/d/@k1": "foo1", "/a/b/c/d/@k2": "bar1"},
+				xpaths:     map[string]interface{}{},
+			},
+			output: &gnmiParseOutputT{
+				prefixPath: "/a/b/c/d",
+				kvpairs: map[string]string{"/a/b/@k1": "foo",
+					"/a/b/c/d/@k1": "foo1",
+					"/a/b/c/d/@k2": "bar1"},
+				xpaths: map[string]interface{}{
+					"/a/b/c/d/state/mtu":                       int64(1500),
+					"/a/b/c/d/state/counters/in-octets":        "40000000000000",
+					"/a/b/c/d/state/counters/out-octets-dec64": "9.007199254740992",
+					"/a/b/c/d/state/enabled":                   true,
+				},
 			},
 		},
 	}

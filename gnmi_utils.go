@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -30,6 +32,8 @@ const (
 	gGnmiJuniperHeaderFieldName      = "__juniper_telemetry_header__"
 	gGnmiJuniperPublishTsFieldName   = "__timestamp__"
 	gGnmiJuniperHeaderMsgName        = "GnmiJuniperTelemetryHeader"
+	gGnmiJuniperIsyncSeqNumBegin     = ((uint64(1)) << 21)
+	gGnmiJuniperIsyncSeqNumEnd       = (((uint64(1)) << 22) - 1)
 	gGnmiVerboseSensorDetailsDelim   = ":"
 	gGnmiJtimonProducerTsName        = "__producer_timestamp__"
 	gGnmiJtimonExportTsName          = "__export_timestamp__"
@@ -147,6 +151,8 @@ func gnmiParseUpdates(prefix *gnmi.Path, updates []*gnmi.Update, parseOutput *gn
 		xpath      string
 		tmpJXpaths = jnprXpathDetails{xPaths: map[string]interface{}{}}
 		jXpaths    *jnprXpathDetails
+
+		err error
 	)
 
 	if prefixPath == "" {
@@ -171,15 +177,17 @@ func gnmiParseUpdates(prefix *gnmi.Path, updates []*gnmi.Update, parseOutput *gn
 			[]string{gGnmiJuniperHeaderFieldName, gGnmiJuniperPublishTsFieldName})
 
 		if len(internalFields) == 0 {
-			xpathValue[xpath] = gnmiParseValue(update.GetVal(), false)
+			xpathValue[xpath], err = gnmiParseValue(update.GetVal(), false)
+			if err != nil {
+				return nil, err
+			}
 		} else {
-
 			if _, ok := internalFields[gGnmiJuniperHeaderFieldName]; ok {
 				tmpJXpaths.hdrXpath = xpath
-				tmpJXpaths.xPaths[xpath] = gnmiParseValue(update.GetVal(), false)
+				tmpJXpaths.xPaths[xpath], _ = gnmiParseValue(update.GetVal(), false)
 			} else if _, ok := internalFields[gGnmiJuniperPublishTsFieldName]; ok {
 				tmpJXpaths.publishTsXpath = xpath
-				tmpJXpaths.xPaths[xpath] = gnmiParseValue(update.GetVal(), true)
+				tmpJXpaths.xPaths[xpath], _ = gnmiParseValue(update.GetVal(), true)
 			}
 
 			if jXpaths == nil {
@@ -265,8 +273,11 @@ func gnmiParsePath(prefix string, pes []*gnmi.PathElem, kvpairs map[string]strin
 }
 
 // Convert gNMI value to data types that Influx Line Protocol supports.
-func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool) interface{} {
-	var value interface{}
+func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool) (interface{}, error) {
+	var (
+		value   interface{}
+		jsonVal []byte
+	)
 
 	switch gnmiValue.GetValue().(type) {
 	case *gnmi.TypedValue_StringVal:
@@ -280,9 +291,9 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool) interface{} {
 			value = int64(gnmiValue.GetUintVal())
 		}
 	case *gnmi.TypedValue_JsonIetfVal:
-		value = gnmiValue.GetJsonIetfVal()
+		jsonVal = gnmiValue.GetJsonIetfVal()
 	case *gnmi.TypedValue_JsonVal:
-		value = gnmiValue.GetJsonVal()
+		jsonVal = gnmiValue.GetJsonVal()
 	case *gnmi.TypedValue_ProtoBytes:
 		value = gnmiValue.GetProtoBytes()
 	case *gnmi.TypedValue_BoolVal:
@@ -310,7 +321,7 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool) interface{} {
 
 		vals := gnmiValue.GetLeaflistVal().GetElement()
 		for _, val := range vals {
-			saVal = gnmiParseValue(val, false)
+			saVal, _ = gnmiParseValue(val, false)
 			switch saVal.(type) {
 			case int64:
 				intVals = append(intVals, saVal.(int64))
@@ -333,7 +344,50 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool) interface{} {
 		value = gnmiValue.GetStringVal()
 	}
 
-	return value
+	if jsonVal != nil {
+		var dst bytes.Buffer
+		var decodedValue interface{}
+		err := json.Compact(&dst, jsonVal)
+		if err != nil {
+			errMsg := fmt.Sprintf("Compacting json value failed, error: %v, jsonValue: %v", err, string(jsonVal))
+			return nil, errors.New(errMsg)
+		}
+
+		decoder := json.NewDecoder(strings.NewReader(dst.String()))
+		/*
+		 * Refer https://tools.ietf.org/html/rfc7159 and https://tools.ietf.org/html/rfc7951
+		 * for json and json_ietf for representing numbers.
+		 */
+		decoder.UseNumber()
+		err = decoder.Decode(&decodedValue)
+		if err != nil {
+			errMsg := fmt.Sprintf("Decoding json value failed, error: %v, jsonValue: %s", err, dst.String())
+			return nil, errors.New(errMsg)
+		}
+
+		switch decodedValue.(type) {
+		case json.Number:
+			jsonNumber := decodedValue.(json.Number)
+			if strings.Contains(jsonNumber.String(), ".") {
+				value, err = jsonNumber.Float64()
+			} else {
+				value, err = jsonNumber.Int64()
+			}
+
+			if err != nil {
+				errMsg := fmt.Sprintf("Parsing json number failed, error: %v, jsonNumber: %s", err, jsonNumber.String())
+				return nil, errors.New(errMsg)
+			}
+
+		case bool, string:
+			value = decodedValue
+		default:
+			errMsg := fmt.Sprintf("Not a number/bool/string, jsonValue: %s", dst.String())
+			return nil, errors.New(errMsg)
+		}
+	}
+
+	return value, nil
 }
 
 // Form Juniper telemetry header either from xpaths(parsed updates) or gNMI extensions

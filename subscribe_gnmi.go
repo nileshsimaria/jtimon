@@ -286,11 +286,6 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 		return nil
 	}
 
-	// Ignore all packets till sync response is received.
-	if !jctx.config.EOS && !jctx.receivedSyncRsp {
-		return nil
-	}
-
 	/*
 	 * Extract prefix, tags, values and juniper speecific header info if present
 	 */
@@ -302,6 +297,28 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 
 	// Update kv stats
 	updateStatsKV(jctx, true, parseOutput.inKvs)
+
+	// Ignore all packets till sync response is received.
+	if !jctx.config.EOS {
+		if !jctx.receivedSyncRsp {
+			if parseOutput.jHeader != nil {
+				// For juniper packets, ignore only the packets which are numbered in initial sync sequence range
+				if parseOutput.jHeader.hdr != nil {
+					if parseOutput.jHeader.hdr.GetSequenceNumber() >= gGnmiJuniperIsyncSeqNumBegin &&
+						parseOutput.jHeader.hdr.GetSequenceNumber() <= gGnmiJuniperIsyncSeqNumEnd {
+						return nil
+					}
+				}
+
+				if parseOutput.jHeader.hdrExt.GetSequenceNumber() >= gGnmiJuniperIsyncSeqNumBegin &&
+					parseOutput.jHeader.hdrExt.GetSequenceNumber() <= gGnmiJuniperIsyncSeqNumEnd {
+					return nil
+				}
+			} else {
+				return nil
+			}
+		}
+	}
 
 	if parseOutput.mName == "" {
 		jLog(jctx, fmt.Sprintf("gNMI host: %v, measurement name extraction failed", hostname))
@@ -371,7 +388,16 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 	subs.Mode = gnmi.SubscriptionList_STREAM
 
 	// PROTO encoding
-	subs.Encoding = gnmi.Encoding_PROTO
+	if jctx.config.Vendor.Gnmi != nil {
+		switch jctx.config.Vendor.Gnmi.Encoding {
+		case "json":
+			subs.Encoding = gnmi.Encoding_JSON
+		case "json_ietf":
+			subs.Encoding = gnmi.Encoding_JSON_IETF
+		default:
+			subs.Encoding = gnmi.Encoding_PROTO
+		}
+	}
 
 	// Is isync needed?
 	subs.UpdatesOnly = !jctx.config.EOS

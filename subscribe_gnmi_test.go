@@ -79,6 +79,7 @@ func TestConvToFloatForPrometheus(t *testing.T) {
 }
 
 func TestGnmiHandleResponse(t *testing.T) {
+	*noppgoroutines = true
 	*prom = true
 	gGnmiUnitTestCoverage = true
 
@@ -418,6 +419,7 @@ func TestGnmiHandleResponse(t *testing.T) {
 
 	gGnmiUnitTestCoverage = false
 	*prom = false
+	*noppgoroutines = false
 }
 
 // For the below function, better change jtisim?

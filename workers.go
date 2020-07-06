@@ -333,10 +333,6 @@ connect:
 	code := vendor.subscribe(conn, jctx)
 	fmt.Println("Returns subscribe() :::", jctx.file, "CODE ::: ", code)
 
-	if tryGnmi && code == SubRcRPCFailedNoRetry {
-		tryGnmi = false // fallback to vendor mode
-	}
-
 	// close the current connection and retry
 	conn.Close()
 
@@ -344,10 +340,16 @@ connect:
 	case SubRcSighupRestart:
 		jLog(jctx, fmt.Sprintf("sighup detected, reconnect with new config for worker %s", jctx.file))
 		retry = true
+		if jctx.config.Vendor.Gnmi != nil {
+			tryGnmi = true
+		}
 		goto connect
 	case SubRcRPCFailedNoRetry:
 		jLog(jctx, fmt.Sprintf("RPC failed and reconnecting with fallback RPC if available %s", jctx.file))
 		retry = true
+		if tryGnmi {
+			tryGnmi = false // fallback to vendor mode
+		}
 		goto connect
 	case SubRcConnRetry:
 		jLog(jctx, fmt.Sprintf("subscribe returns, reconnecting after 10s for worker %s", jctx.file))

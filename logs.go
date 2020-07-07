@@ -19,7 +19,9 @@ func jLog(jctx *JCtx, msg string) {
 
 func logStop(jctx *JCtx) {
 	if jctx.config.Log.out != nil {
-		jctx.config.Log.out.Close()
+		if jctx.config.Log.out != os.Stdout {
+			jctx.config.Log.out.Close()
+		}
 		jctx.config.Log.out = nil
 		jctx.config.Log.logger = nil
 	}

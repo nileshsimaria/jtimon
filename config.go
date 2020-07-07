@@ -283,7 +283,12 @@ func HandleConfigChange(jctx *JCtx, config Config, restart *bool) error {
 
 	configChanged := jctx.isConfigChanged(config)
 	if configChanged {
-		jLog(jctx, fmt.Sprintf("Config is changed for: %s", jctx.file))
+		b, err := json.MarshalIndent(config, "", "    ")
+		if err != nil {
+			return fmt.Errorf("config parsing error (json marshal) for %s: %v", jctx.file, err)
+		}
+
+		jLog(jctx, fmt.Sprintf("Config is changed for: %s, Running config of JTIMON: \n%s", jctx.file, string(b)))
 		logStop(jctx)
 		jctx.config = config
 		logInit(jctx)

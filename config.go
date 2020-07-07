@@ -251,6 +251,10 @@ func (jctx *JCtx) isConfigChanged(new Config) bool {
 		return true
 	case old.Log.File != new.Log.File:
 		return true
+	case old.Log.Verbose != new.Log.Verbose:
+		return true
+	case old.Log.PeriodicStats != new.Log.PeriodicStats:
+		return true
 	}
 
 	if !reflect.DeepEqual(old.Paths, new.Paths) {

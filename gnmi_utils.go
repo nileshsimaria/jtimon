@@ -122,9 +122,9 @@ func gnmiMode(inMode string) gnmi.SubscriptionMode {
 }
 
 // Given subscription mode and inFreq(millisecs), output is gNMI frequency
-func gnmiFreq(mode gnmi.SubscriptionMode, inFreq uint64) uint64 {
-	if mode == gnmi.SubscriptionMode_ON_CHANGE {
-		return 0
+func gnmiFreq(mode gnmi.SubscriptionMode, inFreq uint64) (gnmi.SubscriptionMode, uint64) {
+	if (mode == gnmi.SubscriptionMode_ON_CHANGE) || (inFreq == 0) {
+		return gnmi.SubscriptionMode_ON_CHANGE, 0
 	}
 
 	freq := (inFreq * gGnmiFreqUnits) / 1000
@@ -133,7 +133,7 @@ func gnmiFreq(mode gnmi.SubscriptionMode, inFreq uint64) uint64 {
 		freq = gGnmiFreqMin
 	}
 
-	return freq
+	return mode, freq
 }
 
 /*

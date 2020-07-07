@@ -9,5 +9,12 @@
     "paths": [{
         "path": "/interfaces",
         "freq": 15000
-    }]
+    },
+    {
+        "path": "/junos/events",
+        "freq": 0
+    }],
+    "log" : {
+        "verbose": true
+    }
 }

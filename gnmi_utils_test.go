@@ -144,6 +144,7 @@ func TestGnmiFreq(t *testing.T) {
 		inMode  gnmi.SubscriptionMode
 		inFreq  uint64
 		err     bool
+		outMode gnmi.SubscriptionMode
 		outFreq uint64
 	}{
 		{
@@ -151,6 +152,7 @@ func TestGnmiFreq(t *testing.T) {
 			inMode:  gnmi.SubscriptionMode_SAMPLE,
 			inFreq:  30000,
 			err:     false,
+			outMode: gnmi.SubscriptionMode_SAMPLE,
 			outFreq: 30000000000,
 		},
 		{
@@ -158,6 +160,15 @@ func TestGnmiFreq(t *testing.T) {
 			inMode:  gnmi.SubscriptionMode_ON_CHANGE,
 			inFreq:  30,
 			err:     false,
+			outMode: gnmi.SubscriptionMode_ON_CHANGE,
+			outFreq: 0,
+		},
+		{
+			name:    "gnmi-freq-sample-taken-as-on-change",
+			inMode:  gnmi.SubscriptionMode_SAMPLE,
+			inFreq:  0,
+			err:     false,
+			outMode: gnmi.SubscriptionMode_ON_CHANGE,
 			outFreq: 0,
 		},
 		{
@@ -165,6 +176,7 @@ func TestGnmiFreq(t *testing.T) {
 			inMode:  gnmi.SubscriptionMode_TARGET_DEFINED,
 			inFreq:  30,
 			err:     false,
+			outMode: gnmi.SubscriptionMode_TARGET_DEFINED,
 			outFreq: gGnmiFreqMin, // default
 		},
 		{
@@ -172,25 +184,26 @@ func TestGnmiFreq(t *testing.T) {
 			inMode:  gnmi.SubscriptionMode_SAMPLE,
 			inFreq:  30,
 			err:     true,
+			outMode: gnmi.SubscriptionMode_SAMPLE,
 			outFreq: 30000000000,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			outFreq := gnmiFreq(test.inMode, test.inFreq)
+			outMode, outFreq := gnmiFreq(test.inMode, test.inFreq)
 			if !test.err {
-				if test.outFreq != outFreq {
+				if test.outMode != outMode && test.outFreq != outFreq {
 					var errMsg string
-					errMsg = fmt.Sprintf("\nexpected:%v\nGot:%v", test.outFreq, outFreq)
+					errMsg = fmt.Sprintf("\nexpected:(%v, %v)\nGot:(%v, %v)", test.outMode, test.outFreq, outMode, outFreq)
 					t.Errorf(errMsg)
 				}
 			}
 
 			if test.err {
-				if test.outFreq == outFreq {
+				if test.outMode == outMode && test.outFreq == outFreq {
 					var errMsg string
-					errMsg = fmt.Sprintf("\nexpected:%v\nGot:%v", test.outFreq, outFreq)
+					errMsg = fmt.Sprintf("\nexpected:(%v, %v)\nGot:(%v, %v)", test.outMode, test.outFreq, outMode, outFreq)
 					t.Errorf(errMsg)
 				}
 			}

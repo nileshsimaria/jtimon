@@ -342,6 +342,8 @@ connect:
 		retry = true
 		if jctx.config.Vendor.Gnmi != nil {
 			tryGnmi = true
+		} else {
+			tryGnmi = false
 		}
 		goto connect
 	case SubRcRPCFailedNoRetry:

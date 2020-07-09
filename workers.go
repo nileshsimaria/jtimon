@@ -357,6 +357,11 @@ connect:
 		jLog(jctx, fmt.Sprintf("subscribe returns, reconnecting after 10s for worker %s", jctx.file))
 		time.Sleep(10 * time.Second)
 		retry = true
+		if jctx.config.Vendor.Gnmi != nil {
+			tryGnmi = true
+		} else {
+			tryGnmi = false
+		}
 		goto connect
 	case SubRcSighupNoRestart:
 		jLog(jctx, fmt.Sprintf("not reconnecting for worker %s", jctx.file))

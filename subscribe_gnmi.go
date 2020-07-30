@@ -412,7 +412,7 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 		gp, err := xPathTognmiPath(p.Path)
 		if err != nil {
 			jLog(jctx, fmt.Sprintf("gNMI host: %v, Invalid path: %v", hostname, err))
-			return -1
+			return SubRcSighupNoRestart
 		}
 
 		mode := gnmiMode(p.Mode)

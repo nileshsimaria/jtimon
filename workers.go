@@ -33,21 +33,24 @@ type JCtx struct {
 
 // JWorkers holds worker
 type JWorkers struct {
-	m        map[string]*JWorker
-	wg       sync.WaitGroup
-	mr       int64
-	files    []string
-	fileList string
-	sigchan  chan os.Signal
+	m          map[string]*JWorker
+	wg         sync.WaitGroup
+	mr         int64
+	files      []string
+	fileList   string
+	sigchan    chan os.Signal
+	statusChan chan string
 }
 
 // NewJWorkers to create new workers
 func NewJWorkers(files []string, fileList string, mr int64) *JWorkers {
 	return &JWorkers{
-		m:        make(map[string]*JWorker),
-		mr:       mr,
-		files:    files,
-		fileList: fileList,
+		m:          make(map[string]*JWorker),
+		mr:         mr,
+		files:      files,
+		fileList:   fileList,
+		sigchan:    make(chan os.Signal, 10),
+		statusChan: make(chan string, 1),
 	}
 }
 
@@ -101,7 +104,7 @@ func (ws *JWorkers) StartWorker(file string) {
 
 // AddWorker is to add new worker in set of (actually map of) workers
 func (ws *JWorkers) AddWorker(file string) {
-	if w, err := NewJWorker(file, &ws.wg); err == nil {
+	if w, err := NewJWorker(file, &ws.wg, ws.statusChan); err == nil {
 		ws.m[file] = w
 		ws.wg.Add(1)
 	}
@@ -160,18 +163,29 @@ func (ws *JWorkers) signalHandler(configFileList string) {
 	// handle interrupt and sighup
 	signal.Notify(sigchan, os.Interrupt, syscall.SIGHUP)
 	for {
-		s := <-sigchan
-		switch s {
-		case syscall.SIGHUP:
-			// propagate the signal to workers and continue waiting for signals
-			if len(ws.fileList) != 0 {
-				ws.handleConfigChanges()
+		select {
+		case s := <-sigchan:
+			switch s {
+			case syscall.SIGHUP:
+				// propagate the signal to workers and continue waiting for signals
+				if len(ws.fileList) != 0 {
+					ws.handleConfigChanges()
+				} else {
+					// SIGHUP the workers spawned when --config option is used
+					for _, w := range ws.m {
+						w.signalch <- s
+					}
+				}
+			case os.Interrupt:
+				for _, w := range ws.m {
+					w.signalch <- s
+				}
+				return
 			}
-		case os.Interrupt:
-			for _, w := range ws.m {
-				w.signalch <- s
-			}
-			return
+		case file := <-ws.statusChan:
+			// worker must have encountered error
+			log.Printf("Worker removed for %v", file)
+			delete(ws.m, file)
 		}
 	}
 }
@@ -183,7 +197,7 @@ type JWorker struct {
 }
 
 // NewJWorker is to create new worker
-func NewJWorker(file string, wg *sync.WaitGroup) (*JWorker, error) {
+func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, error) {
 	w := &JWorker{}
 
 	signalch := make(chan os.Signal)
@@ -249,6 +263,7 @@ func NewJWorker(file string, wg *sync.WaitGroup) (*JWorker, error) {
 			case <-statusch:
 				// worker must have encountered error
 				printSummary(&jctx)
+				wsChan <- jctx.file
 				jctx.wg.Done()
 				logStop(&jctx)
 				return
@@ -293,6 +308,7 @@ connect:
 		case os.Interrupt:
 			// we are done
 			jLog(jctx, fmt.Sprintf("Connection for %s has been interrupted", hostname))
+			statusch <- struct{}{}
 			return
 		}
 		// Sighup need not be handled as the config is re-read for
@@ -365,6 +381,7 @@ connect:
 		goto connect
 	case SubRcSighupNoRestart:
 		jLog(jctx, fmt.Sprintf("not reconnecting for worker %s", jctx.file))
+		statusch <- struct{}{}
 		return
 	}
 }

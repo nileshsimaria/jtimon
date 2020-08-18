@@ -288,6 +288,12 @@ func work(jctx *JCtx, statusch chan struct{}) {
 connect:
 	// Read the host-name and vendor from the config as they might be changed
 	vendor, err := getVendor(jctx, tryGnmi)
+	if err != nil {
+		jLog(jctx, fmt.Sprintf("%v", err))
+		time.Sleep(10 * time.Second)
+		retry = true
+		goto connect
+	}
 	if opts, err = getGPRCDialOptions(jctx, vendor); err != nil {
 		jLog(jctx, fmt.Sprintf("%v", err))
 		statusch <- struct{}{}

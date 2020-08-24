@@ -160,7 +160,7 @@ func pointAcculumator(jctx *JCtx) {
 				if len(points) > 0 {
 					bp, err := client.NewBatchPoints(client.BatchPointsConfig{
 						Database:        jctx.config.Influx.Dbname,
-						Precision:       "us",
+						Precision:       "ns",
 						RetentionPolicy: jctx.config.Influx.RetentionPolicy,
 					})
 
@@ -234,7 +234,7 @@ func dbBatchWriteM(jctx *JCtx) {
 
 				bp, err := client.NewBatchPoints(client.BatchPointsConfig{
 					Database:        jctx.config.Influx.Dbname,
-					Precision:       "us",
+					Precision:       "ns",
 					RetentionPolicy: jctx.config.Influx.RetentionPolicy,
 				})
 
@@ -258,7 +258,7 @@ func dbBatchWriteM(jctx *JCtx) {
 
 							bp, err = client.NewBatchPoints(client.BatchPointsConfig{
 								Database:        jctx.config.Influx.Dbname,
-								Precision:       "us",
+								Precision:       "ns",
 								RetentionPolicy: jctx.config.Influx.RetentionPolicy,
 							})
 						}
@@ -274,7 +274,7 @@ func dbBatchWriteM(jctx *JCtx) {
 
 					bp, err = client.NewBatchPoints(client.BatchPointsConfig{
 						Database:        jctx.config.Influx.Dbname,
-						Precision:       "us",
+						Precision:       "ns",
 						RetentionPolicy: jctx.config.Influx.RetentionPolicy,
 					})
 				}
@@ -303,7 +303,7 @@ func dbBatchWrite(jctx *JCtx) {
 			if n != 0 {
 				bp, err := client.NewBatchPoints(client.BatchPointsConfig{
 					Database:        jctx.config.Influx.Dbname,
-					Precision:       "us",
+					Precision:       "ns",
 					RetentionPolicy: jctx.config.Influx.RetentionPolicy,
 				})
 

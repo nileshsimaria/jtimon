@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	google_protobuf "github.com/golang/protobuf/ptypes/any"
@@ -385,6 +386,7 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 		err  error
 
 		hostname = jctx.config.Host + ":" + strconv.Itoa(jctx.config.Port)
+		ctx      context.Context
 	)
 
 	// 1. Form request
@@ -423,7 +425,13 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 	}
 
 	// 2. Subscribe
-	gNMISubHandle, err := gnmi.NewGNMIClient(conn).Subscribe(context.Background())
+	if jctx.config.User != "" && jctx.config.Password != "" {
+		md := metadata.New(map[string]string{"username": jctx.config.User, "password": jctx.config.Password})
+		ctx = metadata.NewOutgoingContext(context.Background(), md)
+	} else {
+		ctx = context.Background()
+	}
+	gNMISubHandle, err := gnmi.NewGNMIClient(conn).Subscribe(ctx)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("gNMI host: %v, subscribe handle creation failed, err: %v", hostname, err))
 		return SubRcConnRetry

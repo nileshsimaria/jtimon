@@ -1,6 +1,8 @@
 {
     "host": "nms5-mx480-b.englab.juniper.net",
     "port": 32767,
+    "user": "",
+    "password": "",
     "vendor": {
         "gnmi": {
           "encoding": "protobuf"

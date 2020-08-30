@@ -344,6 +344,11 @@ connect:
 			time.Sleep(10 * time.Second)
 			retry = true
 			conn.Close()
+			if jctx.config.Vendor.Gnmi != nil {
+				tryGnmi = true
+			} else {
+				tryGnmi = false
+			}
 			goto connect
 		}
 	}

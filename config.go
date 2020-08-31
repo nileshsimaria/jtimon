@@ -281,18 +281,21 @@ func HandleConfigChange(jctx *JCtx, config Config, restart *bool) error {
 	if err != nil {
 		return err
 	}
+	mangledPwd := config.Password // Take a backup of it, it shouldn't appear in logs
 	config.Password = value
 	//logConfigChanged := false
 	// Compare the new config and the running config
 
 	configChanged := jctx.isConfigChanged(config)
 	if configChanged {
+		config.Password = mangledPwd // Log only the mangled password
 		b, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return fmt.Errorf("config parsing error (json marshal) for %s: %v", jctx.file, err)
 		}
 
 		jLog(jctx, fmt.Sprintf("Config is changed for: %s, Running config of JTIMON: \n%s", jctx.file, string(b)))
+		config.Password = value // Revert back to decoded password
 		logStop(jctx)
 		jctx.config = config
 		logInit(jctx)

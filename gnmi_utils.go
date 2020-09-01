@@ -143,7 +143,7 @@ func gnmiFreq(mode gnmi.SubscriptionMode, inFreq uint64) (gnmi.SubscriptionMode,
  *    3. xpaths
  *    4. Juniper specific xpaths
  */
-func gnmiParseUpdates(prefix *gnmi.Path, updates []*gnmi.Update, parseOutput *gnmiParseOutputT) (*gnmiParseOutputT, error) {
+func gnmiParseUpdates(parseOrigin bool, prefix *gnmi.Path, updates []*gnmi.Update, parseOutput *gnmiParseOutputT) (*gnmiParseOutputT, error) {
 	var (
 		prefixPath = parseOutput.prefixPath
 		kvpairs    = parseOutput.kvpairs
@@ -158,9 +158,11 @@ func gnmiParseUpdates(prefix *gnmi.Path, updates []*gnmi.Update, parseOutput *gn
 
 	if prefixPath == "" {
 		// Prefix cannot have a value but can have keys
-		prefixPath = prefix.GetOrigin()
-		if prefixPath != "" {
-			prefixPath += gGnmiVerboseSensorDetailsDelim
+		if parseOrigin {
+			prefixPath = prefix.GetOrigin()
+			if prefixPath != "" {
+				prefixPath += gGnmiVerboseSensorDetailsDelim
+			}
 		}
 
 		prefixPath, kvpairs, _ = gnmiParsePath(prefixPath, prefix.GetElem(), kvpairs, nil)
@@ -210,7 +212,7 @@ func gnmiParseUpdates(prefix *gnmi.Path, updates []*gnmi.Update, parseOutput *gn
  *    2. kvpairs
  *    3. xpaths
  */
-func gnmiParseDeletes(prefix *gnmi.Path, deletes []*gnmi.Path, parseOutput *gnmiParseOutputT) (*gnmiParseOutputT, error) {
+func gnmiParseDeletes(parseOrigin bool, prefix *gnmi.Path, deletes []*gnmi.Path, parseOutput *gnmiParseOutputT) (*gnmiParseOutputT, error) {
 	var (
 		prefixPath = parseOutput.prefixPath
 		kvpairs    = parseOutput.kvpairs
@@ -221,9 +223,11 @@ func gnmiParseDeletes(prefix *gnmi.Path, deletes []*gnmi.Path, parseOutput *gnmi
 
 	if prefixPath == "" {
 		// Prefix cannot have a value but can have keys
-		prefixPath = prefix.GetOrigin()
-		if prefixPath != "" {
-			prefixPath += gGnmiVerboseSensorDetailsDelim
+		if parseOrigin {
+			prefixPath = prefix.GetOrigin()
+			if prefixPath != "" {
+				prefixPath += gGnmiVerboseSensorDetailsDelim
+			}
 		}
 
 		prefixPath, kvpairs, _ = gnmiParsePath(prefixPath, prefix.GetElem(), kvpairs, nil)

@@ -214,6 +214,7 @@ func TestGnmiFreq(t *testing.T) {
 func TestGnmiParseUpdates(t *testing.T) {
 	tests := []struct {
 		name        string
+		parseOrigin bool
 		prefix      *gnmi.Path
 		updates     []*gnmi.Update
 		parseOutput *gnmiParseOutputT
@@ -221,8 +222,9 @@ func TestGnmiParseUpdates(t *testing.T) {
 		output      *gnmiParseOutputT
 	}{
 		{
-			name: "updates-valid-no-prefix",
-			err:  false,
+			name:        "updates-valid-no-prefix",
+			err:         false,
+			parseOrigin: false,
 			prefix: &gnmi.Path{
 				Origin: "",
 				Elem: []*gnmi.PathElem{
@@ -259,8 +261,9 @@ func TestGnmiParseUpdates(t *testing.T) {
 			},
 		},
 		{
-			name: "updates-valid-with-prefix",
-			err:  false,
+			name:        "updates-valid-with-prefix",
+			err:         false,
+			parseOrigin: false,
 			prefix: &gnmi.Path{
 				Origin: "",
 				Elem: []*gnmi.PathElem{
@@ -298,8 +301,9 @@ func TestGnmiParseUpdates(t *testing.T) {
 			},
 		},
 		{
-			name: "updates-valid-with-misc-simple-types",
-			err:  false,
+			name:        "updates-valid-with-misc-simple-types",
+			err:         false,
+			parseOrigin: false,
 			prefix: &gnmi.Path{
 				Origin: "",
 				Elem: []*gnmi.PathElem{
@@ -381,8 +385,9 @@ func TestGnmiParseUpdates(t *testing.T) {
 			},
 		},
 		{
-			name: "updates-valid-scalar-array",
-			err:  false,
+			name:        "updates-valid-scalar-array",
+			err:         false,
+			parseOrigin: false,
 			prefix: &gnmi.Path{
 				Origin: "",
 				Elem: []*gnmi.PathElem{
@@ -433,8 +438,9 @@ func TestGnmiParseUpdates(t *testing.T) {
 			},
 		},
 		{
-			name: "updates-valid-with-misc-simple-types-json",
-			err:  false,
+			name:        "updates-valid-with-misc-simple-types-json",
+			err:         false,
+			parseOrigin: false,
 			prefix: &gnmi.Path{
 				Origin: "",
 				Elem: []*gnmi.PathElem{
@@ -515,8 +521,9 @@ func TestGnmiParseUpdates(t *testing.T) {
 			},
 		},
 		{
-			name: "updates-valid-with-misc-simple-types-json_ietf",
-			err:  false,
+			name:        "updates-valid-with-misc-simple-types-json_ietf",
+			err:         false,
+			parseOrigin: false,
 			prefix: &gnmi.Path{
 				Origin: "",
 				Elem: []*gnmi.PathElem{
@@ -596,11 +603,89 @@ func TestGnmiParseUpdates(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:        "updates-valid-no-prefix-with-origin--config--donotParseOrigin",
+			err:         false,
+			parseOrigin: false,
+			prefix: &gnmi.Path{
+				Origin: "openconfig",
+				Elem: []*gnmi.PathElem{
+					{Name: "interfaces"},
+					{Name: "interface", Key: map[string]string{"k1": "foo"}},
+					{Name: "subinterfaces"},
+					{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+				},
+			},
+			updates: []*gnmi.Update{
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "description"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_StringVal{StringVal: "Hello"},
+					},
+				},
+			},
+			parseOutput: &gnmiParseOutputT{
+				kvpairs: map[string]string{},
+				xpaths:  map[string]interface{}{},
+			},
+			output: &gnmiParseOutputT{
+				prefixPath: "/interfaces/interface/subinterfaces/subinterface",
+				kvpairs: map[string]string{"/interfaces/interface/@k1": "foo",
+					"/interfaces/interface/subinterfaces/subinterface/@k1": "foo1",
+					"/interfaces/interface/subinterfaces/subinterface/@k2": "bar1"},
+				xpaths: map[string]interface{}{"/interfaces/interface/subinterfaces/subinterface/state/description": "Hello"},
+			},
+		},
+		{
+			name:        "updates-valid-no-prefix-with-origin--config--parseOrigin",
+			err:         false,
+			parseOrigin: true,
+			prefix: &gnmi.Path{
+				Origin: "openconfig",
+				Elem: []*gnmi.PathElem{
+					{Name: "interfaces"},
+					{Name: "interface", Key: map[string]string{"k1": "foo"}},
+					{Name: "subinterfaces"},
+					{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+				},
+			},
+			updates: []*gnmi.Update{
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "description"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_StringVal{StringVal: "Hello"},
+					},
+				},
+			},
+			parseOutput: &gnmiParseOutputT{
+				kvpairs: map[string]string{},
+				xpaths:  map[string]interface{}{},
+			},
+			output: &gnmiParseOutputT{
+				prefixPath: "openconfig:/interfaces/interface/subinterfaces/subinterface",
+				kvpairs: map[string]string{"openconfig:/interfaces/interface/@k1": "foo",
+					"openconfig:/interfaces/interface/subinterfaces/subinterface/@k1": "foo1",
+					"openconfig:/interfaces/interface/subinterfaces/subinterface/@k2": "bar1"},
+				xpaths: map[string]interface{}{"openconfig:/interfaces/interface/subinterfaces/subinterface/state/description": "Hello"},
+			},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			parseOutput, err := gnmiParseUpdates(test.prefix, test.updates, test.parseOutput)
+			parseOutput, err := gnmiParseUpdates(test.parseOrigin, test.prefix, test.updates, test.parseOutput)
 			if !test.err {
 				if err != nil || !reflect.DeepEqual(*test.output, *parseOutput) {
 					var errMsg string
@@ -628,6 +713,7 @@ func TestGnmiParseUpdates(t *testing.T) {
 func TestGnmiParseDeletes(t *testing.T) {
 	tests := []struct {
 		name        string
+		parseOrigin bool
 		prefix      *gnmi.Path
 		deletes     []*gnmi.Path
 		parseOutput *gnmiParseOutputT
@@ -635,8 +721,9 @@ func TestGnmiParseDeletes(t *testing.T) {
 		output      *gnmiParseOutputT
 	}{
 		{
-			name: "deletes-valid-no-prefix",
-			err:  false,
+			name:        "deletes-valid-no-prefix",
+			err:         false,
+			parseOrigin: false,
 			prefix: &gnmi.Path{
 				Origin: "",
 				Elem: []*gnmi.PathElem{
@@ -667,11 +754,45 @@ func TestGnmiParseDeletes(t *testing.T) {
 				xpaths: map[string]interface{}{"/interfaces/interface/subinterfaces/subinterface/state/description": nil},
 			},
 		},
+		{
+			name:        "deletes-valid-no-prefix-with-origin",
+			err:         false,
+			parseOrigin: true,
+			prefix: &gnmi.Path{
+				Origin: "dummy",
+				Elem: []*gnmi.PathElem{
+					{Name: "interfaces"},
+					{Name: "interface", Key: map[string]string{"k1": "foo"}},
+					{Name: "subinterfaces"},
+					{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+				},
+			},
+			deletes: []*gnmi.Path{
+				{
+					Origin: "",
+					Elem: []*gnmi.PathElem{
+						{Name: "state"},
+						{Name: "description"},
+					},
+				},
+			},
+			parseOutput: &gnmiParseOutputT{
+				kvpairs: map[string]string{},
+				xpaths:  map[string]interface{}{},
+			},
+			output: &gnmiParseOutputT{
+				prefixPath: "dummy:/interfaces/interface/subinterfaces/subinterface",
+				kvpairs: map[string]string{"dummy:/interfaces/interface/@k1": "foo",
+					"dummy:/interfaces/interface/subinterfaces/subinterface/@k1": "foo1",
+					"dummy:/interfaces/interface/subinterfaces/subinterface/@k2": "bar1"},
+				xpaths: map[string]interface{}{"dummy:/interfaces/interface/subinterfaces/subinterface/state/description": nil},
+			},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			parseOutput, err := gnmiParseDeletes(test.prefix, test.deletes, test.parseOutput)
+			parseOutput, err := gnmiParseDeletes(test.parseOrigin, test.prefix, test.deletes, test.parseOutput)
 			if !test.err {
 				if err != nil || !reflect.DeepEqual(*test.output, *parseOutput) {
 					var errMsg string

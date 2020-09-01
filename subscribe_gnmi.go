@@ -220,7 +220,7 @@ func gnmiParseHeader(rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT)
  *   2. Fields aka xpaths
  *   3. Juniper telemery header, "sensor" value and measurement name
  */
-func gnmiParseNotification(rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT) (*gnmiParseOutputT, error) {
+func gnmiParseNotification(parseOrigin bool, rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT) (*gnmiParseOutputT, error) {
 	var (
 		errMsg string
 		err    error
@@ -233,7 +233,7 @@ func gnmiParseNotification(rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOu
 	}
 
 	if len(notif.GetUpdate()) != 0 {
-		parseOutput, err = gnmiParseUpdates(notif.GetPrefix(), notif.GetUpdate(), parseOutput)
+		parseOutput, err = gnmiParseUpdates(parseOrigin, notif.GetPrefix(), notif.GetUpdate(), parseOutput)
 		if err != nil {
 			errMsg = fmt.Sprintf("gnmiParseUpdates failed: %v", err)
 			return parseOutput, errors.New(errMsg)
@@ -241,7 +241,7 @@ func gnmiParseNotification(rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOu
 	}
 
 	if len(notif.GetDelete()) != 0 {
-		parseOutput, err = gnmiParseDeletes(notif.GetPrefix(), notif.GetDelete(), parseOutput)
+		parseOutput, err = gnmiParseDeletes(parseOrigin, notif.GetPrefix(), notif.GetDelete(), parseOutput)
 		if err != nil {
 			return parseOutput, err
 		}
@@ -290,7 +290,7 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 	/*
 	 * Extract prefix, tags, values and juniper speecific header info if present
 	 */
-	parseOutput, err = gnmiParseNotification(rsp, parseOutput)
+	parseOutput, err = gnmiParseNotification(jctx.config.Vendor.RemoveNS, rsp, parseOutput)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("gNMI host: %v, parsing notification failed: %v", hostname, err.Error()))
 		return err

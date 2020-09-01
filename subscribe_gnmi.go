@@ -177,7 +177,7 @@ func gnmiParseHeader(rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT)
 	if !ok {
 		// Not a juniper packet, take prefix as the path subscribed
 		parseOutput.sensorVal = prefixPath
-		parseOutput.mName = prefixPath
+		parseOutput.mName = prefixPath + gXPathTokenPathSep // To be compatible with that of OC
 		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = rsp.GetUpdate().GetTimestamp()
 		return parseOutput, nil
 	}
@@ -290,7 +290,7 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 	/*
 	 * Extract prefix, tags, values and juniper speecific header info if present
 	 */
-	parseOutput, err = gnmiParseNotification(jctx.config.Vendor.RemoveNS, rsp, parseOutput)
+	parseOutput, err = gnmiParseNotification(!jctx.config.Vendor.RemoveNS, rsp, parseOutput)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("gNMI host: %v, parsing notification failed: %v", hostname, err.Error()))
 		return err

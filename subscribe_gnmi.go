@@ -176,9 +176,15 @@ func gnmiParseHeader(rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT)
 	juniperHdrDetails, ok, err = formJuniperTelemetryHdr(jXpaths, rsp.GetExtension())
 	if !ok {
 		// Not a juniper packet, take prefix as the path subscribed
+		ps := rsp.GetUpdate().GetTimestamp()
+		// Specifically added for Cisco, the device sends spurious messages with timestamp 0
+		if ps == 0 {
+			errMsg := fmt.Sprintf("Invalid message, producer timestamp is 0")
+			return nil, errors.New(errMsg)
+		}
 		parseOutput.sensorVal = prefixPath
 		parseOutput.mName = prefixPath + gXPathTokenPathSep // To be compatible with that of OC
-		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = rsp.GetUpdate().GetTimestamp()
+		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = (ps / gGnmiFreqToMilli)
 		return parseOutput, nil
 	}
 
@@ -360,8 +366,8 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 			}
 		}
 
-		jLog(jctx, fmt.Sprintf("prefix: %v, kvpairs: %v, xpathVal: %v, juniperXpathVal: %v, juniperhdr: %v, measurement: %v\n\n",
-			parseOutput.prefixPath, parseOutput.kvpairs, parseOutput.xpaths, jxpaths, jGnmiHdr, parseOutput.mName))
+		jLog(jctx, fmt.Sprintf("prefix: %v, kvpairs: %v, xpathVal: %v, juniperXpathVal: %v, juniperhdr: %v, measurement: %v, rsp: %v\n\n",
+			parseOutput.prefixPath, parseOutput.kvpairs, parseOutput.xpaths, jxpaths, jGnmiHdr, parseOutput.mName, *rsp))
 	}
 
 	err = publishToInflux(jctx, parseOutput.mName, parseOutput.prefixPath, parseOutput.kvpairs, parseOutput.xpaths)

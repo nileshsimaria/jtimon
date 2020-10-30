@@ -7,6 +7,7 @@ GOARCH = amd64
 COMMIT=$(shell git rev-parse HEAD)
 BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
 TIME=$(shell date +%FT%T%z)
+TAG=$(shell git describe --abbrev=0)
 
 GITHUB_USERNAME=nileshsimaria
 BUILD_DIR=${GOPATH}/src/github.com/${GITHUB_USERNAME}/${BINARY}
@@ -20,7 +21,7 @@ clean: ## clean the build
 	-rm -f ${BINARY}
 
 
-LDFLAGS=--ldflags="-X main.jtimonVersion=${COMMIT}-${BRANCH} -X main.buildTime=${TIME}"
+LDFLAGS=--ldflags="-X main.jtimonVersion=${TAG}-${COMMIT}-${BRANCH} -X main.buildTime=${TIME}"
 
 linux: ## generate a linux version of the binary
 	GOOS=linux GOARCH=${GOARCH} go build ${LDFLAGS} -o ${BINARY}-linux-${GOARCH} .
@@ -29,7 +30,7 @@ darwin: ## generate a osx version of the binary
 	GOOS=darwin GOARCH=${GOARCH} go build ${LDFLAGS} -o ${BINARY}-darwin-${GOARCH} .
 
 docker: ## build a docker image that can be used to execute the binary
-	docker build --build-arg COMMIT=${COMMIT} --build-arg BRANCH=${BRANCH} --build-arg TIME=${TIME} -t jtimon . 
+	docker build --build-arg COMMIT=${COMMIT} --build-arg BRANCH=${BRANCH} --build-arg TIME=${TIME} --build-arg TAG=${TAG} -t jtimon . 
 	ln -sf launch-docker-container.sh jtimon
 	@echo "Usage: docker run -ti --rm jtimon --help"
 	@echo "or simply call the shell script './jtimon --help"

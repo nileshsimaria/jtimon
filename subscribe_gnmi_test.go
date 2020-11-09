@@ -391,6 +391,266 @@ func TestGnmiHandleResponse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "rsp-valid-sync-ipv6",
+			err:  false,
+			jctx: &JCtx{
+				config: Config{
+					Host: "[::1]",
+					Port: 32767,
+					Log: LogConfig{
+						Verbose: true,
+					},
+				},
+			},
+			rsp: &gnmi.SubscribeResponse{
+				Response: &gnmi.SubscribeResponse_SyncResponse{
+					SyncResponse: true,
+				},
+			},
+		},
+		{
+			name: "rsp-valid-updates-ipv6",
+			err:  false,
+			jctx: &JCtx{
+				config: Config{
+					Host: "[::1]",
+					Port: 32767,
+					Log: LogConfig{
+						Verbose: true,
+					},
+				},
+			},
+			rsp: &gnmi.SubscribeResponse{
+				Extension: []*gnmi_ext1.Extension{
+					{
+						Ext: &gnmi_ext1.Extension_RegisteredExt{
+							RegisteredExt: &gnmi_ext1.RegisteredExtension{
+								Id:  gnmi_ext1.ExtensionID_EID_JUNIPER_TELEMETRY_HEADER,
+								Msg: hdrInputExtBytes,
+							},
+						},
+					},
+				},
+				Response: &gnmi.SubscribeResponse_Update{
+					Update: &gnmi.Notification{
+						Timestamp: 1589476296083000000,
+						Prefix: &gnmi.Path{
+							Origin: "",
+							Elem: []*gnmi.PathElem{
+								{Name: "interfaces"},
+								{Name: "interface", Key: map[string]string{"k1": "foo"}},
+								{Name: "subinterfaces"},
+								{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+							},
+						},
+						Update: []*gnmi.Update{
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "description"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_StringVal{StringVal: "Hello"},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "mtu"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_IntVal{IntVal: 1500},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "rsp-valid-deletes-ipv6",
+			err:  false,
+			jctx: &JCtx{
+				config: Config{
+					Host: "[::1]",
+					Port: 32767,
+					Log: LogConfig{
+						Verbose: true,
+					},
+				},
+			},
+			rsp: &gnmi.SubscribeResponse{
+				Response: &gnmi.SubscribeResponse_Update{
+					Update: &gnmi.Notification{
+						Timestamp: 1589476296083000000,
+						Prefix: &gnmi.Path{
+							Origin: "",
+							Elem: []*gnmi.PathElem{
+								{Name: "interfaces"},
+								{Name: "interface", Key: map[string]string{"k1": "foo"}},
+								{Name: "subinterfaces"},
+								{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+							},
+						},
+						Update: []*gnmi.Update{
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "__juniper_telemetry_header__"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_AnyVal{
+										AnyVal: &google_protobuf.Any{
+											TypeUrl: "type.googleapis.com/GnmiJuniperTelemetryHeader",
+											Value:   hdrInputXpathBytes,
+										},
+									},
+								},
+							},
+						},
+						Delete: []*gnmi.Path{
+							{
+								Origin: "",
+								Elem: []*gnmi.PathElem{
+									{Name: "state"},
+									{Name: "description"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "rsp-check-not-expecting-eos-juniper-isync-packet-ext-ipv6",
+			err:  false,
+			jctx: &JCtx{
+				config: Config{
+					Host: "[::1]",
+					Port: 32767,
+					Log: LogConfig{
+						Verbose: true,
+					},
+				},
+			},
+			rsp: &gnmi.SubscribeResponse{
+				Extension: []*gnmi_ext1.Extension{
+					{
+						Ext: &gnmi_ext1.Extension_RegisteredExt{
+							RegisteredExt: &gnmi_ext1.RegisteredExtension{
+								Id:  gnmi_ext1.ExtensionID_EID_JUNIPER_TELEMETRY_HEADER,
+								Msg: hdrInputExtIsyncBytes,
+							},
+						},
+					},
+				},
+				Response: &gnmi.SubscribeResponse_Update{
+					Update: &gnmi.Notification{
+						Timestamp: 1589476296083000000,
+						Prefix: &gnmi.Path{
+							Origin: "",
+							Elem: []*gnmi.PathElem{
+								{Name: "interfaces"},
+								{Name: "interface", Key: map[string]string{"k1": "foo"}},
+								{Name: "subinterfaces"},
+								{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+							},
+						},
+						Update: []*gnmi.Update{
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "description"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_StringVal{StringVal: "Hello"},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "mtu"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_IntVal{IntVal: 1500},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "rsp-check-not-expecting-eos-juniper-isync-packet-xpath-ipv6",
+			err:  false,
+			jctx: &JCtx{
+				config: Config{
+					Host: "[::1]",
+					Port: 32767,
+					Log: LogConfig{
+						Verbose: true,
+					},
+				},
+			},
+			rsp: &gnmi.SubscribeResponse{
+				Response: &gnmi.SubscribeResponse_Update{
+					Update: &gnmi.Notification{
+						Timestamp: 1589476296083000000,
+						Prefix: &gnmi.Path{
+							Origin: "",
+							Elem: []*gnmi.PathElem{
+								{Name: "interfaces"},
+								{Name: "interface", Key: map[string]string{"k1": "foo"}},
+								{Name: "subinterfaces"},
+								{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+							},
+						},
+						Update: []*gnmi.Update{
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "__juniper_telemetry_header__"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_AnyVal{
+										AnyVal: &google_protobuf.Any{
+											TypeUrl: "type.googleapis.com/GnmiJuniperTelemetryHeader",
+											Value:   hdrInputXpathIsyncBytes,
+										},
+									},
+								},
+							},
+						},
+						Delete: []*gnmi.Path{
+							{
+								Origin: "",
+								Elem: []*gnmi.PathElem{
+									{Name: "state"},
+									{Name: "description"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {

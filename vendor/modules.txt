@@ -4,6 +4,7 @@ github.com/beorn7/perks/quantile
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
+github.com/golang/protobuf/protoc-gen-go/descriptor
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/gorilla/context v1.1.1
@@ -18,7 +19,7 @@ github.com/influxdata/influxdb/pkg/escape
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/nileshsimaria/jtisim v0.0.0-20190103005352-93e1756cba8f
 github.com/nileshsimaria/jtisim
-# github.com/nileshsimaria/lpserver v0.0.0-20190104003445-1fca7666fe3e
+# github.com/nileshsimaria/lpserver v0.0.0-20190104003445-2c2ca16a8d88
 github.com/nileshsimaria/lpserver
 # github.com/prometheus/client_golang v0.8.0
 github.com/prometheus/client_golang/prometheus
@@ -54,13 +55,14 @@ golang.org/x/text/transform
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.11.3
 google.golang.org/grpc
+google.golang.org/grpc/codes
 google.golang.org/grpc/credentials
 google.golang.org/grpc/encoding/gzip
 google.golang.org/grpc/metadata
 google.golang.org/grpc/stats
+google.golang.org/grpc/status
 google.golang.org/grpc/balancer
 google.golang.org/grpc/balancer/roundrobin
-google.golang.org/grpc/codes
 google.golang.org/grpc/connectivity
 google.golang.org/grpc/encoding
 google.golang.org/grpc/encoding/proto
@@ -73,7 +75,6 @@ google.golang.org/grpc/peer
 google.golang.org/grpc/resolver
 google.golang.org/grpc/resolver/dns
 google.golang.org/grpc/resolver/passthrough
-google.golang.org/grpc/status
 google.golang.org/grpc/tap
 google.golang.org/grpc/transport
 google.golang.org/grpc/balancer/base

@@ -260,7 +260,7 @@ func handleOnePath(schema *schema, id int64, path string, conn *grpc.ClientConn,
 					if strings.Compare(ePath[0], node.Name) == 0 {
 						for _, fields := range message.GetDataGpbkv() {
 							parentPath := []string{node.Name}
-							processTopLevelMsg(jctx, node, fields, parentPath)
+							processTopLevelMsg(jctx, node, fields, parentPath, message.GetMsgTimestamp())
 						}
 					}
 				}
@@ -277,7 +277,7 @@ func handleOnePath(schema *schema, id int64, path string, conn *grpc.ClientConn,
 							}
 						}
 
-						processMultiLevelMsg(jctx, node, ePath, message)
+						processMultiLevelMsg(jctx, node, ePath, message, message.GetMsgTimestamp())
 					}
 				}
 			}
@@ -465,18 +465,18 @@ func multiLevelMsgTags(jctx *JCtx, node *schemaNode, ePath []string, m *telemetr
 	return tags, node
 }
 
-func processMultiLevelMsg(jctx *JCtx, node *schemaNode, ePath []string, message *telemetry.Telemetry) {
+func processMultiLevelMsg(jctx *JCtx, node *schemaNode, ePath []string, message *telemetry.Telemetry, ts uint64) {
 	for _, m := range message.GetDataGpbkv() {
 		tags, matchedNode := multiLevelMsgTags(jctx, node, ePath, m)
 		content := getContentFromMessage(jctx, m)
 		if content == nil {
 			continue
 		}
-		walk(jctx, matchedNode, content.GetFields(), ePath, tags)
+		walk(jctx, matchedNode, content.GetFields(), ePath, tags, ts)
 	}
 }
 
-func processTopLevelMsg(jctx *JCtx, node *schemaNode, field *telemetry.TelemetryField, parentPath []string) {
+func processTopLevelMsg(jctx *JCtx, node *schemaNode, field *telemetry.TelemetryField, parentPath []string, ts uint64) {
 	content := getContentFromMessage(jctx, field)
 
 	if content != nil {
@@ -495,7 +495,7 @@ func processTopLevelMsg(jctx *JCtx, node *schemaNode, field *telemetry.Telemetry
 				value: "cisco",
 			},
 		}
-		walk(jctx, node, content.GetFields(), parentPath, tags)
+		walk(jctx, node, content.GetFields(), parentPath, tags, ts)
 	}
 }
 
@@ -508,7 +508,7 @@ func (k keyInfo) String() string {
 	return fmt.Sprintf("key=%s value=%s", k.key, k.value)
 }
 
-func walk(jctx *JCtx, n *schemaNode, f []*telemetry.TelemetryField, p []string, tags []keyInfo) {
+func walk(jctx *JCtx, n *schemaNode, f []*telemetry.TelemetryField, p []string, tags []keyInfo, ts uint64) {
 	var matchedNode *schemaNode
 	newTags := tags
 
@@ -559,7 +559,7 @@ func walk(jctx *JCtx, n *schemaNode, f []*telemetry.TelemetryField, p []string, 
 				tagsM[t.key] = t.value
 			}
 			fieldsM[k] = getFieldValueInterface(field)
-			m := newMetricIDB(tagsM, fieldsM)
+			m := newMetricIDB(tagsM, fieldsM, ts)
 			m.accumulate(jctx)
 
 		default:
@@ -573,7 +573,7 @@ func walk(jctx *JCtx, n *schemaNode, f []*telemetry.TelemetryField, p []string, 
 			if field.GetName() != "" {
 				q = append(p, field.GetName())
 			}
-			walk(jctx, matchedNode, field.GetFields(), q, newTags)
+			walk(jctx, matchedNode, field.GetFields(), q, newTags, ts)
 		}
 	}
 }

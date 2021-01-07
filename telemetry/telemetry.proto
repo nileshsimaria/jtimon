@@ -127,6 +127,23 @@ message Path {
     //     (same as EOS)
     // This feature is not implemented currently.
     bool need_eom                                           = 6;
+
+    // To denote if the path is from OC, IETF 
+    // or some other standards
+    string origin                                           = 100;
+
+    // Allow the target to decide if the updates need to be sent
+    // periodically or on-change for the leaves under this path.
+    //   If this is set to true and sample_frequency is non-zero,
+    //     then whichever leaves support on-change will be
+    //     streamed on change and other leaves will be streamed
+    //     at the cadence requested as per sample_frequency.
+    //   If this is set to true and sample_frequency is zero,
+    //     then it will be considered as on-change only.
+    //   If this is set to false, then the streaming will be
+    //     will be periodic if sample_frequency is non-zero
+    //     and will be on-change if sample_frequency is zero.
+    bool target_defined                                     = 101;
 }
 
 // Configure subscription request additional features.
@@ -138,8 +155,10 @@ message SubscriptionAdditionalConfig {
     int32 limit_time_seconds                                = 2;
 
     // EOS needed for this subscription?
-    // This feature is not implemented currently.
     bool need_eos                                           = 3;
+
+    // Subscription mode (long-lived, one_off or poll)
+    SubscriptionMode mode                                   = 4;
 }
 
 // Reply to inline subscription for data at the specified path is done in
@@ -217,8 +236,29 @@ message KeyValue {
         bool   bool_value                                   =  9;
         string str_value                                    = 10;
         bytes  bytes_value                                  = 11;
+        float  float_value                                  = 12;
+        ScalarArray leaflist_value                          = 13;
     }
 }
+
+message TypedValue {
+	// Scalararray representation
+    oneof value {	
+         double leaflist_double_value               	    =  1;
+         int64  leaflist_int_value                  	    =  2;
+         uint64 leaflist_uint_value                 	    =  3;
+         sint64 leaflist_sint_value                 	    =  4;
+         bool   leaflist_bool_value                 	    =  5;
+         string leaflist_str_value                          =  6;
+         bytes  leaflist_bytes_value                        =  7;
+         float  leaflist_float_value                        =  8;
+    }
+}
+
+message ScalarArray {
+     repeated TypedValue element                            =  1;
+}
+
 
 // Message indicating delete for a particular path
 message Delete {
@@ -318,3 +358,9 @@ enum EncodingType {
     PROTO3                                                  = 3;
 }
 
+// Subscription modes supported
+enum SubscriptionMode {
+    LONG_LIVED                                              = 0;
+    ONE_OFF                                                 = 1;
+    POLL                                                    = 2;
+}

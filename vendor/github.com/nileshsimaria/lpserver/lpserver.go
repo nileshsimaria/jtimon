@@ -15,6 +15,10 @@ import (
 	"github.com/influxdata/influxdb/models"
 )
 
+const (
+	gDeviceTs = "__device_timestamp__"
+)
+
 // LPServer is Line Protocol Server
 type LPServer struct {
 	host string
@@ -56,6 +60,10 @@ func processData(db string, p string, rp string, consistency string, data []byte
 			if fields, err := point.Fields(); err == nil {
 				var keys []string
 				for k := range fields {
+					// Skip the fields that are internally generated
+					if k == gDeviceTs {
+						continue
+					}
 					keys = append(keys, k)
 				}
 				sort.Strings(keys)

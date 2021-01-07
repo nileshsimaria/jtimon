@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"math"
+	"math/big"
 	"reflect"
 	"regexp"
 	"testing"
@@ -156,4 +159,98 @@ func TestSubscriptionPathFromPath(t *testing.T) {
 		}
 	}
 
+}
+
+func TestCheckAndCeilFloatValues(t *testing.T) {
+
+	inf64PracticalMaxLowerBound := math.MaxFloat64 - 9.979e291
+	inf64PracticalMaxUpperBound := math.MaxFloat64 + 9.979e291
+	val64PracticalNonMax := math.MaxFloat64 - 9.98e291
+	val32Max := float32(math.MaxFloat32)
+	negInf64PracticalMaxLowerBound := -(math.MaxFloat64 - 9.979e291)
+	negInf64PracticalMaxUpperBound := -(math.MaxFloat64 + 9.979e291)
+	val64PracticalNonMin := -(math.MaxFloat64 - 9.98e291)
+	val32Min := float32(-math.MaxFloat32)
+	zero32 := float32(0)
+	zero64 := float64(0)
+	tests := []struct {
+		name     string
+		val32    *float32
+		val64    *float64
+		expected float64
+	}{
+		{
+			name:     "PracticalMaxLowerBoun",
+			val32:    nil,
+			val64:    &inf64PracticalMaxLowerBound,
+			expected: math.MaxFloat64,
+		},
+		{
+			name:     "PracticalMaxUpperBound",
+			val32:    nil,
+			val64:    &inf64PracticalMaxUpperBound,
+			expected: math.MaxFloat64,
+		},
+		{
+			name:     "PracticalNonMax",
+			val32:    nil,
+			val64:    &val64PracticalNonMax,
+			expected: val64PracticalNonMax,
+		},
+		{
+			name:     "Float32",
+			val32:    &val32Max,
+			val64:    nil,
+			expected: float64(val32Max),
+		},
+		{
+			name:     "negInf64PracticalMaxLowerBound",
+			val32:    nil,
+			val64:    &negInf64PracticalMaxLowerBound,
+			expected: -math.MaxFloat64,
+		},
+		{
+			name:     "negInf64PracticalMaxUpperBound",
+			val32:    nil,
+			val64:    &negInf64PracticalMaxUpperBound,
+			expected: -math.MaxFloat64,
+		},
+		{
+			name:     "PracticalNonMin",
+			val32:    nil,
+			val64:    &val64PracticalNonMin,
+			expected: val64PracticalNonMin,
+		},
+		{
+			name:     "Float32Min",
+			val32:    &val32Min,
+			val64:    nil,
+			expected: float64(val32Min),
+		},
+		{
+			name:     "Zero32",
+			val32:    &zero32,
+			val64:    nil,
+			expected: float64(zero32),
+		},
+		{
+			name:     "Zero64",
+			val32:    nil,
+			val64:    &zero64,
+			expected: float64(zero64),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var output float64
+			checkAndCeilFloatValues(test.val32, test.val64, &output)
+			diff := uint64(big.NewFloat(output).Cmp(big.NewFloat(test.expected)))
+			if diff != 0 {
+				var errMsg string
+				errMsg = fmt.Sprintf("\nNot equal, expected :%v\nGot :%v, diff: %v", test.expected, output, diff)
+				t.Errorf(errMsg)
+			}
+		})
+	}
 }

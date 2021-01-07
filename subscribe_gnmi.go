@@ -184,7 +184,9 @@ func gnmiParseHeader(rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT)
 		}
 		parseOutput.sensorVal = prefixPath
 		parseOutput.mName = prefixPath + gXPathTokenPathSep // To be compatible with that of OC
-		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = (ps / gGnmiFreqToMilli)
+		tsInMillisecs := (ps / gGnmiFreqToMilli)
+		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = tsInMillisecs
+		xpathVal[gGnmiJtimonDeviceTsName] = tsInMillisecs
 		return parseOutput, nil
 	}
 
@@ -201,7 +203,10 @@ func gnmiParseHeader(rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT)
 		if jXpaths.publishTsXpath != "" {
 			xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonExportTsName] = jXpaths.xPaths[jXpaths.publishTsXpath]
 		}
-		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = (rsp.GetUpdate().GetTimestamp() / gGnmiFreqToMilli)
+
+		tsInMillisecs := (rsp.GetUpdate().GetTimestamp() / gGnmiFreqToMilli)
+		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = tsInMillisecs
+		xpathVal[gGnmiJtimonDeviceTsName] = tsInMillisecs
 	} else {
 		var hdr = juniperHdrDetails.hdrExt
 		verboseSensorDetails = hdr.GetSensorName() + gGnmiVerboseSensorDetailsDelim +
@@ -211,7 +216,10 @@ func gnmiParseHeader(rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT)
 
 		mName = hdr.GetSubscribedPath()
 		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonExportTsName] = hdr.GetExportTimestamp()
-		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = (rsp.GetUpdate().GetTimestamp() / gGnmiFreqToMilli)
+
+		tsInMillisecs := (rsp.GetUpdate().GetTimestamp() / gGnmiFreqToMilli)
+		xpathVal[prefixPath+gXPathTokenPathSep+gGnmiJtimonProducerTsName] = tsInMillisecs
+		xpathVal[gGnmiJtimonDeviceTsName] = tsInMillisecs
 	}
 
 	parseOutput.jHeader = juniperHdrDetails

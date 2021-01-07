@@ -35,7 +35,8 @@ const (
 	gGnmiJuniperIsyncSeqNumBegin     = ((uint64(1)) << 21)
 	gGnmiJuniperIsyncSeqNumEnd       = (((uint64(1)) << 22) - 1)
 	gGnmiVerboseSensorDetailsDelim   = ":"
-	gGnmiJtimonProducerTsName        = "__producer_timestamp__"
+	gGnmiJtimonProducerTsName        = "__producer_timestamp__" // TODO: Remove after 3 HealthBot releases, last release was 3.1 !
+	gGnmiJtimonDeviceTsName          = gDeviceTs                // Its value will be same as gGnmiJtimonProducerTsName
 	gGnmiJtimonExportTsName          = "__export_timestamp__"
 	gGnmiJtimonSyncRsp               = "__sync_response__"
 	gGnmiJtimonIgnoreErrorSubstr     = "Ignoring error."
@@ -310,10 +311,16 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool) (interface{}, error) {
 	case *gnmi.TypedValue_AnyVal:
 		value = gnmiValue.GetAnyVal()
 	case *gnmi.TypedValue_DecimalVal:
+		var floatVal float64
 		d64Val := gnmiValue.GetDecimalVal()
-		value = ((float64(d64Val.GetDigits())) / math.Pow10(int(d64Val.GetPrecision())))
+		value64 := ((float64(d64Val.GetDigits())) / math.Pow10(int(d64Val.GetPrecision())))
+		checkAndCeilFloatValues(nil, &value64, &floatVal)
+		value = floatVal
 	case *gnmi.TypedValue_FloatVal:
-		value = float64(gnmiValue.GetFloatVal())
+		var floatVal float64
+		value32 := gnmiValue.GetFloatVal()
+		checkAndCeilFloatValues(&value32, nil, &floatVal)
+		value = floatVal
 	case *gnmi.TypedValue_LeaflistVal:
 		var (
 			saVal      interface{}
@@ -331,8 +338,11 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool) (interface{}, error) {
 			case int64:
 				intVals = append(intVals, saVal.(int64))
 				value = intVals
-			case float64:
-				floatVals = append(floatVals, saVal.(float64))
+			case float32:
+				var floatVal float64
+				value32 := saVal.(float32)
+				checkAndCeilFloatValues(&value32, nil, &floatVal)
+				floatVals = append(floatVals, floatVal)
 				value = floatVals
 			case bool:
 				boolVals = append(boolVals, saVal.(bool))

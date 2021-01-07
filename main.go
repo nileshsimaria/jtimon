@@ -36,6 +36,10 @@ var (
 	exporter *jtimonPExporter
 )
 
+const (
+	gDeviceTs = "__device_timestamp__"
+)
+
 func main() {
 	flag.Parse()
 	if *pProf {

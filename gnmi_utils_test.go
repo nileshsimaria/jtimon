@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"testing"
 
@@ -365,6 +366,19 @@ func TestGnmiParseUpdates(t *testing.T) {
 						Value: &gnmi.TypedValue_FloatVal{FloatVal: 32.45},
 					},
 				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "counters"},
+							{Name: "power-inf-float"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_FloatVal{FloatVal: math.MaxFloat32 + 1},
+					},
+				},
 			},
 			parseOutput: &gnmiParseOutputT{
 				prefixPath: "/a/b/c/d",
@@ -381,6 +395,7 @@ func TestGnmiParseUpdates(t *testing.T) {
 					"/a/b/c/d/state/counters/in-octets":        float64(40000),
 					"/a/b/c/d/state/counters/out-octets-dec64": float64(9.007199254740992),
 					"/a/b/c/d/state/counters/out-octets-float": float64(float32(32.45)), // Guess this may not always work..
+					"/a/b/c/d/state/counters/power-inf-float":  float64(3.40282346638528859811704183484516925440e+38),
 				},
 			},
 		},
@@ -690,7 +705,7 @@ func TestGnmiParseUpdates(t *testing.T) {
 				if err != nil || !reflect.DeepEqual(*test.output, *parseOutput) {
 					var errMsg string
 					if err == nil {
-						errMsg = fmt.Sprintf("\nexpected:%v\nGot:%v", *test.output, *parseOutput)
+						errMsg = fmt.Sprintf("\nexpected :%v\nGot:%v", *test.output, *parseOutput)
 					} else {
 						errMsg = fmt.Sprintf("Not an error, but got an error: %v", err)
 					}

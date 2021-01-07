@@ -158,7 +158,7 @@ func TestXRInflux(t *testing.T) {
 								if strings.Compare(ePath[0], node.Name) == 0 {
 									for _, fields := range message.GetDataGpbkv() {
 										parentPath := []string{node.Name}
-										processTopLevelMsg(jctx, node, fields, parentPath)
+										processTopLevelMsg(jctx, node, fields, parentPath, message.GetMsgTimestamp())
 									}
 								}
 							}
@@ -167,7 +167,7 @@ func TestXRInflux(t *testing.T) {
 						for _, nodes := range schema.nodes {
 							for _, node := range nodes {
 								if strings.Compare(ePath[0], node.Name) == 0 {
-									processMultiLevelMsg(jctx, node, ePath, message)
+									processMultiLevelMsg(jctx, node, ePath, message, message.GetMsgTimestamp())
 								}
 							}
 						}
@@ -277,7 +277,7 @@ func TestXRTagsPoints(t *testing.T) {
 								if strings.Compare(ePath[0], node.Name) == 0 {
 									for _, fields := range message.GetDataGpbkv() {
 										parentPath := []string{node.Name}
-										processTopLevelMsg(jctx, node, fields, parentPath)
+										processTopLevelMsg(jctx, node, fields, parentPath, message.GetMsgTimestamp())
 									}
 								}
 							}
@@ -286,7 +286,7 @@ func TestXRTagsPoints(t *testing.T) {
 						for _, nodes := range schema.nodes {
 							for _, node := range nodes {
 								if strings.Compare(ePath[0], node.Name) == 0 {
-									processMultiLevelMsg(jctx, node, ePath, message)
+									processMultiLevelMsg(jctx, node, ePath, message, message.GetMsgTimestamp())
 								}
 							}
 						}

@@ -97,6 +97,10 @@ func testDataPoints(jctx *JCtx, testType testDataType, tags map[string]string, f
 
 	keys = nil
 	for k := range fields {
+		// Skip the fields that need not be compared
+		if k == gDeviceTs {
+			continue
+		}
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)

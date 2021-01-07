@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"reflect"
 	"regexp"
 	"strings"
@@ -48,12 +49,14 @@ type InfluxConfig struct {
 type metricIDB struct {
 	tags   map[string]string
 	fields map[string]interface{}
+	ts     uint64
 }
 
-func newMetricIDB(tags map[string]string, fields map[string]interface{}) *metricIDB {
+func newMetricIDB(tags map[string]string, fields map[string]interface{}, ts uint64) *metricIDB {
 	return &metricIDB{
 		tags:   tags,
 		fields: fields,
+		ts:     ts,
 	}
 }
 
@@ -64,6 +67,7 @@ func (m *metricIDB) accumulate(jctx *JCtx) {
 }
 
 func pointAcculumator(jctx *JCtx) {
+	deviceTs := gDeviceTs
 	freq := jctx.config.Influx.AccumulatorFrequency
 	accumulatorCh := make(chan *metricIDB, 1024*10)
 	jctx.influxCtx.accumulatorCh = accumulatorCh
@@ -88,6 +92,7 @@ func pointAcculumator(jctx *JCtx) {
 							mName = m.tags["sensor"]
 						}
 
+						m.fields[deviceTs] = int64(m.ts)
 						pt, err := client.NewPoint(mName, m.tags, m.fields, time.Now())
 						if err != nil {
 							jLog(jctx, fmt.Sprintf("pointAcculumator: Could not get NewPoint (first point): %v\n", err))
@@ -139,6 +144,7 @@ func pointAcculumator(jctx *JCtx) {
 							} else {
 								mName = m.tags["sensor"]
 							}
+							m.fields[deviceTs] = int64(m.ts)
 							pt, err := client.NewPoint(mName, m.tags, m.fields, time.Now())
 							if err != nil {
 								jLog(jctx, fmt.Sprintf("pointAcculumator: Could not get NewPoint (first point): %v\n", err))
@@ -407,6 +413,7 @@ func newRow(tags map[string]string, fields map[string]interface{}) (*row, error)
 
 // A go routine to add one telemetry packet in to InfluxDB
 func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
+	deviceTs := gDeviceTs
 	cfg := jctx.config
 
 	prefix := ""
@@ -452,7 +459,10 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 		case *na_pb.KeyValue_StrValue:
 			kv[xmlpath] = v.GetStrValue()
 		case *na_pb.KeyValue_DoubleValue:
-			kv[xmlpath] = v.GetDoubleValue()
+			var floatVal float64
+			val := v.GetDoubleValue()
+			checkAndCeilFloatValues(nil, &val, &floatVal)
+			kv[xmlpath] = floatVal
 		case *na_pb.KeyValue_IntValue:
 			kv[xmlpath] = float64(v.GetIntValue())
 		case *na_pb.KeyValue_UintValue:
@@ -463,6 +473,11 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 			kv[xmlpath] = v.GetBoolValue()
 		case *na_pb.KeyValue_BytesValue:
 			kv[xmlpath] = v.GetBytesValue()
+		case *na_pb.KeyValue_FloatValue:
+			var floatVal float64
+			value32 := v.GetFloatValue()
+			checkAndCeilFloatValues(&value32, nil, &floatVal)
+			kv[xmlpath] = floatVal
 		default:
 		}
 
@@ -488,6 +503,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 					}
 				} else {
 					// Could not merge as tags are different
+					kv[deviceTs] = int64(ocData.Timestamp)
 					rw, err := newRow(tags, kv)
 					if err != nil {
 						jLog(jctx, fmt.Sprintf("addIDB: Could not get NewRow (no merge): %v", err))
@@ -497,6 +513,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 				}
 			} else {
 				// First row for this sensor
+				kv[deviceTs] = int64(ocData.Timestamp)
 				rw, err := newRow(tags, kv)
 				if err != nil {
 					jLog(jctx, fmt.Sprintf("addIDB: Could not get NewRow (first row): %v", err))
@@ -613,4 +630,26 @@ func influxInit(jctx *JCtx) {
 	if c != nil {
 		closeInfluxClient(*c)
 	}
+}
+
+func checkAndCeilFloatValues(val32 *float32, val64 *float64, cieled *float64) {
+	if val32 != nil {
+		*cieled = float64(*val32)
+		return
+	}
+
+	if val64 == nil {
+		*cieled = 0
+		return
+	}
+
+	if math.IsInf(*val64, 1) {
+		*cieled = math.MaxFloat64
+	} else if math.IsInf(*val64, -1) {
+		*cieled = -math.MaxFloat64
+	} else {
+		*cieled = *val64
+	}
+
+	return
 }

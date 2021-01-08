@@ -11,7 +11,7 @@ require (
 	github.com/influxdata/influxdb v1.5.2
 	github.com/matttproud/golang_protobuf_extensions v1.0.0 // indirect
 	github.com/nileshsimaria/jtisim v0.0.0-20190103005352-93e1756cba8f
-	github.com/nileshsimaria/lpserver v0.0.0-20190104003445-2c2ca16a8d88
+	github.com/nileshsimaria/lpserver v0.0.0-20201223125141-2c2ca16a8d88
 	github.com/prometheus/client_golang v0.8.0
 	github.com/prometheus/client_model v0.0.0-20171117100541-99fa1f4be8e5 // indirect
 	github.com/prometheus/common v0.0.0-20180413074202-d0f7cd64bda4 // indirect

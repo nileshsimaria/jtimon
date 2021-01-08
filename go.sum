@@ -14,10 +14,8 @@ github.com/matttproud/golang_protobuf_extensions v1.0.0 h1:YNOwxxSJzSUARoD9KRZLz
 github.com/matttproud/golang_protobuf_extensions v1.0.0/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
 github.com/nileshsimaria/jtisim v0.0.0-20190103005352-93e1756cba8f h1:2PTlpKVkXc86Z78JnbGbXcn5Dx/bP+VzhmUJd9AKeNk=
 github.com/nileshsimaria/jtisim v0.0.0-20190103005352-93e1756cba8f/go.mod h1:Wi/B8x0ZsD1eosNb3KNug1xaIewmkhjkNX0NywaRk4I=
-github.com/nileshsimaria/lpserver v0.0.0-20190104003445-1fca7666fe3e h1:hUE0bzONIpSBUfgVcm+qt5KjJsmj0ieleo1Xg5I5ffk=
-github.com/nileshsimaria/lpserver v0.0.0-20190104003445-1fca7666fe3e/go.mod h1:YGYUx9mOKk40f8iWBth6MBLuv3wwdSt+8TzrTFxHyw8=
-github.com/nileshsimaria/lpserver v0.0.0-20190104003445-2c2ca16a8d88 h1:XZNZUZ3jOy7uCvWLdL+n7e3Yo5MST8cRU0U9+sOsnRI=
-github.com/nileshsimaria/lpserver v0.0.0-20190104003445-2c2ca16a8d88/go.mod h1:YGYUx9mOKk40f8iWBth6MBLuv3wwdSt+8TzrTFxHyw8=
+github.com/nileshsimaria/lpserver v0.0.0-20201223125141-2c2ca16a8d88 h1:GmF0ZddPFvW+VLKHleNv8IpYx1px5ye/eTMQtXiQjY8=
+github.com/nileshsimaria/lpserver v0.0.0-20201223125141-2c2ca16a8d88/go.mod h1:YGYUx9mOKk40f8iWBth6MBLuv3wwdSt+8TzrTFxHyw8=
 github.com/prometheus/client_golang v0.8.0 h1:1921Yw9Gc3iSc4VQh3PIoOqgPCZS7G/4xQNVUp8Mda8=
 github.com/prometheus/client_golang v0.8.0/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_model v0.0.0-20171117100541-99fa1f4be8e5 h1:cLL6NowurKLMfCeQy4tIeph12XNQWgANCNvdyrOYKV4=

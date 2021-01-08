@@ -1,5 +1,5 @@
 {
-    "host": "10.92.249.109",
+    "host": "host-or-ip",
     "port": 50051,
     "cid": "mac1",
     "paths": [{
@@ -16,6 +16,6 @@
         "measurement": "m"
     },
     "log": {
-        "file": "1.log"
+        "file": "jtimon.log"
     }
 }

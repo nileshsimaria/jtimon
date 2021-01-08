@@ -1,0 +1,28 @@
+{
+
+    "cid": "test1",
+    "host": "host-or-ip",
+    "user": "user",
+    "password": "pwd",
+    "eos": true,
+    "vendor": {
+        "gnmi": {
+            "encoding": "protobuf"
+        }
+    },
+    "port": 50051,
+    "paths": [
+        {
+            "freq": 30000,
+            "path": "/interfaces/interface/state/"
+        },
+        {
+            "freq": 30000,
+            "path": "/interfaces/"
+        },
+        {
+            "freq": 30000,
+            "path": "/interfaces/interface/subinterfaces/subinterface/state/"
+        }
+    ]
+}

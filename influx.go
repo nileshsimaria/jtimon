@@ -84,6 +84,19 @@ func pointAcculumator(jctx *JCtx) {
 				var points []*client.Point
 				for i := 0; i < n; i++ {
 					m := <-accumulatorCh
+
+					// validate the point
+					if pt, err := client.NewPoint("tmpmeasure", m.tags, m.fields, time.Now()); err != nil {
+						jLog(jctx, fmt.Sprintf("pointAcculumator: Could not get TmpPoint: %v\n", err))
+						continue
+					} else {
+						_, err := pt.Fields()
+						if err != nil {
+							jLog(jctx, fmt.Sprintf("addIDB: Could not get fields of the TmpPoint: %v\n", err))
+							continue
+						}
+					}
+
 					if lastPoint == nil {
 						mName := ""
 						if jctx.config.Influx.Measurement != "" {

@@ -2,18 +2,6 @@
     "cid": "Core:teakwood_akshayg-mbp",
     "host": "127.0.0.1",
     "port": 32767,
-    "influx": {
-        "BatchFrequency": 1000,
-        "BatchSize": 1024,
-        "dbname": "Core:teakwood",
-        "password": "influxdb",
-        "port": 8086,
-        "recreate": false,
-        "server": "localhost",
-        "user": "influx",
-        "retention-policy": "Core:teakwood",
-        "write-per-measurement" : true
-    },
     "paths": [
         {
             "freq": 100000,

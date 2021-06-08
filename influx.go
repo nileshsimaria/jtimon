@@ -479,7 +479,11 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 		case *na_pb.KeyValue_IntValue:
 			kv[xmlpath] = float64(v.GetIntValue())
 		case *na_pb.KeyValue_UintValue:
-			kv[xmlpath] = float64(v.GetUintValue())
+			if jctx.config.EnableUintSupport {
+				kv[xmlpath] = v.GetUintValue()
+			} else {
+				kv[xmlpath] = float64(v.GetUintValue())
+			}
 		case *na_pb.KeyValue_SintValue:
 			kv[xmlpath] = float64(v.GetSintValue())
 		case *na_pb.KeyValue_BoolValue:

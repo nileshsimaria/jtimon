@@ -144,7 +144,7 @@ func gnmiFreq(mode gnmi.SubscriptionMode, inFreq uint64) (gnmi.SubscriptionMode,
  *    3. xpaths
  *    4. Juniper specific xpaths
  */
-func gnmiParseUpdates(parseOrigin bool, prefix *gnmi.Path, updates []*gnmi.Update, parseOutput *gnmiParseOutputT) (*gnmiParseOutputT, error) {
+func gnmiParseUpdates(parseOrigin bool, prefix *gnmi.Path, updates []*gnmi.Update, parseOutput *gnmiParseOutputT, enableUint bool) (*gnmiParseOutputT, error) {
 	var (
 		prefixPath = parseOutput.prefixPath
 		kvpairs    = parseOutput.kvpairs
@@ -181,17 +181,17 @@ func gnmiParseUpdates(parseOrigin bool, prefix *gnmi.Path, updates []*gnmi.Updat
 			[]string{gGnmiJuniperHeaderFieldName, gGnmiJuniperPublishTsFieldName})
 
 		if len(internalFields) == 0 {
-			xpathValue[xpath], err = gnmiParseValue(update.GetVal(), false)
+			xpathValue[xpath], err = gnmiParseValue(update.GetVal(), false, enableUint)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			if _, ok := internalFields[gGnmiJuniperHeaderFieldName]; ok {
 				tmpJXpaths.hdrXpath = xpath
-				tmpJXpaths.xPaths[xpath], _ = gnmiParseValue(update.GetVal(), false)
+				tmpJXpaths.xPaths[xpath], _ = gnmiParseValue(update.GetVal(), false, enableUint)
 			} else if _, ok := internalFields[gGnmiJuniperPublishTsFieldName]; ok {
 				tmpJXpaths.publishTsXpath = xpath
-				tmpJXpaths.xPaths[xpath], _ = gnmiParseValue(update.GetVal(), true)
+				tmpJXpaths.xPaths[xpath], _ = gnmiParseValue(update.GetVal(), true, enableUint)
 			}
 
 			if jXpaths == nil {
@@ -279,7 +279,7 @@ func gnmiParsePath(prefix string, pes []*gnmi.PathElem, kvpairs map[string]strin
 }
 
 // Convert gNMI value to data types that Influx Line Protocol supports.
-func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool) (interface{}, error) {
+func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool, enableUint bool) (interface{}, error) {
 	var (
 		value   interface{}
 		jsonVal []byte
@@ -291,7 +291,9 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool) (interface{}, error) {
 	case *gnmi.TypedValue_IntVal:
 		value = gnmiValue.GetIntVal()
 	case *gnmi.TypedValue_UintVal:
-		if !ts {
+		if enableUint {
+			value = gnmiValue.GetUintVal()
+		} else if !ts {
 			value = float64(gnmiValue.GetUintVal())
 		} else {
 			value = int64(gnmiValue.GetUintVal())
@@ -333,7 +335,7 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool) (interface{}, error) {
 
 		vals := gnmiValue.GetLeaflistVal().GetElement()
 		for _, val := range vals {
-			saVal, _ = gnmiParseValue(val, false)
+			saVal, _ = gnmiParseValue(val, false, enableUint)
 			switch saVal.(type) {
 			case int64:
 				intVals = append(intVals, saVal.(int64))

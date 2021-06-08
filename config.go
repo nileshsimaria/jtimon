@@ -19,21 +19,22 @@ type ConfigFileList struct {
 
 // Config struct
 type Config struct {
-	Port            int           `json:"port"`
-	Host            string        `json:"host"`
-	User            string        `json:"user"`
-	Password        string        `json:"password"`
-	CID             string        `json:"cid"`
-	Meta            bool          `json:"meta"`
-	EOS             bool          `json:"eos"`
-	GRPC            GRPCConfig    `json:"grpc"`
-	TLS             TLSConfig     `json:"tls"`
-	Influx          InfluxConfig  `json:"influx"`
-	Paths           []PathsConfig `json:"paths"`
-	Log             LogConfig     `json:"log"`
-	Vendor          VendorConfig  `json:"vendor"`
-	Alias           string        `json:"alias"`
-	PasswordDecoder string        `json:"password-decoder"`
+	Port              int           `json:"port"`
+	Host              string        `json:"host"`
+	User              string        `json:"user"`
+	Password          string        `json:"password"`
+	CID               string        `json:"cid"`
+	Meta              bool          `json:"meta"`
+	EOS               bool          `json:"eos"`
+	GRPC              GRPCConfig    `json:"grpc"`
+	TLS               TLSConfig     `json:"tls"`
+	Influx            InfluxConfig  `json:"influx"`
+	Paths             []PathsConfig `json:"paths"`
+	Log               LogConfig     `json:"log"`
+	Vendor            VendorConfig  `json:"vendor"`
+	Alias             string        `json:"alias"`
+	PasswordDecoder   string        `json:"password-decoder"`
+	EnableUintSupport bool          `json:"enable-uint"`
 }
 
 // GnmiConfig definition
@@ -246,6 +247,8 @@ func (jctx *JCtx) isConfigChanged(new Config) bool {
 	case old.EOS != new.EOS:
 		return true
 	case old.Meta != new.Meta:
+		return true
+	case old.EnableUintSupport != new.EnableUintSupport:
 		return true
 	case old.GRPC.WS != new.GRPC.WS:
 		return true

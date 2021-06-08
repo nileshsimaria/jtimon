@@ -234,7 +234,7 @@ func gnmiParseHeader(rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT)
  *   2. Fields aka xpaths
  *   3. Juniper telemery header, "sensor" value and measurement name
  */
-func gnmiParseNotification(parseOrigin bool, rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT) (*gnmiParseOutputT, error) {
+func gnmiParseNotification(parseOrigin bool, rsp *gnmi.SubscribeResponse, parseOutput *gnmiParseOutputT, enableUint bool) (*gnmiParseOutputT, error) {
 	var (
 		errMsg string
 		err    error
@@ -247,7 +247,7 @@ func gnmiParseNotification(parseOrigin bool, rsp *gnmi.SubscribeResponse, parseO
 	}
 
 	if len(notif.GetUpdate()) != 0 {
-		parseOutput, err = gnmiParseUpdates(parseOrigin, notif.GetPrefix(), notif.GetUpdate(), parseOutput)
+		parseOutput, err = gnmiParseUpdates(parseOrigin, notif.GetPrefix(), notif.GetUpdate(), parseOutput, enableUint)
 		if err != nil {
 			errMsg = fmt.Sprintf("gnmiParseUpdates failed: %v", err)
 			return parseOutput, errors.New(errMsg)
@@ -304,7 +304,7 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 	/*
 	 * Extract prefix, tags, values and juniper speecific header info if present
 	 */
-	parseOutput, err = gnmiParseNotification(!jctx.config.Vendor.RemoveNS, rsp, parseOutput)
+	parseOutput, err = gnmiParseNotification(!jctx.config.Vendor.RemoveNS, rsp, parseOutput, jctx.config.EnableUintSupport)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("gNMI host: %v, parsing notification failed: %v", hostname, err.Error()))
 		return err

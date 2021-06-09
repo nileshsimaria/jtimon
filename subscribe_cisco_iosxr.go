@@ -376,13 +376,16 @@ func getFieldStringValue(field *telemetry.TelemetryField) string {
 	}
 }
 
-func getFieldValueInterface(field *telemetry.TelemetryField) interface{} {
+func getFieldValueInterface(field *telemetry.TelemetryField, enableUint bool) interface{} {
 	switch field.GetValueByType().(type) {
 	case *telemetry.TelemetryField_StringValue:
 		return field.GetStringValue()
 	case *telemetry.TelemetryField_Uint32Value:
 		return field.GetUint32Value()
 	case *telemetry.TelemetryField_Uint64Value:
+		if enableUint {
+			return field.GetUint64Value()
+		}
 		return float64(field.GetUint64Value())
 	case *telemetry.TelemetryField_Sint32Value:
 		return field.GetSint32Value()
@@ -558,7 +561,7 @@ func walk(jctx *JCtx, n *schemaNode, f []*telemetry.TelemetryField, p []string, 
 			for _, t := range newTags {
 				tagsM[t.key] = t.value
 			}
-			fieldsM[k] = getFieldValueInterface(field)
+			fieldsM[k] = getFieldValueInterface(field, jctx.config.EnableUintSupport)
 			m := newMetricIDB(tagsM, fieldsM, ts)
 			m.accumulate(jctx)
 

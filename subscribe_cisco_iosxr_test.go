@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -415,6 +416,142 @@ func TestXRSchema(t *testing.T) {
 				if compareString(got, test.schemaStr) == false {
 					t.Errorf("want: \n%s\n, got: \n%s\n", test.schemaStr, got)
 				}
+			}
+		})
+	}
+}
+
+func Test_getFieldValueInterface(t *testing.T) {
+	type args struct {
+		field      *telemetry.TelemetryField
+		enableUint bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want interface{}
+	}{
+		{
+			"unsigned-data-and-uint-enabled",
+			args{
+				field: &telemetry.TelemetryField{
+					ValueByType: &telemetry.TelemetryField_Uint64Value{
+						Uint64Value: uint64(1),
+					},
+				},
+				enableUint: true,
+			},
+			uint64(1),
+		},
+		{
+			"unsigned-data-and-uint-disabled",
+			args{
+				field: &telemetry.TelemetryField{
+					ValueByType: &telemetry.TelemetryField_Uint64Value{
+						Uint64Value: uint64(1),
+					},
+				},
+				enableUint: false,
+			},
+			float64(1),
+		},
+		{
+			"string",
+			args{
+				field: &telemetry.TelemetryField{
+					ValueByType: &telemetry.TelemetryField_StringValue{
+						StringValue: "test",
+					},
+				},
+				enableUint: false,
+			},
+			"test",
+		},
+		{
+			"uint32",
+			args{
+				field: &telemetry.TelemetryField{
+					ValueByType: &telemetry.TelemetryField_Uint32Value{
+						Uint32Value: uint32(1),
+					},
+				},
+				enableUint: false,
+			},
+			uint32(1),
+		},
+		{
+			"sint32",
+			args{
+				field: &telemetry.TelemetryField{
+					ValueByType: &telemetry.TelemetryField_Sint32Value{
+						Sint32Value: int32(1),
+					},
+				},
+				enableUint: false,
+			},
+			int32(1),
+		},
+		{
+			"sint64",
+			args{
+				field: &telemetry.TelemetryField{
+					ValueByType: &telemetry.TelemetryField_Sint64Value{
+						Sint64Value: int64(1),
+					},
+				},
+				enableUint: false,
+			},
+			int64(1),
+		},
+		{
+			"double",
+			args{
+				field: &telemetry.TelemetryField{
+					ValueByType: &telemetry.TelemetryField_DoubleValue{
+						DoubleValue: float64(1),
+					},
+				},
+				enableUint: false,
+			},
+			float64(1),
+		},
+		{
+			"bool",
+			args{
+				field: &telemetry.TelemetryField{
+					ValueByType: &telemetry.TelemetryField_BoolValue{
+						BoolValue: true,
+					},
+				},
+				enableUint: false,
+			},
+			true,
+		},
+		{
+			"bytes",
+			args{
+				field: &telemetry.TelemetryField{
+					ValueByType: &telemetry.TelemetryField_BytesValue{
+						BytesValue: []byte("test"),
+					},
+				},
+				enableUint: false,
+			},
+			[]byte("test"),
+		},
+		{
+			"default",
+			args{
+				field:      nil,
+				enableUint: false,
+			},
+			"",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getFieldValueInterface(tt.args.field, tt.args.enableUint); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getFieldValueInterface() = %v, want %v", got, tt.want)
 			}
 		})
 	}

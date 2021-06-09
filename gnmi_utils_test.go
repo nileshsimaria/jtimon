@@ -221,6 +221,7 @@ func TestGnmiParseUpdates(t *testing.T) {
 		parseOutput *gnmiParseOutputT
 		err         bool
 		output      *gnmiParseOutputT
+		enableUint  bool
 	}{
 		{
 			name:        "updates-valid-no-prefix",
@@ -260,6 +261,7 @@ func TestGnmiParseUpdates(t *testing.T) {
 					"/interfaces/interface/subinterfaces/subinterface/@k2": "bar1"},
 				xpaths: map[string]interface{}{"/interfaces/interface/subinterfaces/subinterface/state/description": "Hello"},
 			},
+			enableUint: false,
 		},
 		{
 			name:        "updates-valid-with-prefix",
@@ -300,6 +302,7 @@ func TestGnmiParseUpdates(t *testing.T) {
 					"/a/b/c/d/@k2": "bar1"},
 				xpaths: map[string]interface{}{"/a/b/c/d/state/description": "Hello"},
 			},
+			enableUint: false,
 		},
 		{
 			name:        "updates-valid-with-misc-simple-types",
@@ -398,6 +401,7 @@ func TestGnmiParseUpdates(t *testing.T) {
 					"/a/b/c/d/state/counters/power-inf-float":  float64(3.40282346638528859811704183484516925440e+38),
 				},
 			},
+			enableUint: false,
 		},
 		{
 			name:        "updates-valid-scalar-array",
@@ -451,6 +455,7 @@ func TestGnmiParseUpdates(t *testing.T) {
 					"/interfaces/interface/subinterfaces/subinterface/@k2": "bar1"},
 				xpaths: map[string]interface{}{"/interfaces/interface/subinterfaces/subinterface/state/different-mtus": []int64{1500, 1499, 1501}},
 			},
+			enableUint: false,
 		},
 		{
 			name:        "updates-valid-with-misc-simple-types-json",
@@ -534,6 +539,7 @@ func TestGnmiParseUpdates(t *testing.T) {
 					"/a/b/c/d/state/enabled":                   true,
 				},
 			},
+			enableUint: false,
 		},
 		{
 			name:        "updates-valid-with-misc-simple-types-json_ietf",
@@ -617,6 +623,7 @@ func TestGnmiParseUpdates(t *testing.T) {
 					"/a/b/c/d/state/enabled":                   true,
 				},
 			},
+			enableUint: false,
 		},
 		{
 			name:        "updates-valid-no-prefix-with-origin--config--donotParseOrigin",
@@ -656,6 +663,7 @@ func TestGnmiParseUpdates(t *testing.T) {
 					"/interfaces/interface/subinterfaces/subinterface/@k2": "bar1"},
 				xpaths: map[string]interface{}{"/interfaces/interface/subinterfaces/subinterface/state/description": "Hello"},
 			},
+			enableUint: false,
 		},
 		{
 			name:        "updates-valid-no-prefix-with-origin--config--parseOrigin",
@@ -695,12 +703,112 @@ func TestGnmiParseUpdates(t *testing.T) {
 					"openconfig:/interfaces/interface/subinterfaces/subinterface/@k2": "bar1"},
 				xpaths: map[string]interface{}{"openconfig:/interfaces/interface/subinterfaces/subinterface/state/description": "Hello"},
 			},
+			enableUint: false,
+		},
+		{
+			name:        "updates-valid-with-misc-simple-types-uint-enabled",
+			err:         false,
+			parseOrigin: false,
+			prefix: &gnmi.Path{
+				Origin: "",
+				Elem: []*gnmi.PathElem{
+					{Name: "interfaces"},
+					{Name: "interface", Key: map[string]string{"k1": "foo"}},
+					{Name: "subinterfaces"},
+					{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+				},
+			},
+			updates: []*gnmi.Update{
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "mtu"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_IntVal{IntVal: 1500},
+					},
+				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "counters"},
+							{Name: "in-octets"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_UintVal{UintVal: 40000},
+					},
+				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "counters"},
+							{Name: "out-octets-dec64"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_DecimalVal{DecimalVal: &gnmi.Decimal64{Digits: 9007199254740992, Precision: 15}},
+					},
+				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "counters"},
+							{Name: "out-octets-float"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_FloatVal{FloatVal: 32.45},
+					},
+				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "counters"},
+							{Name: "power-inf-float"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_FloatVal{FloatVal: math.MaxFloat32 + 1},
+					},
+				},
+			},
+			parseOutput: &gnmiParseOutputT{
+				prefixPath: "/a/b/c/d",
+				kvpairs:    map[string]string{"/a/b/@k1": "foo", "/a/b/c/d/@k1": "foo1", "/a/b/c/d/@k2": "bar1"},
+				xpaths:     map[string]interface{}{},
+			},
+			output: &gnmiParseOutputT{
+				prefixPath: "/a/b/c/d",
+				kvpairs: map[string]string{"/a/b/@k1": "foo",
+					"/a/b/c/d/@k1": "foo1",
+					"/a/b/c/d/@k2": "bar1"},
+				xpaths: map[string]interface{}{
+					"/a/b/c/d/state/mtu":                       int64(1500),
+					"/a/b/c/d/state/counters/in-octets":        uint64(40000),
+					"/a/b/c/d/state/counters/out-octets-dec64": float64(9.007199254740992),
+					"/a/b/c/d/state/counters/out-octets-float": float64(float32(32.45)), // Guess this may not always work..
+					"/a/b/c/d/state/counters/power-inf-float":  float64(3.40282346638528859811704183484516925440e+38),
+				},
+			},
+			enableUint: true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			parseOutput, err := gnmiParseUpdates(test.parseOrigin, test.prefix, test.updates, test.parseOutput)
+			parseOutput, err := gnmiParseUpdates(test.parseOrigin, test.prefix, test.updates, test.parseOutput, test.enableUint)
 			if !test.err {
 				if err != nil || !reflect.DeepEqual(*test.output, *parseOutput) {
 					var errMsg string

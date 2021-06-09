@@ -588,6 +588,13 @@ func TestVMXTagsPoints(t *testing.T) {
 				file: "tests/data/juniper-junos/config/interfaces.json",
 			},
 		},
+		{
+			name:   "interfaces_uint64",
+			config: "tests/data/juniper-junos/config/uint64.json",
+			jctx: &JCtx{
+				file: "tests/data/juniper-junos/config/uint64.json",
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

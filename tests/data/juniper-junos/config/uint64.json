@@ -1,0 +1,15 @@
+{
+    "cid": "Core:teakwood_akshayg-mbp",
+    "host": "127.0.0.1",
+    "port": 32767,
+    "paths": [
+        {
+            "freq": 100000,
+            "path": "/interfaces/"
+        }
+    ],
+    "log": {
+        "verbose": false
+    },
+    "enable-uint": true
+}

@@ -147,7 +147,8 @@ $ ./jtimon-darwin-amd64 --explore-config
         "remove-namespace": false,
         "schema": null
     },
-    "alias": ""
+    "alias": "",
+    "enable-uint": false
 }
 ```
 

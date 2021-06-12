@@ -16,7 +16,7 @@ require (
 	github.com/prometheus/client_model v0.0.0-20171117100541-99fa1f4be8e5 // indirect
 	github.com/prometheus/common v0.0.0-20180413074202-d0f7cd64bda4 // indirect
 	github.com/prometheus/procfs v0.0.0-20180408092902-8b1c2da0d56d // indirect
-	github.com/spf13/pflag v1.0.1
+	github.com/spf13/pflag v1.0.5
 	golang.org/x/net v0.0.0-20180420171651-5f9ae10d9af5
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a // indirect
 	golang.org/x/text v0.3.0 // indirect

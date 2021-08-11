@@ -465,6 +465,10 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 			xmlpath, tags = spitTagsNPath(jctx, key)
 		}
 
+		if tags == nil {
+			continue
+		}
+
 		tags["device"] = cfg.Host
 		tags["sensor"] = ocData.Path
 

@@ -656,6 +656,11 @@ func influxInit(jctx *JCtx) {
 func checkAndCeilFloatValues(val32 *float32, val64 *float64, cieled *float64) {
 	if val32 != nil {
 		*cieled = float64(*val32)
+		if math.IsInf(*cieled, 1) {
+			*cieled = math.MaxFloat64
+		} else if math.IsInf(*cieled, -1) {
+			*cieled = -math.MaxFloat64
+		}
 		return
 	}
 

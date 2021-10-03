@@ -7,17 +7,10 @@ Junos Telemetry Interface client
 ## Setup
 
 ```sh
-go get github.com/nileshsimaria/jtimon
-$GOPATH/bin/jtimon --help
-```
-
-OR
-
-```sh
-git clone https://github.com/nileshsimaria/jtimon.git
-cd jtimon
-make linux or make darwin
-./jtimon-linux-amd64 --help or jtimon-darwin-amd64 --help
+$ git clone https://github.com/nileshsimaria/jtimon.git
+$ cd jtimon
+$ make linux or make darwin
+$ ./jtimon-linux-amd64 --help or jtimon-darwin-amd64 --help
 ```
 
 Please note that if you use make to build source, it will produce binary with GOOS and GOARCH names e.g. jtimon-darwin-amd64, jtimon-linux-amd64 etc. Building the source using make is recommended as it will insert git-revision, build-time info in the binary.
@@ -25,7 +18,7 @@ Please note that if you use make to build source, it will produce binary with GO
 To understand what targets are available in make, run the make help command as follows:
 
 ```sh
-make help
+$ make help
 ```
 
 ### Note
@@ -48,7 +41,7 @@ Check the resulting image:
 ```sh
 $ docker images jtimon
 REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
-jtimon              latest              3b7622e1464f        6 minutes ago       174MB
+jtimon              latest              f1a794609339        7 minutes ago       24.5MB
 ```
 
 Run it:
@@ -68,7 +61,7 @@ Enter config file name: bla.json
 ## CLI Options
 
 ```
-root@vm-hb1:~/jtimon-kafka-publish# ./jtimon-linux-amd64 --help
+$ ./jtimon-linux-amd64 --help
 Usage of ./jtimon-linux-amd64:
       --compression string         Enable HTTP/2 compression (gzip)
       --config strings             Config file name(s)
@@ -99,7 +92,7 @@ To explore what can go in config, please use --explore-config option.
 Except connection details like host, port, etc no other part of the config is mandatory e.g. do not use influx in your config if you dont want to insert data into it.
 
 ```
-./jtimon-linux-amd64 --explore-config                                                                                                                                   [8/1981]
+$ ./jtimon-linux-amd64 --explore-config                                                                                                                                   [8/1981]
 2021/10/02 17:15:22 Version: v2.3.0-7bfd8fdf2fcae1d55079e3d9eceb761be0842eae-master BuildTime 2021-10-02T19:51:16-0400
 2021/10/02 17:15:22
 {
@@ -184,7 +177,7 @@ grpc/ws : window size of grpc for slower clients
 To publish gRPC/Openconfig JTI data to Kafka, use the following json config.
 
 ```
-cat kafka-test-1.json
+$ cat kafka-test-1.json
 {
     "host": "2.2.2.2",
     "port": 32767,

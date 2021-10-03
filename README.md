@@ -16,8 +16,8 @@ OR
 ```sh
 git clone https://github.com/nileshsimaria/jtimon.git
 cd jtimon
-go build or make
-./jtimon --help
+make linux or make darwin
+./jtimon-linux-amd64 --help or jtimon-darwin-amd64 --help
 ```
 
 Please note that if you use make to build source, it will produce binary with GOOS and GOARCH names e.g. jtimon-darwin-amd64, jtimon-linux-amd64 etc. Building the source using make is recommended as it will insert git-revision, build-time info in the binary.
@@ -68,8 +68,8 @@ Enter config file name: bla.json
 ## CLI Options
 
 ```
-$ ./jtimon-darwin-amd64 --help
-Usage of ./jtimon-darwin-amd64:
+root@vm-hb1:~/jtimon-kafka-publish# ./jtimon-linux-amd64 --help
+Usage of ./jtimon-linux-amd64:
       --compression string         Enable HTTP/2 compression (gzip)
       --config strings             Config file name(s)
       --config-file-list string    List of Config files
@@ -85,9 +85,11 @@ Usage of ./jtimon-darwin-amd64:
       --prefix-check               Report missing __prefix__ in telemetry packet
       --print                      Print Telemetry data
       --prometheus                 Stats for prometheus monitoring system
+      --prometheus-host string     IP to bind Prometheus service to (default "127.0.0.1")
       --prometheus-port int32      Prometheus port (default 8090)
       --stats-handler              Use GRPC statshandler
       --version                    Print version and build-time of the binary and exit
+pflag: help requested
 ```
 
 ## Config
@@ -97,9 +99,9 @@ To explore what can go in config, please use --explore-config option.
 Except connection details like host, port, etc no other part of the config is mandatory e.g. do not use influx in your config if you dont want to insert data into it.
 
 ```
-$ ./jtimon-darwin-amd64 --explore-config
-2019/01/04 18:21:08 Version: e0ce6eccd0a02cc346bcd4e5e038d19b6747d33b-master BuildTime 2019-01-04T18:18:55-0800
-2019/01/04 18:21:08
+./jtimon-linux-amd64 --explore-config                                                                                                                                   [8/1981]
+2021/10/02 17:15:22 Version: v2.3.0-7bfd8fdf2fcae1d55079e3d9eceb761be0842eae-master BuildTime 2021-10-02T19:51:16-0400
+2021/10/02 17:15:22
 {
     "port": 0,
     "host": "",
@@ -127,9 +129,12 @@ $ ./jtimon-darwin-amd64 --explore-config
         "measurement": "",
         "batchsize": 0,
         "batchfrequency": 0,
+        "http-timeout": 0,
         "retention-policy": "",
-        "accumulator-frequency": 0
+        "accumulator-frequency": 0,
+        "write-per-measurement": false
     },
+    "kafka": null,
     "paths": [
         {
             "path": "",
@@ -145,11 +150,13 @@ $ ./jtimon-darwin-amd64 --explore-config
     "vendor": {
         "name": "",
         "remove-namespace": false,
-        "schema": null
+        "schema": null,
+        "gnmi": null
     },
     "alias": "",
+    "password-decoder": "",
     "enable-uint": false
-}
+}    
 ```
 
 I am explaining some config options which are not self-explanatory.
@@ -171,3 +178,51 @@ eos : end of sync. Tell Junos to send end of sync for on-change subscriptions.
 <pre>
 grpc/ws : window size of grpc for slower clients
 </pre>
+
+## Kafka Publish
+
+To publish gRPC/Openconfig JTI data to Kafka, use the following json config.
+
+```
+cat kafka-test-1.json
+{
+    "host": "2.2.2.2",
+    "port": 32767,
+    "user": "username",
+    "password": "password",
+    "cid": "cid123",
+    "kafka": {
+        "brokers": ["1.1.1.1:9094"],
+        "topic": "test",
+        "client-id": "testjtimonmx86"
+    },
+
+    "paths": [
+        {
+            "path": "/interfaces",
+            "freq": 10000
+        }
+    ]
+}
+```
+
+Below are all possible Kafka config options.
+
+```
+type KafkaConfig struct {
+	Version            string   `json:"version"`
+	Brokers            []string `json:"brokers"`
+	ClientID           string   `json:"client-id"`
+	Topic              string   `json:"topic"`
+	CompressionCodec   int      `json:"compression-codec"`
+	RequiredAcks       int      `json:"required-acks"`
+	MaxRetry           int      `json:"max-retry"`
+	MaxMessageBytes    int      `json:"max-message-bytes"`
+	SASLUser           string   `json:"sasl-username"`
+	SASLPass           string   `json:"sasl-password"`
+	TLSCA              string   `json:"tls-ca"`
+	TLSCert            string   `json:"tls-cert"`
+	TLSKey             string   `json:"tls-key"`
+	InsecureSkipVerify bool     `json:"insecure-skip-verify"`
+}
+```

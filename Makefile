@@ -24,10 +24,10 @@ clean: ## clean the build
 LDFLAGS=--ldflags="-X main.jtimonVersion=${TAG}-${COMMIT}-${BRANCH} -X main.buildTime=${TIME}"
 
 linux: ## generate a linux version of the binary
-	GOOS=linux GOARCH=${GOARCH} go build ${LDFLAGS} -o ${BINARY}-linux-${GOARCH} .
+	GOOS=linux GOARCH=${GOARCH} go build -mod vendor ${LDFLAGS} -o ${BINARY}-linux-${GOARCH} .
 
 darwin: ## generate a osx version of the binary
-	GOOS=darwin GOARCH=${GOARCH} go build ${LDFLAGS} -o ${BINARY}-darwin-${GOARCH} .
+	GOOS=darwin GOARCH=${GOARCH} go build -mod vendor ${LDFLAGS} -o ${BINARY}-darwin-${GOARCH} .
 
 docker: ## build a docker image that can be used to execute the binary
 	docker build --build-arg COMMIT=${COMMIT} --build-arg BRANCH=${BRANCH} --build-arg TIME=${TIME} --build-arg TAG=${TAG} -t jtimon . 

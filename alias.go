@@ -16,10 +16,11 @@ type Alias struct {
 // NewAlias is used to create new name mapping from given file
 func NewAlias(file string) (*Alias, error) {
 	f, err := os.Open(file)
-	defer f.Close()
+
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 	m := make(map[string]string)
 	reader := bufio.NewReader(f)
 	for {

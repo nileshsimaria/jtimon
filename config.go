@@ -29,6 +29,7 @@ type Config struct {
 	GRPC              GRPCConfig    `json:"grpc"`
 	TLS               TLSConfig     `json:"tls"`
 	Influx            InfluxConfig  `json:"influx"`
+	Kafka             *KafkaConfig  `json:"kafka"`
 	Paths             []PathsConfig `json:"paths"`
 	Log               LogConfig     `json:"log"`
 	Vendor            VendorConfig  `json:"vendor"`
@@ -344,6 +345,9 @@ func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 
 		go periodicStats(jctx)
 		influxInit(jctx)
+		if err := KafkaInit(jctx); err != nil {
+			log.Printf("KafkaInit error : %v", err)
+		}
 	} else {
 		err := HandleConfigChange(jctx, config, restart)
 		if err != nil {

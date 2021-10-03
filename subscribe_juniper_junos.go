@@ -179,6 +179,12 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 					go addPrometheus(ocData, jctx)
 				}
 			}
+			// to kafka
+			if *noppgoroutines {
+				addKafka(ocData, jctx, rtime)
+			} else {
+				go addKafka(ocData, jctx, rtime)
+			}
 		}
 	}()
 	for {

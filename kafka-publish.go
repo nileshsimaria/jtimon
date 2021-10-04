@@ -28,7 +28,7 @@ type KafkaConfig struct {
 	TLSCert            string   `json:"tls-cert"`
 	TLSKey             string   `json:"tls-key"`
 	InsecureSkipVerify bool     `json:"insecure-skip-verify"`
-	producer           sarama.SyncProducer
+	producer           *sarama.SyncProducer
 }
 
 // KafkaConnect to connect to kafka bus
@@ -91,12 +91,12 @@ func KafkaConnect(k *KafkaConfig) error {
 		c.Net.SASL.Enable = true
 	}
 
-	producer, err := sarama.NewSyncProducer(k.Brokers, c)
+	p, err := sarama.NewSyncProducer(k.Brokers, c)
 	if err != nil {
 		return err
 	}
 
-	k.producer = producer
+	k.producer = &p
 	return nil
 }
 
@@ -115,7 +115,7 @@ func KafkaInit(jctx *JCtx) error {
 }
 
 func addKafka(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
-	if jctx.config.Kafka == nil {
+	if jctx.config.Kafka == nil || jctx.config.Kafka.producer == nil {
 		return
 	}
 
@@ -132,8 +132,8 @@ func addKafka(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 		Topic: topic,
 		Value: sarama.ByteEncoder(b),
 	}
-
-	if _, _, err := jctx.config.Kafka.producer.SendMessage(m); err != nil {
+	p := *jctx.config.Kafka.producer
+	if _, _, err := p.SendMessage(m); err != nil {
 		jLog(jctx, fmt.Sprintf("Kafka SendMessage failed (topic = %s), error: %v", topic, err))
 	}
 }

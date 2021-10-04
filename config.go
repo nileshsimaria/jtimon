@@ -174,6 +174,9 @@ func ValidateConfig(config Config) (string, error) {
 func ExploreConfig() (string, error) {
 	var config Config
 	c := "{\"paths\": [{}]}"
+	config.Kafka = &KafkaConfig{
+		Brokers: []string{""},
+	}
 
 	if err := json.Unmarshal([]byte(c), &config); err == nil {
 		if b, err := json.MarshalIndent(config, "", "    "); err == nil {

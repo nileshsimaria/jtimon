@@ -387,6 +387,24 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 	return err
 }
 
+// Convert xpaths config to gNMI subscription
+func xPathsTognmiSubscription(pathsCfg []PathsConfig) ([]*gnmi.Subscription, error) {
+	var subs []*gnmi.Subscription
+	for _, p := range pathsCfg {
+		gp, err := xPathTognmiPath(p.Path)
+		if err != nil {
+			return nil, err
+		}
+
+		mode := gnmiMode(p.Mode)
+		mode, freq := gnmiFreq(mode, p.Freq)
+
+		subs = append(subs, &gnmi.Subscription{Path: gp, Mode: mode, SampleInterval: freq})
+	}
+
+	return subs, nil
+}
+
 // subscribe routine constructs the subscription paths and calls
 // the function to start the streaming connection.
 //
@@ -420,22 +438,12 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 		}
 	}
 
-	// Is isync needed?
-	subs.UpdatesOnly = !jctx.config.EOS
-
-	// Form paths
-	for _, p := range jctx.config.Paths {
-		gp, err := xPathTognmiPath(p.Path)
-		if err != nil {
-			jLog(jctx, fmt.Sprintf("gNMI host: %v, Invalid path: %v", hostname, err))
-			// To make worker absorb any further config changes
-			return SubRcConnRetry
-		}
-
-		mode := gnmiMode(p.Mode)
-		mode, freq := gnmiFreq(mode, p.Freq)
-
-		subs.Subscription = append(subs.Subscription, &gnmi.Subscription{Path: gp, Mode: mode, SampleInterval: freq})
+	// Form subscription from xpaths config
+	subs.Subscription, err = xPathsTognmiSubscription(jctx.config.Paths)
+	if err != nil {
+		jLog(jctx, fmt.Sprintf("gNMI host: %v, Invalid path: %v", hostname, err))
+		// To make worker absorb any further config changes
+		return SubRcConnRetry
 	}
 
 	// 2. Subscribe

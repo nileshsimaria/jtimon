@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -34,6 +35,16 @@ type KafkaConfig struct {
 // KafkaConnect to connect to kafka bus
 func KafkaConnect(k *KafkaConfig) error {
 	c := sarama.NewConfig()
+
+	if *dialOut {
+		p, err := sarama.NewSyncProducer([]string{*kafkaIP + ":" + strconv.Itoa(*kafkaPort)}, c)
+		if err != nil {
+			return err
+		}
+
+		k.producer = &p
+		return nil
+	}
 
 	if k.Version != "" {
 		version, err := sarama.ParseKafkaVersion(k.Version)

@@ -1,0 +1,28 @@
+
+syntax = "proto3";
+
+import "gnmi.proto";
+
+option go_package = "github.com/openconfig/gnmi/proto/gnmi_dialout";
+
+   // new grpc service definition having DialOutSubscriber as the RPC name.
+service Subscriber {
+/*
+Phase1: Subscriber allows the target to send telemetry update:s (in the form of SubscribeResponse messages,
+which has the same semantics as in the gNMI Subscribe RPC, to a client. Target will stream the sensor
+configuration that are configured out of band for this client.
+
+Phase2: Optionally the client may return the SubscribeRequest message in response to the dial-out connection from the target.
+In this case, the client may augment the set of subscriptions that are to be published by the target. This SubscribeRequest
+message has the same semantics as in the Subscribe gNMI RPC.
+
+In the case that the client specifies neither option, then target waits indefinitely till the sensor subscription is made.
+
+The configuration of subscriptions associated with the Subscriber RPC may be through the OpenConfig telemetry configuration and operational state model:
+ https://github.com/openconfig/public/blob/master/release/models/telemetry/openconfig-telemetry.yang
+
+    */
+
+  rpc DialOutSubscriber(stream gnmi.SubscribeResponse) returns (stream gnmi.SubscribeRequest);
+
+}

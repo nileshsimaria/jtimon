@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Shopify/sarama"
 	"google.golang.org/grpc"
 )
 
@@ -70,8 +72,10 @@ func (ws *JWorkers) SIGHUPWorkers() {
 // - start signal handler and max run handler go routines
 func (ws *JWorkers) StartWorkers() {
 	ws.AddWorkers(ws.files)
-	for _, v := range ws.m {
-		v.signalch <- syscall.SIGCONT
+	if !*dialOut {
+		for _, v := range ws.m {
+			v.signalch <- syscall.SIGCONT
+		}
 	}
 	go ws.signalHandler(ws.fileList)
 	go ws.maxRunHandler(ws.mr)
@@ -252,13 +256,35 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 					err := ConfigRead(&jctx, false, &restart)
 					if err != nil {
 						jLog(&jctx, fmt.Sprintln(err))
-					} else if restart {
-						jctx.control <- syscall.SIGHUP
+					}
+					if !*dialOut {
+						if restart {
+							jctx.control <- syscall.SIGHUP
+						} else {
+							jLog(&jctx, fmt.Sprintf("config re-parse, data streaming has not started yet"))
+						}
 					} else {
-						jLog(&jctx, fmt.Sprintf("config re-parse, data streaming has not started yet"))
+						payload, err := json.Marshal(jctx.config.Paths)
+						if err != nil {
+							// TODO: Vivek Will  jctx.config.Host reflect the right host ?
+							jLog(&jctx, fmt.Sprintf("Marshalling configuration failed for %v, err: %v", jctx.config.Host, err))
+						}
+
+						// TODO: Vivek Make topic configurable.
+						topic := "jtimon-config"
+						p, o, err := (*jctx.config.Kafka.producer).SendMessage(
+							&sarama.ProducerMessage{
+								Topic: topic,
+								Value: sarama.ByteEncoder(payload),
+							},
+						)
+						jLog(&jctx, fmt.Sprintf("Configuration for %v published to topic %v, partition %v, offset %v, err: %v", jctx.config.Host, topic, p, o, err))
 					}
 				case syscall.SIGCONT:
-					go work(&jctx, statusch)
+					// Do not start the subscribe worker for dialout..
+					if !*dialOut {
+						go work(&jctx, statusch)
+					}
 				}
 			case <-statusch:
 				// worker must have encountered error

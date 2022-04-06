@@ -1,0 +1,64 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: gnmi
+  name: gnmi-term
+  labels:
+    app: gnmi-term
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gnmi-term
+  template:
+    metadata:
+      namespace: gnmi
+      labels:
+        app: gnmi-term
+    spec:
+      tolerations:
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 180
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 180
+      initContainers:
+      containers:
+      - name: gnmi-term
+        image: 830665132438.dkr.ecr.us-west-2.amazonaws.com/gnmi:latest
+        imagePullPolicy: Always
+        command: ["/usr/local/bin/jtimon", "--dial-out", "--skip-verify"]
+        #command: ["/etc/jtimon/startup.sh"]
+        env:
+        - name: NODE_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: GODEBUG
+          value: madvdontneed=1
+        ports:
+        
+      imagePullSecrets:
+      - name: registry-secret
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: gnmi
+  name:  gnmi-term
+  labels:
+    app: gnmi-term
+spec:
+  type: LoadBalancer
+  selector:
+    app: gnmi-term
+  ports:
+  - name: gnmi-port
+    port: 32767
+    targetPort: 32767

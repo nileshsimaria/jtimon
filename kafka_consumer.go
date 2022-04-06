@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/Shopify/sarama"
@@ -13,7 +12,7 @@ import (
 	"github.com/nileshsimaria/jtimon/gnmi/gnmi"
 )
 
-func createKafkaConsumerGroup(name string, topics []string, termChannel chan bool) error {
+func createKafkaConsumerGroup(name string, topics []string) error {
 	// Process the response
 	jctx := JCtx{
 		config: Config{
@@ -32,9 +31,9 @@ func createKafkaConsumerGroup(name string, topics []string, termChannel chan boo
 	// Get the device config to get to know the paths to be subscribed
 	kafkaCfg := sarama.NewConfig()
 	kafkaCfg.Version = sarama.MaxVersion
-	kafkaClient, err := sarama.NewClient([]string{*kafkaIP + ":" + strconv.Itoa(*kafkaPort)}, kafkaCfg)
+	kafkaClient, err := sarama.NewClient([]string{*kafkaBroker}, kafkaCfg)
 	if err != nil {
-		jLog(&jctx, fmt.Sprintf("Not able to connect to Kafka broker at %v: %v", *kafkaIP+":"+strconv.Itoa(*kafkaPort), err))
+		jLog(&jctx, fmt.Sprintf("Not able to connect to Kafka broker at %v: %v", *kafkaBroker, err))
 		return err
 	}
 

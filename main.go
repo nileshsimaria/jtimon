@@ -39,6 +39,7 @@ var (
 	myKey           = flag.String("pem", "./certs/self_signed/server-key.pem", "Path of server key")
 	kafkaIP         = flag.String("kafka-ip", "kafka", "Kafka IP")
 	kafkaPort       = flag.Int("kafka-port", 9092, "Kafka port")
+	kafkaBroker     = flag.String("kafka-broker", "kafka:9092", "Kafka broker IP")
 
 	jtimonVersion = "version-not-available"
 	buildTime     = "build-time-not-available"

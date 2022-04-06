@@ -70,9 +70,9 @@ func newDialOutServer(rpcs []string) *dialoutServerT {
 
 	// Create kafka Client
 	kafkaCfg := sarama.NewConfig()
-	kafkaClient, err := sarama.NewClient([]string{*kafkaIP + ":" + strconv.Itoa(*kafkaPort)}, kafkaCfg)
+	kafkaClient, err := sarama.NewClient([]string{*kafkaBroker}, kafkaCfg)
 	if err != nil {
-		log.Fatalf("Not able to connect to Kafka broker at %v: %v", *kafkaIP+":"+strconv.Itoa(*kafkaPort), err)
+		log.Fatalf("Not able to connect to Kafka broker at %v: %v", *kafkaBroker, err)
 	}
 	s.kafkaClient = &kafkaClient
 

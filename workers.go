@@ -226,10 +226,30 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 		log.Println(err)
 		return w, err
 	}
+	log.Printf("%v, jctx.config.Kafka.producer: %v", jctx.config.Host, jctx.config.Kafka)
 	if alias, err := NewAlias(jctx.config.Alias); err == nil {
 		jctx.alias = alias
 	}
 	go func() {
+		var dialOutCfg dialOutConfigT
+
+		dialOutCfg.Device = jctx.config.Host
+		dialOutCfg.Paths = jctx.config.Paths
+		payload, err := json.Marshal(dialOutCfg)
+		if err != nil {
+			// TODO: Vivek Will  jctx.config.Host reflect the right host ?
+			jLog(&jctx, fmt.Sprintf("Marshalling configuration failed for %v, err: %v", jctx.config.Host, err))
+		}
+
+		// TODO: Vivek Make topic configurable.
+		topic := "gnmi-config"
+		p, o, err := (*jctx.config.Kafka.producer).SendMessage(
+			&sarama.ProducerMessage{
+				Topic: topic,
+				Value: sarama.ByteEncoder(payload),
+			},
+		)
+		jLog(&jctx, fmt.Sprintf("Configuration for %v published to topic %v, partition %v, offset %v, err: %v", jctx.config.Host, topic, p, o, err))
 		for {
 			select {
 			case sig := <-signalch:
@@ -264,14 +284,18 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 							jLog(&jctx, fmt.Sprintf("config re-parse, data streaming has not started yet"))
 						}
 					} else {
-						payload, err := json.Marshal(jctx.config.Paths)
+						var dialOutCfg dialOutConfigT
+
+						dialOutCfg.Device = jctx.config.Host
+						dialOutCfg.Paths = jctx.config.Paths
+						payload, err := json.Marshal(dialOutCfg)
 						if err != nil {
 							// TODO: Vivek Will  jctx.config.Host reflect the right host ?
 							jLog(&jctx, fmt.Sprintf("Marshalling configuration failed for %v, err: %v", jctx.config.Host, err))
 						}
 
 						// TODO: Vivek Make topic configurable.
-						topic := "jtimon-config"
+						topic := "gnmi-config"
 						p, o, err := (*jctx.config.Kafka.producer).SendMessage(
 							&sarama.ProducerMessage{
 								Topic: topic,

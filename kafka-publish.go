@@ -36,16 +36,6 @@ type KafkaConfig struct {
 func KafkaConnect(k *KafkaConfig) error {
 	c := sarama.NewConfig()
 
-	if *dialOut {
-		p, err := sarama.NewSyncProducer([]string{*kafkaIP + ":" + strconv.Itoa(*kafkaPort)}, c)
-		if err != nil {
-			return err
-		}
-
-		k.producer = &p
-		return nil
-	}
-
 	if k.Version != "" {
 		version, err := sarama.ParseKafkaVersion(k.Version)
 		if err != nil {
@@ -113,9 +103,14 @@ func KafkaConnect(k *KafkaConfig) error {
 
 // KafkaInit to initialize Kafka
 func KafkaInit(jctx *JCtx) error {
-	cfg := jctx.config
+	cfg := &jctx.config
 	if cfg.Kafka == nil {
-		return nil
+		if !*dialOut {
+			return nil
+		}
+
+		cfg.Kafka = &KafkaConfig{}
+		cfg.Kafka.Brokers = []string{*kafkaIP + ":" + strconv.Itoa(*kafkaPort)}
 	}
 
 	if err := KafkaConnect(cfg.Kafka); err != nil {

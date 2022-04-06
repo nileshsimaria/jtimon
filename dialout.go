@@ -103,7 +103,7 @@ func newDialOutServer(rpcs []string) *dialoutServerT {
 	s.registeredRpcs = append(s.registeredRpcs, rpcs...)
 
 	// TODO: Vivek Take config topic from cmd line
-	go populateAllConfig(s, "jtimon-config")
+	go populateAllConfig(s, "gnmi-config")
 	return s
 }
 
@@ -378,37 +378,6 @@ func populateAllConfig(server *dialoutServerT, topic string) {
 			}
 		}
 	}
-}
-func populateRpcConfig(rpc *rpcInfoT, topic string) {
-	if rpc.config != nil {
-		rpc.cfgChannel <- rpc.config
-	}
-
-	partitions := []int32{}
-	var err error
-	device := rpc.device
-	server := device.server
-	jctx := rpc.jctx
-
-	for {
-		partitions, err = (*server.configConsumer).Partitions(topic)
-		if err != nil {
-			jLog(jctx, fmt.Sprintf("Not able to fetch partitions: %v", err))
-			time.Sleep(2 * time.Second)
-			continue
-		}
-
-		for _, p := range partitions {
-			offset, err := (*server.kafkaClient).GetOffset(topic, p, sarama.OffsetNewest)
-			if err != nil {
-				jLog(jctx, fmt.Sprintf("Not able to fetch offset for topic %v, partition %v", topic, p))
-				continue
-			}
-
-			go consumePartition(server, topic, p, offset, device.device)
-		}
-	}
-
 }
 
 func startDialOutServer(host *string, port *int) {

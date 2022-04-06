@@ -77,7 +77,17 @@ func main() {
 		return
 	}
 
-	if !(*dialOut) {
+	if *dialOut {
+		// Server
+		if *terminator { // Act as dialout rpc terminator
+			// Keep listening for RPCs, this will never return back
+			startDialOutServer(myListeningIP, myListeningPort)
+		} else { // Act as just a consumer of data from kafka (data published by rpc terminator)
+			createKafkaConsumerGroup("jtimon", []string{"gnmi-data"})
+		}
+	}
+
+	if !*terminator { // If not a terminator, provide the config files to terminator
 		err := GetConfigFiles(configFiles, *configFileList)
 		if err != nil {
 			log.Printf("config parsing error: %s", err)
@@ -87,15 +97,6 @@ func main() {
 		workers := NewJWorkers(*configFiles, *configFileList, *maxRun)
 		workers.StartWorkers()
 		workers.Wait()
-	} else {
-		// Server
-		if *terminator {
-			startDialOutServer(myListeningIP, myListeningPort)
-		} else {
-			termChannel := make(chan bool)
-			createKafkaConsumerGroup("jtimon", []string{"gnmi-data"}, termChannel)
-			<-termChannel
-		}
 	}
 
 	log.Printf("all done ... exiting!")

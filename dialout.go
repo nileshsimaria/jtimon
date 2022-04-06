@@ -365,7 +365,7 @@ func populateAllConfig(server *dialoutServerT, topic string) {
 			continue
 		}
 		for i, p := range partitions {
-			offset, err := (*server.kafkaClient).GetOffset(topic, p, sarama.OffsetNewest)
+			offset, err := (*server.kafkaClient).GetOffset(topic, p, sarama.OffsetOldest)
 			if err != nil {
 				jLog(jctx, fmt.Sprintf("Not able to fetch offset for topic %v, partition %v", topic, p))
 				continue

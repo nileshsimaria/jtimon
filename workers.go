@@ -231,25 +231,28 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 		jctx.alias = alias
 	}
 	go func() {
-		var dialOutCfg dialOutConfigT
+		if *dialOut {
+			// Publish the initial config for dial-out
+			var dialOutCfg dialOutConfigT
 
-		dialOutCfg.Device = jctx.config.Host
-		dialOutCfg.Paths = jctx.config.Paths
-		payload, err := json.Marshal(dialOutCfg)
-		if err != nil {
-			// TODO: Vivek Will  jctx.config.Host reflect the right host ?
-			jLog(&jctx, fmt.Sprintf("Marshalling configuration failed for %v, err: %v", jctx.config.Host, err))
+			dialOutCfg.Device = jctx.config.Host
+			dialOutCfg.Paths = jctx.config.Paths
+			payload, err := json.Marshal(dialOutCfg)
+			if err != nil {
+				// TODO: Vivek Will  jctx.config.Host reflect the right host ?
+				jLog(&jctx, fmt.Sprintf("Marshalling configuration failed for %v, err: %v", jctx.config.Host, err))
+			}
+
+			// TODO: Vivek Make topic configurable.
+			topic := "gnmi-config"
+			p, o, err := (*jctx.config.Kafka.producer).SendMessage(
+				&sarama.ProducerMessage{
+					Topic: topic,
+					Value: sarama.ByteEncoder(payload),
+				},
+			)
+			jLog(&jctx, fmt.Sprintf("Configuration for %v published to topic %v, partition %v, offset %v, err: %v", jctx.config.Host, topic, p, o, err))
 		}
-
-		// TODO: Vivek Make topic configurable.
-		topic := "gnmi-config"
-		p, o, err := (*jctx.config.Kafka.producer).SendMessage(
-			&sarama.ProducerMessage{
-				Topic: topic,
-				Value: sarama.ByteEncoder(payload),
-			},
-		)
-		jLog(&jctx, fmt.Sprintf("Configuration for %v published to topic %v, partition %v, offset %v, err: %v", jctx.config.Host, topic, p, o, err))
 		for {
 			select {
 			case sig := <-signalch:

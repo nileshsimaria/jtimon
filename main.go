@@ -29,7 +29,7 @@ var (
 	noppgoroutines  = flag.Bool("no-per-packet-goroutines", false, "Spawn per packet go routines")
 	genTestData     = flag.Bool("generate-test-data", false, "Generate test data")
 	conTestData     = flag.Bool("consume-test-data", false, "Consume test data")
-	dialOut         = flag.Bool("dial-out", true, "Act as server supporting dialOut connections")
+	dialOut         = flag.Bool("dial-out", false, "Act as server supporting dialOut connections")
 	terminator      = flag.Bool("terminator", false, "Act as RPC terminator")
 	myListeningIP   = flag.String("host", "0.0.0.0", "Server IP")
 	myListeningPort = flag.Int("port", 32767, "The server port")

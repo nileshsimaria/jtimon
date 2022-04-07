@@ -278,7 +278,6 @@ func (s *dialoutServerT) DialOutSubscriber(stream gnmi_dialout.Subscriber_DialOu
 			(*s.dataProducer).Input() <- &sarama.ProducerMessage{Topic: "gnmi-data", Key: sarama.ByteEncoder(cn), Value: sarama.ByteEncoder(payload)}
 		}
 	}
-	return err
 }
 
 func consumePartition(server *dialoutServerT, topic string, partition int32, offset int64, deviceName string) error {

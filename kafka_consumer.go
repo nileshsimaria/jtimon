@@ -2,51 +2,37 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
+	"sync"
 
 	"github.com/Shopify/sarama"
 	"github.com/golang/protobuf/proto"
-	"github.com/nileshsimaria/jtimon/gnmi/gnmi"
+	"github.com/nileshsimaria/jtimon/dialout"
 )
 
 func createKafkaConsumerGroup(name string, topics []string) error {
-	// Process the response
-	jctx := JCtx{
-		config: Config{
-			Host: os.Getenv("MY_NAME"),
-			EOS:  true,
-			Log: LogConfig{
-				Verbose: true,
-			},
-		},
-	}
-	if jctx.config.Host == "" {
-		jctx.config.Host = "localhost"
-	}
-	logInit(&jctx)
-
 	// Get the device config to get to know the paths to be subscribed
 	kafkaCfg := sarama.NewConfig()
 	kafkaCfg.Version = sarama.MaxVersion
-	kafkaClient, err := sarama.NewClient([]string{*kafkaBroker}, kafkaCfg)
+	kafkaClient, err := sarama.NewClient(strings.Split(*kafkaBroker, ","), kafkaCfg)
 	if err != nil {
-		jLog(&jctx, fmt.Sprintf("Not able to connect to Kafka broker at %v: %v", *kafkaBroker, err))
+		log.Printf(fmt.Sprintf("Not able to connect to Kafka broker at %v: %v", *kafkaBroker, err))
 		return err
 	}
 
 	kafkaConsumerGroup, err := sarama.NewConsumerGroupFromClient(name, kafkaClient)
 	if err != nil {
-		jLog(&jctx, fmt.Sprintf("Not able to create consumer: %v", err))
+		log.Printf(fmt.Sprintf("Not able to create consumer: %v", err))
 		return err
 	}
 
 	ctx := context.Background()
 	//defer cancel()
 
-	var gnmiConsumer = gnmiConsumerGroupHandler{jctx: &jctx}
+	var gnmiConsumer gnmiConsumerGroupHandler
 	go func() {
 		for {
 			// `Consume` should be called inside an infinite loop, when a
@@ -54,7 +40,7 @@ func createKafkaConsumerGroup(name string, topics []string) error {
 			// recreated to get the new claims
 			log.Printf("Inside loop")
 			if err := kafkaConsumerGroup.Consume(ctx, topics, &gnmiConsumer); err != nil {
-				jLog(&jctx, fmt.Sprintf("Error from consumer: %v", err))
+				log.Printf(fmt.Sprintf("Error from consumer: %v", err))
 			}
 			// check if context was cancelled, signaling that the consumer should stop
 			if ctx.Err() != nil {
@@ -68,12 +54,14 @@ func createKafkaConsumerGroup(name string, topics []string) error {
 }
 
 type gnmiConsumerGroupHandler struct {
-	jctx *JCtx
+	m         sync.RWMutex
+	dbHandles map[string]*JCtx
 }
 
-func (*gnmiConsumerGroupHandler) Setup(session sarama.ConsumerGroupSession) error {
+func (handler *gnmiConsumerGroupHandler) Setup(session sarama.ConsumerGroupSession) error {
 	var err error
 	log.Printf("Setup..")
+	handler.dbHandles = map[string]*JCtx{}
 	return err
 }
 
@@ -94,12 +82,32 @@ func (handler *gnmiConsumerGroupHandler) ConsumeClaim(session sarama.ConsumerGro
 
 	log.Printf("Consuming..")
 	for msg := range claim.Messages() {
-		var rspFromDevice gnmi.SubscribeResponse
-		proto.Unmarshal(msg.Value, &rspFromDevice)
-		err = gnmiHandleResponse(handler.jctx, &rspFromDevice)
-		if err != nil && strings.Contains(err.Error(), gGnmiJtimonIgnoreErrorSubstr) {
-			log.Printf("Host: %v, gnmiHandleResponse failed: %v", cn, err)
-			continue
+		var dialOutRsp dialout.DialOutResponse
+		proto.Unmarshal(msg.Value, &dialOutRsp)
+
+		var cfg Config
+		json.Unmarshal(dialOutRsp.DialOutContext, &cfg)
+
+		var jctx *JCtx
+		handler.m.Lock()
+		jctx, ok := handler.dbHandles[cfg.Influx.Dbname]
+		if !ok {
+			jctx = &JCtx{config: cfg}
+			influxInit(jctx)
+			handler.dbHandles[cfg.Influx.Dbname] = jctx
+			handler.m.Unlock()
+			log.Printf("Host: %v, dbHandles: %v", cn, cfg.Influx.Dbname)
+		} else {
+			handler.m.Unlock()
+			jctx.config = cfg
+		}
+
+		for _, rsp := range dialOutRsp.Response {
+			err = gnmiHandleResponse(jctx, rsp)
+			if err != nil && strings.Contains(err.Error(), gGnmiJtimonIgnoreErrorSubstr) {
+				log.Printf("Host: %v, gnmiHandleResponse failed: %v", cn, err)
+				continue
+			}
 		}
 	}
 

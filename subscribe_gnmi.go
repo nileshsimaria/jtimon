@@ -16,6 +16,7 @@ import (
 
 	google_protobuf "github.com/golang/protobuf/ptypes/any"
 	"github.com/influxdata/influxdb/client/v2"
+	"github.com/nileshsimaria/jtimon/dialout"
 	gnmi "github.com/nileshsimaria/jtimon/gnmi/gnmi"
 	"golang.org/x/net/context"
 
@@ -112,6 +113,7 @@ func publishToPrometheus(jctx *JCtx, parseOutput *gnmiParseOutputT) {
  * floats and strings. Influx Line Protocol doesn't support other types
  */
 func publishToInflux(jctx *JCtx, mName string, prefixPath string, kvpairs map[string]string, xpaths map[string]interface{}) error {
+	jLog(jctx, fmt.Sprintf("jctx.influxCtx.influxClient: %v.. ", jctx.influxCtx.influxClient))
 	if !gGnmiUnitTestCoverage && jctx.influxCtx.influxClient == nil {
 		return nil
 	}
@@ -123,6 +125,7 @@ func publishToInflux(jctx *JCtx, mName string, prefixPath string, kvpairs map[st
 		return errors.New(msg)
 	}
 
+	jLog(jctx, fmt.Sprintf("jctx.config.Influx.WritePerMeasurement: %v.. ", jctx.config.Influx.WritePerMeasurement))
 	if jctx.config.Influx.WritePerMeasurement {
 		if *print || IsVerboseLogging(jctx) {
 			msg := fmt.Sprintf("New point (per measurement): %v", pt.String())
@@ -378,6 +381,7 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 			parseOutput.prefixPath, parseOutput.kvpairs, parseOutput.xpaths, jxpaths, jGnmiHdr, parseOutput.mName, *rsp))
 	}
 
+	jLog(jctx, fmt.Sprintf("publishToInflux.. "))
 	err = publishToInflux(jctx, parseOutput.mName, parseOutput.prefixPath, parseOutput.kvpairs, parseOutput.xpaths)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("Publish to Influx fails: %v\n\n", parseOutput.mName))
@@ -388,18 +392,33 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 }
 
 // Convert xpaths config to gNMI subscription
-func xPathsTognmiSubscription(pathsCfg []PathsConfig) ([]*gnmi.Subscription, error) {
+func xPathsTognmiSubscription(pathsCfg []PathsConfig, dialOutpathsCfg []*dialout.PathsConfig) ([]*gnmi.Subscription, error) {
 	var subs []*gnmi.Subscription
-	for _, p := range pathsCfg {
-		gp, err := xPathTognmiPath(p.Path)
-		if err != nil {
-			return nil, err
+
+	if dialOutpathsCfg == nil {
+		for _, p := range pathsCfg {
+			gp, err := xPathTognmiPath(p.Path)
+			if err != nil {
+				return nil, err
+			}
+
+			mode := gnmiMode(p.Mode)
+			mode, freq := gnmiFreq(mode, p.Freq)
+
+			subs = append(subs, &gnmi.Subscription{Path: gp, Mode: mode, SampleInterval: freq})
 		}
+	} else {
+		for _, p := range dialOutpathsCfg {
+			gp, err := xPathTognmiPath(p.Path)
+			if err != nil {
+				return nil, err
+			}
 
-		mode := gnmiMode(p.Mode)
-		mode, freq := gnmiFreq(mode, p.Freq)
+			mode := gnmiMode(p.Mode)
+			mode, freq := gnmiFreq(mode, p.Frequency)
 
-		subs = append(subs, &gnmi.Subscription{Path: gp, Mode: mode, SampleInterval: freq})
+			subs = append(subs, &gnmi.Subscription{Path: gp, Mode: mode, SampleInterval: freq})
+		}
 	}
 
 	return subs, nil
@@ -439,7 +458,7 @@ func subscribegNMI(conn *grpc.ClientConn, jctx *JCtx) SubErrorCode {
 	}
 
 	// Form subscription from xpaths config
-	subs.Subscription, err = xPathsTognmiSubscription(jctx.config.Paths)
+	subs.Subscription, err = xPathsTognmiSubscription(jctx.config.Paths, nil)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("gNMI host: %v, Invalid path: %v", hostname, err))
 		// To make worker absorb any further config changes

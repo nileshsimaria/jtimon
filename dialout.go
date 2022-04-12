@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,10 +11,12 @@ import (
 	"net"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/golang/protobuf/proto"
+	"github.com/nileshsimaria/jtimon/dialout"
 	gnmi_dialout "github.com/nileshsimaria/jtimon/gnmi/dialout"
 	"github.com/nileshsimaria/jtimon/gnmi/gnmi"
 
@@ -52,17 +53,11 @@ type rpcInfoT struct {
 	rpc        string
 	rpcId      int8
 	running    bool
-	cfgChannel chan *dialOutConfigT
-	config     *dialOutConfigT
+	cfgChannel chan *dialout.DialOutRequest
+	config     *dialout.DialOutRequest
 	jctx       *JCtx // Currently inherited from device, so use this handle as read-only
 
 	device *deviceInfoT
-}
-
-type dialOutConfigT struct {
-	Device  string        `json:"device"`
-	RpcType string        `json:"rpc-type"`
-	Paths   []PathsConfig `json:"paths"`
 }
 
 func newDialOutServer(rpcs []string) *dialoutServerT {
@@ -70,7 +65,7 @@ func newDialOutServer(rpcs []string) *dialoutServerT {
 
 	// Create kafka Client
 	kafkaCfg := sarama.NewConfig()
-	kafkaClient, err := sarama.NewClient([]string{*kafkaBroker}, kafkaCfg)
+	kafkaClient, err := sarama.NewClient(strings.Split(*kafkaBroker, ","), kafkaCfg)
 	if err != nil {
 		log.Fatalf("Not able to connect to Kafka broker at %v: %v", *kafkaBroker, err)
 	}
@@ -109,7 +104,7 @@ func newDialOutServer(rpcs []string) *dialoutServerT {
 
 func createRpc(device *deviceInfoT, name string, id int) (*rpcInfoT, error) {
 	// Sarama's default channel size for consuming messages is 256
-	cfgChannel := make(chan *dialOutConfigT, 512)
+	cfgChannel := make(chan *dialout.DialOutRequest, 512)
 	return &rpcInfoT{rpc: name, rpcId: int8(id), cfgChannel: cfgChannel, jctx: device.jctx, device: device}, nil
 }
 
@@ -217,15 +212,15 @@ func (s *dialoutServerT) DialOutSubscriber(stream gnmi_dialout.Subscriber_DialOu
 
 	i := 0
 	length := len(rpc.cfgChannel)
-	var dialOutCfg *dialOutConfigT
+	var cfgReq *dialout.DialOutRequest
 	// Drain n - 1 message to get latest config
 	for i < (length - 1) {
 		<-rpc.cfgChannel
 		i++
 	}
 	log.Printf("Waiting for config..")
-	dialOutCfg = <-rpc.cfgChannel
-	log.Printf("Read config.. : %v", *dialOutCfg)
+	cfgReq = <-rpc.cfgChannel
+	log.Printf("Read config.. : %v", *cfgReq)
 
 	req := &gnmi.SubscribeRequest{}
 	req = &gnmi.SubscribeRequest{Request: &gnmi.SubscribeRequest_Subscribe{
@@ -235,7 +230,7 @@ func (s *dialoutServerT) DialOutSubscriber(stream gnmi_dialout.Subscriber_DialOu
 		},
 	}}
 	subReq := req.Request.(*gnmi.SubscribeRequest_Subscribe)
-	subReq.Subscribe.Subscription, err = xPathsTognmiSubscription(dialOutCfg.Paths)
+	subReq.Subscribe.Subscription, err = xPathsTognmiSubscription(nil, cfgReq.Paths)
 	if err != nil {
 		//log.Printf("Host: %v, Invalid path config: %s", cn, cfg)
 		jLog(s.jctx, fmt.Sprintf("Host: %v, Invalid path config: %s", cn, "foo...."))
@@ -247,7 +242,7 @@ func (s *dialoutServerT) DialOutSubscriber(stream gnmi_dialout.Subscriber_DialOu
 
 	for {
 		select {
-		case dialOutCfg = <-rpc.cfgChannel:
+		case cfgReq = <-rpc.cfgChannel:
 			removeRpcFromDevice(rpc)
 			stream.Context().Done()
 		case producerError := <-(*s.dataProducer).Errors():
@@ -268,13 +263,16 @@ func (s *dialoutServerT) DialOutSubscriber(stream gnmi_dialout.Subscriber_DialOu
 				continue
 			}
 
-			payload, err := proto.Marshal(rspFromDevice)
+			// TODO: Vivek Take data topic from cmd line
+			var dialOutRsp dialout.DialOutResponse
+			dialOutRsp.Device = cn
+			dialOutRsp.DialOutContext = cfgReq.DialOutContext
+			dialOutRsp.Response = append(dialOutRsp.Response, rspFromDevice)
+			payload, err := proto.Marshal(&dialOutRsp)
 			if err != nil {
 				log.Printf("Marshalling failed for %s, len: %v\n", rspString, len(rspString))
 				continue
 			}
-
-			// TODO: Vivek Take data topic from cmd line
 			(*s.dataProducer).Input() <- &sarama.ProducerMessage{Topic: "gnmi-data", Key: sarama.ByteEncoder(cn), Value: sarama.ByteEncoder(payload)}
 		}
 	}
@@ -295,8 +293,8 @@ func consumePartition(server *dialoutServerT, topic string, partition int32, off
 	var tmpDeviceName string
 	for msg := range partitionConsumer.Messages() {
 		log.Printf("topic: %v, partition: %v, offset: %v, msg key: %v, msg val: %v", topic, partition, offset, string(msg.Key), string(msg.Value))
-		var dialOutCfg dialOutConfigT
-		err = json.Unmarshal(msg.Value, &dialOutCfg)
+		var dialOutCfg dialout.DialOutRequest
+		err = proto.Unmarshal(msg.Value, &dialOutCfg)
 		log.Printf("dialOutCfg: %v", dialOutCfg.Paths[0].Path)
 		if err != nil {
 			jLog(jctx, fmt.Sprintf("Unmarshalling dialout config failed, ignoring"))

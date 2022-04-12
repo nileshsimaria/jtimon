@@ -37,9 +37,7 @@ var (
 	myCACert        = flag.String("ca-cert", "./certs/self_signed/ca-cert.pem", "Path of CA cert")
 	myCert          = flag.String("cert", "./certs/self_signed/server-cert.pem", "Path of server cert")
 	myKey           = flag.String("pem", "./certs/self_signed/server-key.pem", "Path of server key")
-	kafkaIP         = flag.String("kafka-ip", "kafka", "Kafka IP")
-	kafkaPort       = flag.Int("kafka-port", 9092, "Kafka port")
-	kafkaBroker     = flag.String("kafka-broker", "kafka:9092", "Kafka broker IP")
+	kafkaBroker     = flag.String("kafka-broker", "kafka:9092", "Comma seperated list of Kafka brokers each in the form ip:port")
 
 	jtimonVersion = "version-not-available"
 	buildTime     = "build-time-not-available"

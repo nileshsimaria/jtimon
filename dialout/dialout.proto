@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+import "github.com/nileshsimaria/jtimon/gnmi/gnmi";
+
+message PathsConfig {
+   string path = 1;
+   uint64 frequency = 2; // millisecs
+   string mode = 3;
+}
+message DialOutRequest{
+	string device  = 1;
+   bytes dialOutContext = 2; // context for a device, has to be sent back as-is in DialOutResponse for that device
+	string rpcType = 3;
+	repeated PathsConfig paths = 4;
+}
+
+message DialOutResponse{
+   string device = 1;
+   bytes dialOutContext = 2; // Same as in DialOutRequest for a device
+   repeated gnmi.SubscribeResponse response = 3;
+}

@@ -7,11 +7,15 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/golang/protobuf/proto"
+	"github.com/nileshsimaria/jtimon/dialout"
+	"github.com/nileshsimaria/jtimon/gnmi/gnmi"
 	"google.golang.org/grpc"
 )
 
@@ -36,6 +40,7 @@ type JCtx struct {
 // JWorkers holds worker
 type JWorkers struct {
 	m          map[string]*JWorker
+	devices    map[string]*JWorker
 	wg         sync.WaitGroup
 	mr         int64
 	files      []string
@@ -200,12 +205,47 @@ type JWorker struct {
 	signalch chan os.Signal
 }
 
+func getDialOutRequest(jctx *JCtx) *dialout.DialOutRequest {
+	// Form the context for dialout
+	dialOutCfg := jctx.config
+	influxServer, ok := os.LookupEnv("HOSTNAME")
+	if ok {
+		influxServer = jctx.config.Influx.Server
+	} else {
+		influxServer = jctx.config.Host
+	}
+	dialOutCfg.Influx.Server = influxServer
+	if dialOutCfg.Influx.Dbname == "" {
+		dialOutCfg.Influx.Dbname = jctx.config.Host
+	}
+	cfgPayload, err := json.Marshal(&dialOutCfg)
+	if err != nil {
+		// TODO: Vivek Will  jctx.config.Host reflect the right host ?
+		jLog(jctx, fmt.Sprintf("Marshalling configuration failed for %v, err: %v", jctx.config.Host, err))
+	}
+
+	// Form the dialout request
+	var req dialout.DialOutRequest
+	req.Device = dialOutCfg.Host
+	for _, tmp := range dialOutCfg.Paths {
+		var path dialout.PathsConfig
+		path.Path = tmp.Path
+		path.Frequency = tmp.Freq
+		path.Mode = tmp.Mode
+
+		req.Paths = append(req.Paths, &path)
+	}
+	req.DialOutContext = cfgPayload
+	return &req
+}
+
 // NewJWorker is to create new worker
 func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, error) {
 	w := &JWorker{}
 
 	signalch := make(chan os.Signal)
 	statusch := make(chan struct{})
+	dataCh := make(chan *gnmi.SubscribeResponse, 20000)
 	jctx := JCtx{
 		file:      file,
 		wg:        wg,
@@ -233,25 +273,21 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 	go func() {
 		if *dialOut {
 			// Publish the initial config for dial-out
-			var dialOutCfg dialOutConfigT
-
-			dialOutCfg.Device = jctx.config.Host
-			dialOutCfg.Paths = jctx.config.Paths
-			payload, err := json.Marshal(dialOutCfg)
+			req := getDialOutRequest(&jctx)
+			ctxPayload, err := proto.Marshal(req)
 			if err != nil {
 				// TODO: Vivek Will  jctx.config.Host reflect the right host ?
-				jLog(&jctx, fmt.Sprintf("Marshalling configuration failed for %v, err: %v", jctx.config.Host, err))
+				jLog(&jctx, fmt.Sprintf("Marshalling dial-out context failed for %v, err: %v", jctx.config.Host, err))
 			}
-
 			// TODO: Vivek Make topic configurable.
 			topic := "gnmi-config"
 			p, o, err := (*jctx.config.Kafka.producer).SendMessage(
 				&sarama.ProducerMessage{
 					Topic: topic,
-					Value: sarama.ByteEncoder(payload),
+					Value: sarama.ByteEncoder(ctxPayload),
 				},
 			)
-			jLog(&jctx, fmt.Sprintf("Configuration for %v published to topic %v, partition %v, offset %v, err: %v", jctx.config.Host, topic, p, o, err))
+			jLog(&jctx, fmt.Sprintf("Initial configuration for %v published to topic %v, partition %v, offset %v, err: %v", jctx.config.Host, topic, p, o, err))
 		}
 		for {
 			select {
@@ -287,22 +323,18 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 							jLog(&jctx, fmt.Sprintf("config re-parse, data streaming has not started yet"))
 						}
 					} else {
-						var dialOutCfg dialOutConfigT
-
-						dialOutCfg.Device = jctx.config.Host
-						dialOutCfg.Paths = jctx.config.Paths
-						payload, err := json.Marshal(dialOutCfg)
+						req := getDialOutRequest(&jctx)
+						ctxPayload, err := proto.Marshal(req)
 						if err != nil {
 							// TODO: Vivek Will  jctx.config.Host reflect the right host ?
-							jLog(&jctx, fmt.Sprintf("Marshalling configuration failed for %v, err: %v", jctx.config.Host, err))
+							jLog(&jctx, fmt.Sprintf("Marshalling dial-out context failed for %v, err: %v", jctx.config.Host, err))
 						}
-
 						// TODO: Vivek Make topic configurable.
 						topic := "gnmi-config"
 						p, o, err := (*jctx.config.Kafka.producer).SendMessage(
 							&sarama.ProducerMessage{
 								Topic: topic,
-								Value: sarama.ByteEncoder(payload),
+								Value: sarama.ByteEncoder(ctxPayload),
 							},
 						)
 						jLog(&jctx, fmt.Sprintf("Configuration for %v published to topic %v, partition %v, offset %v, err: %v", jctx.config.Host, topic, p, o, err))
@@ -320,7 +352,12 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 				jctx.wg.Done()
 				logStop(&jctx)
 				return
-
+			case rsp := <-dataCh:
+				err := gnmiHandleResponse(&jctx, rsp)
+				if err != nil && strings.Contains(err.Error(), gGnmiJtimonIgnoreErrorSubstr) {
+					jLog(&jctx, fmt.Sprintf("gnmiHandleResponse failed: %v", err))
+					continue
+				}
 			}
 		}
 	}()

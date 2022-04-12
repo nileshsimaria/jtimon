@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -109,7 +110,7 @@ func KafkaInit(jctx *JCtx) error {
 		}
 
 		cfg.Kafka = &KafkaConfig{}
-		cfg.Kafka.Brokers = []string{*kafkaBroker}
+		cfg.Kafka.Brokers = strings.Split(*kafkaBroker, ",")
 	}
 
 	if err := KafkaConnect(cfg.Kafka); err != nil {

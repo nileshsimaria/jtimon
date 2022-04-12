@@ -19,4 +19,6 @@ COPY --from=builder /usr/local/bin/jtimon /usr/local/bin/jtimon
 
 VOLUME /u
 WORKDIR /u
+RUN mkdir -p certs/self_signed/
+COPY ./certs/self_signed/ certs/self_signed
 ENTRYPOINT ["/usr/local/bin/jtimon"]

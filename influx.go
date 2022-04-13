@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -581,7 +583,14 @@ func getInfluxClient(cfg Config, timeout time.Duration) *client.Client {
 	if cfg.Influx.Server == "" {
 		return nil
 	}
-	addr := fmt.Sprintf("http://%v:%v", cfg.Influx.Server, cfg.Influx.Port)
+
+	// TODO: Vivek Resolve it only once and reuse the endpoint
+	resolvedArr, err := net.ResolveTCPAddr("tcp", cfg.Influx.Server+":"+strconv.Itoa(cfg.Influx.Port))
+	if err != nil {
+		log.Printf("ResolveTCPAddr failed for %s, err: %v\n", cfg.Influx.Server+":"+strconv.Itoa(cfg.Influx.Port), err)
+		return nil
+	}
+	addr := fmt.Sprintf("http://%v:%v", resolvedArr.IP, resolvedArr.Port)
 	c, err := client.NewHTTPClient(client.HTTPConfig{
 		Addr:     addr,
 		Username: cfg.Influx.User,

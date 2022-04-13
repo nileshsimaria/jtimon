@@ -208,11 +208,9 @@ type JWorker struct {
 func getDialOutRequest(jctx *JCtx) *dialout.DialOutRequest {
 	// Form the context for dialout
 	dialOutCfg := jctx.config
-	influxServer, ok := os.LookupEnv("HOSTNAME")
-	if ok {
+	influxServer, ok := os.LookupEnv("MY_NAME")
+	if !ok {
 		influxServer = jctx.config.Influx.Server
-	} else {
-		influxServer = jctx.config.Host
 	}
 	dialOutCfg.Influx.Server = influxServer
 	if dialOutCfg.Influx.Dbname == "" {

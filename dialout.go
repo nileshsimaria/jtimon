@@ -293,6 +293,11 @@ func consumePartition(server *dialoutServerT, topic string, partition int32, off
 	var tmpDeviceName string
 	for msg := range partitionConsumer.Messages() {
 		log.Printf("topic: %v, partition: %v, offset: %v, msg key: %v, msg val: %v", topic, partition, offset, string(msg.Key), string(msg.Value))
+
+		// TODO: Vivek REMOVE THIS !!! Just a blind way of assuming that if first char is '{', it is json encoded and hence ignore the msg as we moved to proto.
+		if msg.Value[0] == '{' {
+			continue
+		}
 		var dialOutCfg dialout.DialOutRequest
 		err = proto.Unmarshal(msg.Value, &dialOutCfg)
 		log.Printf("dialOutCfg: %v", dialOutCfg.Paths[0].Path)

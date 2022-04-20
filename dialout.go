@@ -390,7 +390,7 @@ func startDialOutServer(host *string, port *int) {
 		log.Fatalf("Failed to create listener for %v", *host+":"+strconv.Itoa(*port))
 	}
 
-	// TODO: Vivek - Talk to PAPI for certs
+	// TODO: Vivek - Talk to third-party for certs if needed
 	if !*skipVerify {
 		if *myCert == "" {
 			log.Fatalf("Cert not provided")

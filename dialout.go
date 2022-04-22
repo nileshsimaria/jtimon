@@ -22,6 +22,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
@@ -176,7 +177,7 @@ func (s *dialoutServerT) DialOutSubscriber(stream gnmi_dialout.Subscriber_DialOu
 	// Get client info - UUID
 	cn := *myListeningIP
 
-	fmt.Printf("[%v, DialOutSubscriber]: Rpc begin", cn)
+	log.Printf("[%v, DialOutSubscriber]: Rpc begin", cn)
 	if !*skipVerify {
 		peer, ok := peer.FromContext(stream.Context())
 		if ok && (peer.AuthInfo != nil) {
@@ -213,14 +214,19 @@ func (s *dialoutServerT) DialOutSubscriber(stream gnmi_dialout.Subscriber_DialOu
 	i := 0
 	length := len(rpc.cfgChannel)
 	var cfgReq *dialout.DialOutRequest
-	// Drain n - 1 message to get latest config
-	for i < (length - 1) {
-		<-rpc.cfgChannel
-		i++
+	if length == 0 && rpc.config != nil {
+		cfgReq = rpc.config
+		log.Printf("[%v, DialOutSubscriber]: Already have the latest config.. : %v", cn, *cfgReq)
+	} else {
+		// Drain n - 1 message to get latest config
+		for i < (length - 1) {
+			<-rpc.cfgChannel
+			i++
+		}
+		log.Printf("[%v, DialOutSubscriber]: Waiting for config..", cn)
+		cfgReq = <-rpc.cfgChannel
+		log.Printf("[%v, DialOutSubscriber]: Read config.. : %v", cn, *cfgReq)
 	}
-	log.Printf("Waiting for config..")
-	cfgReq = <-rpc.cfgChannel
-	log.Printf("Read config.. : %v", *cfgReq)
 
 	req := &gnmi.SubscribeRequest{}
 	req = &gnmi.SubscribeRequest{Request: &gnmi.SubscribeRequest_Subscribe{
@@ -343,8 +349,9 @@ func consumePartition(server *dialoutServerT, topic string, partition int32, off
 					}
 				}
 			}
-			fmt.Printf("Writing to %v's channel, device: %v, , dialOutCfg: %v", *rpc, *rpc.device, dialOutCfg)
+			log.Printf("Writing to %v's channel, device: %v, , dialOutCfg: %v", *rpc, *rpc.device, dialOutCfg)
 			rpc.cfgChannel <- &dialOutCfg
+			rpc.config = &dialOutCfg
 		default:
 			errMsg := fmt.Sprintf("[%v, DialOutSubscriber]: Unimplemented rpc %v, ignoring", tmpDeviceName, err)
 			jLog(jctx, errMsg)
@@ -430,8 +437,7 @@ func startDialOutServer(host *string, port *int) {
 		})
 	}
 
-	grpcServer := grpc.NewServer(grpc.Creds(transportCreds))
-
+	grpcServer := grpc.NewServer(grpc.Creds(transportCreds), grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{MinTime: 120 * time.Second}))
 	dialOutServer := newDialOutServer([]string{SUBSCRIBER_DIALOUTSUBSCRIBER})
 	gnmi_dialout.RegisterSubscriberServer(grpcServer, dialOutServer)
 	grpcServer.Serve(lis)

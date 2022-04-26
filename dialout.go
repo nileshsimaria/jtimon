@@ -66,10 +66,12 @@ func newDialOutServer(rpcs []string) *dialoutServerT {
 
 	// Create kafka Client
 	kafkaCfg := sarama.NewConfig()
+	log.Printf("brokers: %v", strings.Split(*kafkaBroker, ","))
 	kafkaClient, err := sarama.NewClient(strings.Split(*kafkaBroker, ","), kafkaCfg)
 	if err != nil {
 		log.Fatalf("Not able to connect to Kafka broker at %v: %v", *kafkaBroker, err)
 	}
+	log.Printf("brokers: %v", strings.Split(*kafkaBroker, ","))
 	s.kafkaClient = &kafkaClient
 
 	kafkaConsumer, err := sarama.NewConsumerFromClient(*s.kafkaClient)
@@ -228,43 +230,70 @@ func (s *dialoutServerT) DialOutSubscriber(stream gnmi_dialout.Subscriber_DialOu
 		log.Printf("[%v, DialOutSubscriber]: Read config.. : %v", cn, *cfgReq)
 	}
 
-	req := &gnmi.SubscribeRequest{}
-	req = &gnmi.SubscribeRequest{Request: &gnmi.SubscribeRequest_Subscribe{
-		Subscribe: &gnmi.SubscriptionList{
-			Mode:     gnmi.SubscriptionList_STREAM,
-			Encoding: gnmi.Encoding_PROTO,
-		},
-	}}
-	subReq := req.Request.(*gnmi.SubscribeRequest_Subscribe)
-	subReq.Subscribe.Subscription, err = xPathsTognmiSubscription(nil, cfgReq.Paths)
+	initialRsp, err := stream.Recv()
+	if err == io.EOF {
+		jLog(s.jctx, fmt.Sprintf("[%v, DialOutSubscriber]: Stopping the RPC after initial response, reason: %v", cn, io.EOF))
+		return nil
+	}
 	if err != nil {
-		//log.Printf("Host: %v, Invalid path config: %s", cn, cfg)
-		jLog(s.jctx, fmt.Sprintf("Host: %v, Invalid path config: %s", cn, "foo...."))
+		jLog(s.jctx, fmt.Sprintf("[%v, DialOutSubscriber]: Stream receive failed for initial response: %v", cn, err))
 		return err
 	}
 
-	// Subscribe to the device
-	stream.Send(req)
+	if initialRsp == nil { // Indicates dynamic dialout, the client expects us to subscribe with our list of paths
+		req := &gnmi.SubscribeRequest{}
+		req = &gnmi.SubscribeRequest{Request: &gnmi.SubscribeRequest_Subscribe{
+			Subscribe: &gnmi.SubscriptionList{
+				Mode:     gnmi.SubscriptionList_STREAM,
+				Encoding: gnmi.Encoding_PROTO,
+			},
+		}}
+		subReq := req.Request.(*gnmi.SubscribeRequest_Subscribe)
+		subReq.Subscribe.Subscription, err = xPathsTognmiSubscription(nil, cfgReq.Paths)
+		if err != nil {
+			//log.Printf("Host: %v, Invalid path config: %s", cn, cfg)
+			jLog(s.jctx, fmt.Sprintf("[%v, DialOutSubscriber]: Invalid path config: %v", cn, err))
+			return err
+		}
 
+		// Subscribe to the device
+		stream.Send(req)
+
+		// Once we send the subscription request for dynamic dialout, the rest of the flow will be same for both dynamic and static dialout
+	}
+
+	var rspFromDevice *gnmi.SubscribeResponse
 	for {
 		select {
 		case cfgReq = <-rpc.cfgChannel:
+			// The config has changed, finish the RPC gracefully so that the client can dial back
 			removeRpcFromDevice(rpc)
 			stream.Context().Done()
+			jLog(s.jctx, fmt.Sprintf("[%v, DialOutSubscriber]: Stopping the RPC, reason: Got new config(%v)", cn, *cfgReq))
+			return nil
 		case producerError := <-(*s.dataProducer).Errors():
-			log.Printf("Sending failed for %s, err: %v\n", fmt.Sprintf("%s", producerError.Msg.Value), producerError.Error())
+			log.Printf("[%v, DialOutSubscriber]: Sending failed for %s, err: %v\n", fmt.Sprintf("%s", producerError.Msg.Value), producerError.Error(), cn)
 		default:
-			rspFromDevice, err := stream.Recv()
+			if initialRsp != nil {
+				rspFromDevice = initialRsp
+				initialRsp = nil
+				goto processRsp
+			}
+
+			rspFromDevice, err = stream.Recv()
 			if err == io.EOF {
+				jLog(s.jctx, fmt.Sprintf("[%v, DialOutSubscriber]: stop the RPC, reason: %v", cn, io.EOF))
 				return nil
 			}
 			if err != nil {
+				jLog(s.jctx, fmt.Sprintf("[%v, DialOutSubscriber]: stream receive failed, error: %v", cn, err))
 				return err
 			}
 
+		processRsp:
 			var rspString string
 			rspString = fmt.Sprintf("%s", rspFromDevice)
-			log.Printf("Rsp from device: %s, len: %v\n", rspString, len(rspString))
+			log.Printf("[%v, DialOutSubscriber]: Rsp from device: %s, len: %v\n", cn, rspString, len(rspString))
 			if len(rspString) == 0 {
 				continue
 			}
@@ -276,7 +305,7 @@ func (s *dialoutServerT) DialOutSubscriber(stream gnmi_dialout.Subscriber_DialOu
 			dialOutRsp.Response = append(dialOutRsp.Response, rspFromDevice)
 			payload, err := proto.Marshal(&dialOutRsp)
 			if err != nil {
-				log.Printf("Marshalling failed for %s, len: %v\n", rspString, len(rspString))
+				log.Printf("[%v, DialOutSubscriber]: Marshalling failed for %s, len: %v\n", cn, rspString, len(rspString))
 				continue
 			}
 			(*s.dataProducer).Input() <- &sarama.ProducerMessage{Topic: "gnmi-data", Key: sarama.ByteEncoder(cn), Value: sarama.ByteEncoder(payload)}

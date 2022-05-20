@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/nileshsimaria/jtimon/multi-vendor/cisco/iosxr/telemetry-proto"
+	telemetry "github.com/nileshsimaria/jtimon/multi-vendor/cisco/iosxr/telemetry-proto"
 	flag "github.com/spf13/pflag"
 )
 

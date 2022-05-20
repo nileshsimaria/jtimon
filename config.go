@@ -72,7 +72,15 @@ type APIConfig struct {
 
 //GRPCConfig is to specify GRPC params
 type GRPCConfig struct {
-	WS int32 `json:"ws"`
+	WS           int32              `json:"ws"`
+	TunnelServer TunnelServerConfig `json:"tunnel-server"`
+}
+
+type TunnelServerConfig struct {
+	Address        string    `json:"address"`
+	DialTarget     string    `json:"dial-target"`
+	DialTargetType string    `json:"dial-target-type"`
+	TLS            TLSConfig `json:"tls"`
 }
 
 // TLSConfig is to specify TLS params
@@ -81,6 +89,7 @@ type TLSConfig struct {
 	ClientKey  string `json:"clientkey"`
 	CA         string `json:"ca"`
 	ServerName string `json:"servername"`
+	Insecure   bool   `json:"insecure"`
 }
 
 // PathsConfig to specify subscription path, reporting-interval (freq), etc,.

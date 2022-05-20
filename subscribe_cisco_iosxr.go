@@ -16,7 +16,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	pb "github.com/nileshsimaria/jtimon/multi-vendor/cisco/iosxr/grpc-proto"
-	"github.com/nileshsimaria/jtimon/multi-vendor/cisco/iosxr/telemetry-proto"
+	telemetry "github.com/nileshsimaria/jtimon/multi-vendor/cisco/iosxr/telemetry-proto"
 	"google.golang.org/grpc"
 )
 

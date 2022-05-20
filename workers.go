@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"math"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
@@ -13,10 +17,14 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/golang/protobuf/proto"
 	"github.com/nileshsimaria/jtimon/dialout"
 	"github.com/nileshsimaria/jtimon/gnmi/gnmi"
+	tpb "github.com/openconfig/grpctunnel/proto/tunnel"
+	"github.com/openconfig/grpctunnel/tunnel"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 // JCtx is JTIMON run time context
@@ -362,7 +370,270 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 	return w, nil
 }
 
+// Conn is a wraper as a net.Conn interface.
+type Conn struct {
+	io.ReadWriteCloser
+}
+
+// LocalAddr is trivial implementation, in order to match interface net.Conn.
+func (tc *Conn) LocalAddr() net.Addr { return nil }
+
+// RemoteAddr is trivial implementation, in order to match interface net.Conn.
+func (tc *Conn) RemoteAddr() net.Addr { return nil }
+
+// SetDeadline is trivial implementation, in order to match interface net.Conn.
+func (tc *Conn) SetDeadline(t time.Time) error { return nil }
+
+// SetReadDeadline is trivial implementation, in order to match interface net.Conn.
+func (tc *Conn) SetReadDeadline(t time.Time) error { return nil }
+
+// SetWriteDeadline is trivial implementation, in order to match interface net.Conn.
+func (tc *Conn) SetWriteDeadline(t time.Time) error { return nil }
+
+const (
+	retryBaseDelay     = time.Second
+	retryMaxDelay      = time.Minute
+	retryRandomization = 0.5
+)
+
+func getBackOff() *backoff.ExponentialBackOff {
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0 // Retry Subscribe indefinitely.
+	bo.InitialInterval = retryBaseDelay
+	bo.MaxInterval = retryMaxDelay
+	bo.RandomizationFactor = retryRandomization
+	return bo
+}
+
+func workTunnel(jctx *JCtx, statusch chan struct{}) error {
+	certFile := jctx.config.GRPC.TunnelServer.TLS.ClientCrt
+	keyFile := jctx.config.GRPC.TunnelServer.TLS.ClientKey
+	caFile := jctx.config.GRPC.TunnelServer.TLS.CA
+	insecure := jctx.config.GRPC.TunnelServer.TLS.Insecure
+
+	tunnelAddress := jctx.config.GRPC.TunnelServer.Address
+	dialTargetCfg := jctx.config.GRPC.TunnelServer.DialTarget
+	dialTargetType := jctx.config.GRPC.TunnelServer.DialTargetType
+
+	var opts []grpc.DialOption
+	var err error
+
+	if insecure {
+		opts = append(opts, grpc.WithInsecure())
+	} else {
+		if len(certFile) == 0 || len(keyFile) == 0 {
+			opts, err = tunnel.DialTLSCredsOpts(caFile)
+		} else {
+			opts, err = tunnel.DialmTLSCredsOpts(certFile, keyFile, caFile)
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+	clientConn, err := grpc.Dial(tunnelAddress, opts...)
+	if err != nil {
+		return fmt.Errorf("grpc dial error: %v", err)
+	}
+	defer clientConn.Close()
+
+	peers := make(map[tunnel.Target]struct{})
+	var peerMux sync.Mutex
+
+	peerAddHandler := func(t tunnel.Target) error {
+		peerMux.Lock()
+		defer peerMux.Unlock()
+		peers[t] = struct{}{}
+		log.Printf("peer target %s added\n", t)
+		return nil
+	}
+
+	peerDelHandler := func(t tunnel.Target) error {
+		peerMux.Lock()
+		defer peerMux.Unlock()
+		if _, ok := peers[t]; ok {
+			delete(peers, t)
+			log.Printf("peer target %s deleted\n", t)
+		}
+		return nil
+	}
+
+	targets := make(map[tunnel.Target]struct{})
+	client, err := tunnel.NewClient(tpb.NewTunnelClient(clientConn), tunnel.ClientConfig{
+		PeerAddHandler: peerAddHandler,
+		PeerDelHandler: peerDelHandler,
+		Subscriptions:  []string{dialTargetType},
+	}, targets)
+
+	if err != nil {
+		return fmt.Errorf("failed to create tunnel client: %v", err)
+	}
+
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	errCh := make(chan error, 2)
+	go func() {
+		if err := client.Register(ctx); err != nil {
+			errCh <- err
+			return
+		}
+		client.Start(ctx)
+		if err := client.Error(); err != nil {
+			errCh <- err
+		}
+	}()
+
+	dialTarget := tunnel.Target{ID: dialTargetCfg, Type: dialTargetType}
+	foundDialTarget := func() bool {
+		peerMux.Lock()
+		defer peerMux.Unlock()
+		_, ok := peers[dialTarget]
+		return ok
+	}
+
+	go func() {
+		bo := getBackOff()
+		for !foundDialTarget() {
+			wait := bo.NextBackOff()
+			log.Printf("dial target %s (type: %s) not found. reconnecting in %s (all targets found: %s) \n", dialTargetCfg, dialTargetType, wait, peers)
+			time.Sleep(wait)
+		}
+
+		session, err := client.NewSession(dialTarget)
+		if err != nil {
+			log.Printf("error from new session: %v", err)
+			errCh <- err
+			return
+		}
+		log.Printf("new session established for target: %s\n", dialTarget)
+
+		var (
+			retry   bool
+			opts    []grpc.DialOption
+			tryGnmi bool
+		)
+
+		if jctx.config.Vendor.Gnmi != nil {
+			tryGnmi = true
+		}
+
+	connect:
+		vendor, err := getVendor(jctx, tryGnmi)
+		if err != nil {
+			log.Fatalf("Could not get the vendor: %v", err)
+		}
+
+		if opts, err = getGPRCDialOptions(jctx, vendor); err != nil {
+			jLog(jctx, fmt.Sprintf("%v", err))
+			statusch <- struct{}{}
+			errCh <- err
+			return
+		}
+
+		opts = append(opts, grpc.WithBlock())
+		opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(math.MaxInt32)))
+
+		md := metadata.New(map[string]string{"username": jctx.config.User, "password": jctx.config.Password})
+		ctx = metadata.NewOutgoingContext(context.Background(), md)
+
+		withContextDialer := grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+			return &Conn{session}, nil
+		})
+		opts = append(opts, withContextDialer)
+
+		if retry {
+			jLog(jctx, fmt.Sprintf("Reconnecting to target %s", dialTargetCfg))
+		} else {
+			jLog(jctx, fmt.Sprintf("Connecting to target %s", dialTargetCfg))
+		}
+
+		conn, err := grpc.DialContext(ctx, "use_tunnel:0", opts...)
+		if err != nil {
+			log.Fatalf("Could not dial target: %v", err)
+		}
+		fmt.Printf("Successfully dialed target %s(%s)", dialTargetCfg, dialTargetType)
+
+		// we are able to Dial grpc, now let's begin by sending LoginCheck
+		// if required.
+		if vendor.loginCheckRequired {
+			if err := vendor.sendLoginCheck(jctx, conn); err != nil {
+				jLog(jctx, fmt.Sprintf("%v", err))
+				time.Sleep(10 * time.Second)
+				retry = true
+				conn.Close()
+				if jctx.config.Vendor.Gnmi != nil {
+					tryGnmi = true
+				} else {
+					tryGnmi = false
+				}
+				goto connect
+			}
+		}
+
+		if vendor.subscribe == nil {
+			panic(fmt.Sprintf("could not found subscribe implementation for vendor %s", vendor.name))
+		}
+		fmt.Println("Calling subscribe() :::", jctx.file)
+		code := vendor.subscribe(conn, jctx)
+		fmt.Println("Returns subscribe() :::", jctx.file, "CODE ::: ", code)
+
+		// close the current connection and retry
+		conn.Close()
+		switch code {
+		case SubRcSighupRestart:
+			jLog(jctx, fmt.Sprintf("sighup detected, reconnect with new config for worker %s", jctx.file))
+			retry = true
+			if jctx.config.Vendor.Gnmi != nil {
+				tryGnmi = true
+			} else {
+				tryGnmi = false
+			}
+			goto connect
+		case SubRcRPCFailedNoRetry:
+			jLog(jctx, fmt.Sprintf("RPC failed and reconnecting with fallback RPC if available %s", jctx.file))
+			retry = true
+			if tryGnmi {
+				tryGnmi = false // fallback to vendor mode
+			}
+			goto connect
+		case SubRcConnRetry:
+			jLog(jctx, fmt.Sprintf("subscribe returns, reconnecting after 10s for worker %s", jctx.file))
+			time.Sleep(10 * time.Second)
+			retry = true
+			if jctx.config.Vendor.Gnmi != nil {
+				tryGnmi = true
+			} else {
+				tryGnmi = false
+			}
+			goto connect
+		case SubRcSighupNoRestart:
+			jLog(jctx, fmt.Sprintf("not reconnecting for worker %s", jctx.file))
+			statusch <- struct{}{}
+			errCh <- err
+			return
+		}
+
+	}()
+
+	// Listen for any request to create a new session.
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errCh:
+		return fmt.Errorf("exiting: %s", err)
+	}
+}
+
 func work(jctx *JCtx, statusch chan struct{}) {
+	if jctx.config.GRPC.TunnelServer.Address != "" {
+		if err := workTunnel(jctx, statusch); err != nil {
+			jLog(jctx, fmt.Sprintf("tunnel worker failed: %v", err))
+		}
+		return
+	}
+
 	var (
 		retry   bool
 		opts    []grpc.DialOption

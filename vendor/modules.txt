@@ -6,6 +6,9 @@ github.com/beorn7/perks/quantile
 github.com/cenkalti/backoff/v4
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
+# github.com/deepmap/oapi-codegen v1.8.2
+github.com/deepmap/oapi-codegen/pkg/runtime
+github.com/deepmap/oapi-codegen/pkg/types
 # github.com/eapache/go-resiliency v1.2.0
 github.com/eapache/go-resiliency/breaker
 # github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21
@@ -29,6 +32,20 @@ github.com/hashicorp/go-uuid
 github.com/influxdata/influxdb/client/v2
 github.com/influxdata/influxdb/models
 github.com/influxdata/influxdb/pkg/escape
+# github.com/influxdata/influxdb-client-go/v2 v2.9.0
+github.com/influxdata/influxdb-client-go/v2
+github.com/influxdata/influxdb-client-go/v2/api
+github.com/influxdata/influxdb-client-go/v2/api/http
+github.com/influxdata/influxdb-client-go/v2/api/query
+github.com/influxdata/influxdb-client-go/v2/api/write
+github.com/influxdata/influxdb-client-go/v2/domain
+github.com/influxdata/influxdb-client-go/v2/internal/gzip
+github.com/influxdata/influxdb-client-go/v2/internal/http
+github.com/influxdata/influxdb-client-go/v2/internal/log
+github.com/influxdata/influxdb-client-go/v2/internal/write
+github.com/influxdata/influxdb-client-go/v2/log
+# github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf
+github.com/influxdata/line-protocol
 # github.com/jcmturner/gofork v1.0.0
 github.com/jcmturner/gofork/encoding/asn1
 github.com/jcmturner/gofork/x/crypto/pbkdf2
@@ -51,6 +68,8 @@ github.com/openconfig/grpctunnel/tunnel
 # github.com/pierrec/lz4 v2.4.1+incompatible
 github.com/pierrec/lz4
 github.com/pierrec/lz4/internal/xxh32
+# github.com/pkg/errors v0.9.1
+github.com/pkg/errors
 # github.com/prometheus/client_golang v0.8.0
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/promhttp
@@ -69,7 +88,7 @@ github.com/prometheus/procfs/xfs
 github.com/rcrowley/go-metrics
 # github.com/spf13/pflag v1.0.1
 github.com/spf13/pflag
-# golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+# golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 golang.org/x/crypto/md4
 golang.org/x/crypto/pbkdf2
 # golang.org/x/net v0.0.0-20210917221730-978cfadd31cf
@@ -81,6 +100,7 @@ golang.org/x/net/idna
 golang.org/x/net/internal/socks
 golang.org/x/net/internal/timeseries
 golang.org/x/net/proxy
+golang.org/x/net/publicsuffix
 golang.org/x/net/trace
 # golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e
 golang.org/x/sys/internal/unsafeheader
@@ -207,3 +227,5 @@ gopkg.in/jcmturner/gokrb5.v7/types
 # gopkg.in/jcmturner/rpc.v1 v1.1.0
 gopkg.in/jcmturner/rpc.v1/mstypes
 gopkg.in/jcmturner/rpc.v1/ndr
+# gopkg.in/yaml.v2 v2.3.0
+gopkg.in/yaml.v2

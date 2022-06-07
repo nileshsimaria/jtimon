@@ -11,6 +11,8 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/influxdata/influxdb v1.5.2
+	github.com/influxdata/influxdb-client-go/v2 v2.9.0 // indirect
+	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.0 // indirect
 	github.com/nileshsimaria/jtisim v0.0.0-20190103005352-93e1756cba8f
 	github.com/nileshsimaria/lpserver v0.0.0-20201223125141-2c2ca16a8d88
@@ -22,4 +24,5 @@ require (
 	golang.org/x/net v0.0.0-20210917221730-978cfadd31cf
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
+	gopkg.in/jcmturner/gokrb5.v7 v7.5.0 // indirect
 )

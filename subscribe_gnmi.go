@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	google_protobuf "github.com/golang/protobuf/ptypes/any"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/influxdata/influxdb/client/v2"
 	"github.com/nileshsimaria/jtimon/dialout"
 	gnmi "github.com/nileshsimaria/jtimon/gnmi/gnmi"
@@ -146,6 +147,73 @@ func publishToInflux(jctx *JCtx, mName string, prefixPath string, kvpairs map[st
 
 		if !gGnmiUnitTestCoverage {
 			jctx.influxCtx.batchWCh <- []*client.Point{pt}
+		}
+	}
+
+	return nil
+}
+
+/*
+ * Publish parsed output to Influx2. Make sure there are only inegers,
+ * floats and strings. Influx Line Protocol doesn't support other types
+ */
+func publishToInflux2(jctx *JCtx, mName string, prefixPath string, kvpairs map[string]string, xpaths map[string]interface{}) error {
+	jLog(jctx, fmt.Sprintf("jctx.influxCtx.influx2Client: %v.. ", jctx.influxCtx.influx2Client))
+	if !gGnmiUnitTestCoverage && jctx.influxCtx.influx2Client == nil {
+		return nil
+	}
+
+	pt := write.NewPoint(mName, kvpairs, xpaths, time.Now())
+	if pt == nil {
+		msg := fmt.Sprintf("New point creation failed for (key: %v, xpaths: %v)", kvpairs, xpaths)
+		jLog(jctx, msg)
+		return errors.New(msg)
+	}
+
+	jLog(jctx, fmt.Sprintf("jctx.config.Influx.WritePerMeasurement: %v.. ", jctx.config.Influx.WritePerMeasurement))
+	if jctx.config.Influx.WritePerMeasurement {
+		if *print || IsVerboseLogging(jctx) {
+			msg := fmt.Sprintf("New point (per measurement): %v", pt.Name())
+			jLog(jctx, msg)
+		}
+
+		if !gGnmiUnitTestCoverage {
+			if !jctx.config.Influx.Influx2.WriteInRecords {
+				jctx.influxCtx.influx2BatchWMCh <- &influx2BatchWMData{
+					measurement: mName,
+					points:      []*write.Point{pt},
+				}
+			} else {
+				line, err := EncodePoints(time.Nanosecond, pt)
+				if err != nil {
+					msg := fmt.Sprintf("EncodePoints failed for measurement %v: %v)", mName, err)
+					jLog(jctx, msg)
+					return errors.New(msg)
+				}
+				jctx.influxCtx.influx2RecordWMCh <- &influx2RecordWMData{
+						measurement: mName,
+						records:     line,
+				}
+			}
+		}
+	} else {
+		if *print || IsVerboseLogging(jctx) {
+			msg := fmt.Sprintf("New point: %v", pt.Name())
+			jLog(jctx, msg)
+		}
+
+		if !gGnmiUnitTestCoverage {
+			if !jctx.config.Influx.Influx2.WriteInRecords {
+				jctx.influxCtx.influx2BatchWCh <- []*write.Point{pt}
+			} else {
+				line, err := EncodePoints(time.Nanosecond, pt)
+				if err != nil {
+					msg := fmt.Sprintf("EncodePoints failed: %v)", err)
+					jLog(jctx, msg)
+					return errors.New(msg)
+				}
+				jctx.influxCtx.influx2RecordWCh <- line
+			}
 		}
 	}
 
@@ -382,10 +450,19 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 	}
 
 	jLog(jctx, fmt.Sprintf("publishToInflux.. "))
-	err = publishToInflux(jctx, parseOutput.mName, parseOutput.prefixPath, parseOutput.kvpairs, parseOutput.xpaths)
-	if err != nil {
-		jLog(jctx, fmt.Sprintf("Publish to Influx fails: %v\n\n", parseOutput.mName))
-		return err
+	switch {
+	case jctx.config.Influx.Influx2 == Influx2Config{}:
+		err = publishToInflux(jctx, parseOutput.mName, parseOutput.prefixPath, parseOutput.kvpairs, parseOutput.xpaths)
+		if err != nil {
+			jLog(jctx, fmt.Sprintf("Publish to Influx fails: %v\n\n", parseOutput.mName))
+			return err
+		}
+	default:
+		err = publishToInflux2(jctx, parseOutput.mName, parseOutput.prefixPath, parseOutput.kvpairs, parseOutput.xpaths)
+		if err != nil {
+			jLog(jctx, fmt.Sprintf("Publish to Influx2 fails: %v\n\n", parseOutput.mName))
+			return err
+		}
 	}
 
 	return err

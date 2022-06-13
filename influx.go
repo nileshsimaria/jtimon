@@ -529,7 +529,7 @@ func influx2PointAcculumator(jctx *JCtx) {
 									continue
 								}
 								if jctx.config.Log.Verbose {
-									jLog(jctx, fmt.Sprintf("Records are following ....\n", lines))
+									jLog(jctx, fmt.Sprintf("Records are following ....\n%v", lines))
 								}
 
 								if err = (*jctx.influxCtx.influx2WriteAPI).WriteRecord(context.Background(), lines); err != nil {
@@ -1123,6 +1123,8 @@ func closeInfluxClient(clnt interface{}) {
 func influxInit(jctx *JCtx) {
 	cfg := jctx.config
 	jLog(jctx, "invoking getInfluxClient for init")
+	jctx.influxCtx.reXpath = regexp.MustCompile(MatchExpressionXpath)
+	jctx.influxCtx.reKey = regexp.MustCompile(MatchExpressionKey)
 
 	if c, ok := getInfluxClient(cfg, 10*cfg.Influx.HTTPTimeout).(*client.Client); ok { // high timeout for init
 		if cfg.Influx.Server != "" && c != nil {
@@ -1140,8 +1142,6 @@ func influxInit(jctx *JCtx) {
 
 		jLog(jctx, "invoking getInfluxClient")
 		if jctx.influxCtx.influxClient, ok = getInfluxClient(cfg, cfg.Influx.HTTPTimeout).(*client.Client); ok {
-			jctx.influxCtx.reXpath = regexp.MustCompile(MatchExpressionXpath)
-			jctx.influxCtx.reKey = regexp.MustCompile(MatchExpressionKey)
 			if cfg.Influx.Server != "" && c != nil {
 				if cfg.Influx.WritePerMeasurement {
 					dbBatchWriteM(jctx)
@@ -1162,6 +1162,8 @@ func influxInit(jctx *JCtx) {
 func influx2Init(jctx *JCtx) {
 	cfg := jctx.config
 	jLog(jctx, "invoking getInfluxClient for init")
+	jctx.influxCtx.reXpath = regexp.MustCompile(MatchExpressionXpath)
+	jctx.influxCtx.reKey = regexp.MustCompile(MatchExpressionKey)
 
 	if c, ok := getInfluxClient(cfg, 10*cfg.Influx.HTTPTimeout).(*influxdb2.Client); ok { // high timeout for init
 		if cfg.Influx.Server != "" && c != nil {
@@ -1196,8 +1198,6 @@ func influx2Init(jctx *JCtx) {
 
 		jLog(jctx, "invoking getInfluxClient")
 		if jctx.influxCtx.influx2Client, ok = getInfluxClient(cfg, cfg.Influx.HTTPTimeout).(*influxdb2.Client); ok {
-			jctx.influxCtx.reXpath = regexp.MustCompile(MatchExpressionXpath)
-			jctx.influxCtx.reKey = regexp.MustCompile(MatchExpressionKey)
 			if cfg.Influx.Server != "" && c != nil {
 				writeAPI := (*jctx.influxCtx.influx2Client).WriteAPIBlocking(jctx.config.Influx.Influx2.OrgName, jctx.config.Influx.Dbname)
 				jctx.influxCtx.influx2WriteAPI = &writeAPI

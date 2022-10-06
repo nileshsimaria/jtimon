@@ -275,7 +275,9 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 	log.Printf("%v, jctx.config.Kafka.producer: %v", jctx.config.Host, jctx.config.Kafka)
 	if alias, err := NewAlias(jctx.config.Alias); err == nil {
 		jctx.alias = alias
-	}
+        } else {
+		jLog(&jctx, fmt.Sprintf("New alias creation failed for %v, err: %v", jctx.config.Host, err))
+        }
 	go func() {
 		if *dialOut {
 			// Publish the initial config for dial-out

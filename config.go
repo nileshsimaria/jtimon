@@ -356,7 +356,12 @@ func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 		jctx.control = make(chan os.Signal)
 
 		go periodicStats(jctx)
-		influxInit(jctx)
+		switch {
+                case jctx.config.Influx.Influx2 == Influx2Config{}:
+                        influxInit(jctx)
+		default:
+                        influx2Init(jctx)
+		}
 		if err := KafkaInit(jctx); err != nil {
 			log.Printf("KafkaInit error : %v", err)
 		}

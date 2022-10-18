@@ -93,7 +93,12 @@ func (handler *gnmiConsumerGroupHandler) ConsumeClaim(session sarama.ConsumerGro
 		jctx, ok := handler.dbHandles[cfg.Influx.Dbname]
 		if !ok {
 			jctx = &JCtx{config: cfg}
-			influxInit(jctx)
+                        switch {
+                        case jctx.config.Influx.Influx2 == Influx2Config{}:
+                                influxInit(jctx)
+                        default:
+                                influx2Init(jctx)
+                        }
 			handler.dbHandles[cfg.Influx.Dbname] = jctx
 			handler.m.Unlock()
 			log.Printf("Host: %v, dbHandles: %v", cn, cfg.Influx.Dbname)

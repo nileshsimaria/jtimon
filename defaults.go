@@ -12,6 +12,18 @@ const (
 	DefaultIDBAccumulatorFreq = 2000
 	//DefaultIDBTimeout is 30 seconds
 	DefaultIDBTimeout = 30
+	//DefaultESDBBatchSize to use if user has not provided in the config
+	DefaultESDBBatchSize = 1024 * 100
+	//DefaultESDBBatchFreq is 2 seconds
+	DefaultESDBBatchFreq = 2000
+	//DefaultESDBAccumulatorFreq is 2 seconds
+	DefaultESDBAccumulatorFreq = 2000
+	//DefaultESDBTimeout is 30 seconds
+	DefaultESDBTimeout = 30
+	//DefaultESDBFlushBytes is 500 bytes
+	DefaultESDBFlushBytes = 500
+	//DefaultESDBFlushInterval is 30 seconds
+	DefaultESDBFlushInterval = 30
 
 	// MatchExpressionXpath is for the pattern matching the xpath and key-value pairs
 	MatchExpressionXpath = "\\/([^\\/]*)\\[(.*?)+?(?:\\])"

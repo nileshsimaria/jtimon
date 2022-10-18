@@ -33,6 +33,7 @@ type JCtx struct {
 	file            string
 	wg              *sync.WaitGroup
 	influxCtx       InfluxCtx
+	esCtx           ElasticCtx
 	stats           statsCtx
 	pExporter       *jtimonPExporter
 	control         chan os.Signal
@@ -217,12 +218,26 @@ func getDialOutRequest(jctx *JCtx) *dialout.DialOutRequest {
 	// Form the context for dialout
 	dialOutCfg := jctx.config
 	influxServer, ok := os.LookupEnv("MY_NAME")
-	if !ok {
-		influxServer = jctx.config.Influx.Server
+	if dialOutCfg.Influx.Server != "" {
+		if !ok {
+			influxServer = jctx.config.Influx.Server
+		}
+		dialOutCfg.Influx.Server = influxServer
+		if dialOutCfg.Influx.Dbname == "" {
+			dialOutCfg.Influx.Dbname = jctx.config.Host
+		}
 	}
-	dialOutCfg.Influx.Server = influxServer
-	if dialOutCfg.Influx.Dbname == "" {
-		dialOutCfg.Influx.Dbname = jctx.config.Host
+
+	esServer, ok := os.LookupEnv("MY_ESNAME")
+	if dialOutCfg.Es.Server != "" {
+		if !ok {
+			esServer = jctx.config.Es.Server
+		}
+		dialOutCfg.Es.Server = esServer
+		if dialOutCfg.Es.Idxname == "" {
+			dialOutCfg.Es.Idxname = jctx.config.Host
+		}
+
 	}
 	cfgPayload, err := json.Marshal(&dialOutCfg)
 	if err != nil {

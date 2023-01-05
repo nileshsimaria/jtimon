@@ -1,0 +1,19 @@
+[req]
+distinguished_name = req_distinguished_name
+req_extensions     = req_ext
+prompt             = no
+
+[req_distinguished_name]
+countryName            = US
+stateOrProvinceName    = California
+localityName           = Sunnyvale
+organizationalUnitName = Engineering
+commonName             = router
+
+[req_ext]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = router
+DNS.2 = router.englab.juniper.net
+DNS.3 = *.juniper.net

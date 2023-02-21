@@ -29,6 +29,7 @@ type Config struct {
 	GRPC              GRPCConfig    `json:"grpc"`
 	TLS               TLSConfig     `json:"tls"`
 	Influx            InfluxConfig  `json:"influx"`
+	Es                EsConfig      `json:"es"`
 	Kafka             *KafkaConfig  `json:"kafka"`
 	Paths             []PathsConfig `json:"paths"`
 	Log               LogConfig     `json:"log"`
@@ -129,6 +130,24 @@ func fillupDefaults(config *Config) {
 	}
 	if config.Influx.AccumulatorFrequency == 0 {
 		config.Influx.AccumulatorFrequency = DefaultIDBAccumulatorFreq
+	}
+	if config.Es.BatchFrequency == 0 {
+		config.Es.BatchFrequency = DefaultESDBBatchFreq
+	}
+	if config.Es.BatchSize == 0 {
+		config.Es.BatchSize = DefaultESDBBatchSize
+	}
+	if config.Es.WriteTimeout == 0 {
+		config.Es.WriteTimeout = DefaultESDBTimeout
+	}
+	if config.Es.FlushBytes == 0 {
+		config.Es.FlushBytes = DefaultESDBFlushBytes
+	}
+	if config.Es.FlushInterval == 0 {
+		config.Es.FlushInterval = DefaultESDBFlushInterval
+	}
+	if config.Es.AccumulatorFrequency == 0 {
+		config.Es.AccumulatorFrequency = DefaultESDBAccumulatorFreq
 	}
 }
 
@@ -357,6 +376,9 @@ func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 
 		go periodicStats(jctx)
 		influxInit(jctx)
+		if jctx.config.Es.Server != "" {
+			esInit(jctx)
+		}
 		if err := KafkaInit(jctx); err != nil {
 			log.Printf("KafkaInit error : %v", err)
 		}

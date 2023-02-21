@@ -1,18 +1,29 @@
 # github.com/Shopify/sarama v1.26.1
+## explicit; go 1.13
 github.com/Shopify/sarama
-# github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
+# github.com/beorn7/perks v1.0.1
+## explicit; go 1.11
 github.com/beorn7/perks/quantile
 # github.com/cenkalti/backoff/v4 v4.1.3
+## explicit; go 1.13
 github.com/cenkalti/backoff/v4
+# github.com/cespare/xxhash/v2 v2.1.2
+## explicit; go 1.11
+github.com/cespare/xxhash/v2
 # github.com/davecgh/go-spew v1.1.1
+## explicit
 github.com/davecgh/go-spew/spew
 # github.com/eapache/go-resiliency v1.2.0
+## explicit
 github.com/eapache/go-resiliency/breaker
 # github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21
+## explicit
 github.com/eapache/go-xerial-snappy
 # github.com/eapache/queue v1.1.0
+## explicit
 github.com/eapache/queue
 # github.com/golang/protobuf v1.5.2
+## explicit; go 1.9
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/protoc-gen-go/descriptor
 github.com/golang/protobuf/ptypes
@@ -20,59 +31,78 @@ github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/golang/snappy v0.0.1
+## explicit
 github.com/golang/snappy
 # github.com/gorilla/mux v1.8.0
+## explicit; go 1.12
 github.com/gorilla/mux
 # github.com/hashicorp/go-uuid v1.0.2
+## explicit
 github.com/hashicorp/go-uuid
 # github.com/influxdata/influxdb v1.5.2
+## explicit
 github.com/influxdata/influxdb/client/v2
 github.com/influxdata/influxdb/models
 github.com/influxdata/influxdb/pkg/escape
 # github.com/jcmturner/gofork v1.0.0
+## explicit
 github.com/jcmturner/gofork/encoding/asn1
 github.com/jcmturner/gofork/x/crypto/pbkdf2
 # github.com/klauspost/compress v1.9.8
+## explicit
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/huff0
 github.com/klauspost/compress/snappy
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
-# github.com/matttproud/golang_protobuf_extensions v1.0.0
+# github.com/matttproud/golang_protobuf_extensions v1.0.1
+## explicit
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/nileshsimaria/jtisim v0.0.0-20190103005352-93e1756cba8f
+## explicit
 github.com/nileshsimaria/jtisim
 # github.com/nileshsimaria/lpserver v0.0.0-20201223125141-2c2ca16a8d88
+## explicit
 github.com/nileshsimaria/lpserver
 # github.com/openconfig/grpctunnel v0.0.0-20220412182401-2d6d258f73d1
+## explicit; go 1.14
 github.com/openconfig/grpctunnel/bidi
 github.com/openconfig/grpctunnel/proto/tunnel
 github.com/openconfig/grpctunnel/tunnel
 # github.com/pierrec/lz4 v2.4.1+incompatible
+## explicit
 github.com/pierrec/lz4
 github.com/pierrec/lz4/internal/xxh32
-# github.com/prometheus/client_golang v0.8.0
+# github.com/prometheus/client_golang v1.14.0
+## explicit; go 1.17
 github.com/prometheus/client_golang/prometheus
+github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
-# github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
+# github.com/prometheus/client_model v0.3.0
+## explicit; go 1.9
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.0.0-20180413074202-d0f7cd64bda4
+# github.com/prometheus/common v0.37.0
+## explicit; go 1.16
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
-# github.com/prometheus/procfs v0.0.0-20180408092902-8b1c2da0d56d
+# github.com/prometheus/procfs v0.8.0
+## explicit; go 1.17
 github.com/prometheus/procfs
+github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-github.com/prometheus/procfs/nfs
-github.com/prometheus/procfs/xfs
 # github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563
+## explicit
 github.com/rcrowley/go-metrics
 # github.com/spf13/pflag v1.0.1
+## explicit
 github.com/spf13/pflag
 # golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+## explicit; go 1.11
 golang.org/x/crypto/md4
 golang.org/x/crypto/pbkdf2
-# golang.org/x/net v0.0.0-20210917221730-978cfadd31cf
+# golang.org/x/net v0.0.0-20220225172249-27dd8689420f
+## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
@@ -82,17 +112,22 @@ golang.org/x/net/internal/socks
 golang.org/x/net/internal/timeseries
 golang.org/x/net/proxy
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e
+# golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
+## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
+golang.org/x/sys/windows
 # golang.org/x/text v0.3.7
+## explicit; go 1.17
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 # google.golang.org/genproto v0.0.0-20210811021853-ddbe55d93216
+## explicit; go 1.11
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.40.0
+## explicit; go 1.11
 google.golang.org/grpc
 google.golang.org/grpc/attributes
 google.golang.org/grpc/backoff
@@ -138,7 +173,8 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.27.1
+# google.golang.org/protobuf v1.28.1
+## explicit; go 1.11
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
@@ -170,10 +206,13 @@ google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
 # gopkg.in/jcmturner/aescts.v1 v1.0.1
+## explicit
 gopkg.in/jcmturner/aescts.v1
 # gopkg.in/jcmturner/dnsutils.v1 v1.0.1
+## explicit
 gopkg.in/jcmturner/dnsutils.v1
 # gopkg.in/jcmturner/gokrb5.v7 v7.5.0
+## explicit
 gopkg.in/jcmturner/gokrb5.v7/asn1tools
 gopkg.in/jcmturner/gokrb5.v7/client
 gopkg.in/jcmturner/gokrb5.v7/config
@@ -205,5 +244,6 @@ gopkg.in/jcmturner/gokrb5.v7/messages
 gopkg.in/jcmturner/gokrb5.v7/pac
 gopkg.in/jcmturner/gokrb5.v7/types
 # gopkg.in/jcmturner/rpc.v1 v1.1.0
+## explicit
 gopkg.in/jcmturner/rpc.v1/mstypes
 gopkg.in/jcmturner/rpc.v1/ndr

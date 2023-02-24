@@ -19,7 +19,7 @@ import (
 // InfluxCtx is run time info of InfluxDB data structures
 type InfluxCtx struct {
 	sync.Mutex
-	influxClient   *client.Client
+	influxClient   *client.HTTPClient
 	batchWCh       chan []*client.Point
 	batchWMCh      chan *batchWMData
 	accumulatorCh  chan (*metricIDB)
@@ -579,7 +579,7 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	}
 }
 
-func getInfluxClient(cfg Config, timeout time.Duration) *client.Client {
+func getInfluxClient(cfg Config, timeout time.Duration) *client.HTTPClient {
 	if cfg.Influx.Server == "" {
 		return nil
 	}

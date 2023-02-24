@@ -1,12 +1,22 @@
 package sarama
 
 import (
+	"errors"
 	"sort"
 	"time"
+
+	"github.com/rcrowley/go-metrics"
+)
+
+const (
+	invalidLeaderEpoch        = -1
+	invalidPreferredReplicaID = -1
 )
 
 type AbortedTransaction struct {
-	ProducerID  int64
+	// ProducerID contains the producer id associated with the aborted transaction.
+	ProducerID int64
+	// FirstOffset contains the first offset in the aborted transaction.
 	FirstOffset int64
 }
 
@@ -30,17 +40,37 @@ func (t *AbortedTransaction) encode(pe packetEncoder) (err error) {
 }
 
 type FetchResponseBlock struct {
-	Err                 KError
+	// Err contains the error code, or 0 if there was no fetch error.
+	Err KError
+	// HighWatermarkOffset contains the current high water mark.
 	HighWaterMarkOffset int64
-	LastStableOffset    int64
-	LogStartOffset      int64
+	// LastStableOffset contains the last stable offset (or LSO) of the
+	// partition. This is the last offset such that the state of all
+	// transactional records prior to this offset have been decided (ABORTED or
+	// COMMITTED)
+	LastStableOffset       int64
+	LastRecordsBatchOffset *int64
+	// LogStartOffset contains the current log start offset.
+	LogStartOffset int64
+	// AbortedTransactions contains the aborted transactions.
 	AbortedTransactions []*AbortedTransaction
-	Records             *Records // deprecated: use FetchResponseBlock.RecordsSet
-	RecordsSet          []*Records
-	Partial             bool
+	// PreferredReadReplica contains the preferred read replica for the
+	// consumer to use on its next fetch request
+	PreferredReadReplica int32
+	// RecordsSet contains the record data.
+	RecordsSet []*Records
+
+	Partial bool
+	Records *Records // deprecated: use FetchResponseBlock.RecordsSet
 }
 
 func (b *FetchResponseBlock) decode(pd packetDecoder, version int16) (err error) {
+	metricRegistry := pd.metricRegistry()
+	var sizeMetric metrics.Histogram
+	if metricRegistry != nil {
+		sizeMetric = getOrRegisterHistogram("consumer-fetch-response-size", metricRegistry)
+	}
+
 	tmp, err := pd.getInt16()
 	if err != nil {
 		return err
@@ -83,9 +113,21 @@ func (b *FetchResponseBlock) decode(pd packetDecoder, version int16) (err error)
 		}
 	}
 
+	if version >= 11 {
+		b.PreferredReadReplica, err = pd.getInt32()
+		if err != nil {
+			return err
+		}
+	} else {
+		b.PreferredReadReplica = -1
+	}
+
 	recordsSize, err := pd.getInt32()
 	if err != nil {
 		return err
+	}
+	if sizeMetric != nil {
+		sizeMetric.Update(int64(recordsSize))
 	}
 
 	recordsDecoder, err := pd.getSubset(int(recordsSize))
@@ -99,12 +141,17 @@ func (b *FetchResponseBlock) decode(pd packetDecoder, version int16) (err error)
 		records := &Records{}
 		if err := records.decode(recordsDecoder); err != nil {
 			// If we have at least one decoded records, this is not an error
-			if err == ErrInsufficientData {
+			if errors.Is(err, ErrInsufficientData) {
 				if len(b.RecordsSet) == 0 {
 					b.Partial = true
 				}
 				break
 			}
+			return err
+		}
+
+		b.LastRecordsBatchOffset, err = records.recordsOffset()
+		if err != nil {
 			return err
 		}
 
@@ -188,6 +235,10 @@ func (b *FetchResponseBlock) encode(pe packetEncoder, version int16) (err error)
 		}
 	}
 
+	if version >= 11 {
+		pe.putInt32(b.PreferredReadReplica)
+	}
+
 	pe.push(&lengthField{})
 	for _, records := range b.RecordsSet {
 		err = records.encode(pe)
@@ -210,11 +261,19 @@ func (b *FetchResponseBlock) getAbortedTransactions() []*AbortedTransaction {
 }
 
 type FetchResponse struct {
-	Blocks        map[string]map[int32]*FetchResponseBlock
-	ThrottleTime  time.Duration
-	ErrorCode     int16
-	SessionID     int32
-	Version       int16
+	// Version defines the protocol version to use for encode and decode
+	Version int16
+	// ThrottleTime contains the duration in milliseconds for which the request
+	// was throttled due to a quota violation, or zero if the request did not
+	// violate any quota.
+	ThrottleTime time.Duration
+	// ErrorCode contains the top level response error code.
+	ErrorCode int16
+	// SessionID contains the fetch session ID, or 0 if this is not part of a fetch session.
+	SessionID int32
+	// Blocks contains the response topics.
+	Blocks map[string]map[int32]*FetchResponseBlock
+
 	LogAppendTime bool
 	Timestamp     time.Time
 }
@@ -321,6 +380,10 @@ func (r *FetchResponse) key() int16 {
 
 func (r *FetchResponse) version() int16 {
 	return r.Version
+}
+
+func (r *FetchResponse) headerVersion() int16 {
+	return 0
 }
 
 func (r *FetchResponse) requiredVersion() KafkaVersion {

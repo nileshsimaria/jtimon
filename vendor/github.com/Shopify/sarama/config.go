@@ -4,7 +4,7 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"regexp"
 	"time"
@@ -38,6 +38,9 @@ type Config struct {
 	Net struct {
 		// How many outstanding requests a connection is allowed to have before
 		// sending on it blocks (default 5).
+		// Throughput can improve but message ordering is not guaranteed if Producer.Idempotent is disabled, see:
+		// https://kafka.apache.org/protocol#protocol_network
+		// https://kafka.apache.org/28/documentation.html#producerconfigs_max.in.flight.requests.per.connection
 		MaxOpenRequests int
 
 		// All three of the below configurations are similar to the
@@ -96,8 +99,9 @@ type Config struct {
 			GSSAPI GSSAPIConfig
 		}
 
-		// KeepAlive specifies the keep-alive period for an active network connection.
-		// If zero, keep-alives are disabled. (default is 0: disabled).
+		// KeepAlive specifies the keep-alive period for an active network connection (defaults to 0).
+		// If zero or positive, keep-alives are enabled.
+		// If negative, keep-alives are disabled.
 		KeepAlive time.Duration
 
 		// LocalAddr is the local address to use when dialing an
@@ -147,6 +151,11 @@ type Config struct {
 		// `Net.[Dial|Read]Timeout * BrokerCount * (Metadata.Retry.Max + 1) + Metadata.Retry.Backoff * Metadata.Retry.Max`
 		// to fail.
 		Timeout time.Duration
+
+		// Whether to allow auto-create topics in metadata refresh. If set to true,
+		// the broker may auto-create topics that we requested which do not already exist,
+		// if it is configured to do so (`auto.create.topics.enable` is true). Defaults to true.
+		AllowAutoTopicCreation bool
 	}
 
 	// Producer is the namespace for configuration related to producing messages,
@@ -179,6 +188,28 @@ type Config struct {
 		// If enabled, the producer will ensure that exactly one copy of each message is
 		// written.
 		Idempotent bool
+		// Transaction specify
+		Transaction struct {
+			// Used in transactions to identify an instance of a producer through restarts
+			ID string
+			// Amount of time a transaction can remain unresolved (neither committed nor aborted)
+			// default is 1 min
+			Timeout time.Duration
+
+			Retry struct {
+				// The total number of times to retry sending a message (default 50).
+				// Similar to the `message.send.max.retries` setting of the JVM producer.
+				Max int
+				// How long to wait for the cluster to settle between retries
+				// (default 10ms). Similar to the `retry.backoff.ms` setting of the
+				// JVM producer.
+				Backoff time.Duration
+				// Called to compute backoff time dynamically. Useful for implementing
+				// more sophisticated backoff strategies. This takes precedence over
+				// `Backoff` if set.
+				BackoffFunc func(retries, maxRetries int) time.Duration
+			}
+		}
 
 		// Return specifies what channels will be populated. If they are set to true,
 		// you must read from the respective channels to prevent deadlock. If,
@@ -228,6 +259,14 @@ type Config struct {
 			// `Backoff` if set.
 			BackoffFunc func(retries, maxRetries int) time.Duration
 		}
+
+		// Interceptors to be called when the producer dispatcher reads the
+		// message for the first time. Interceptors allows to intercept and
+		// possible mutate the message before they are published to Kafka
+		// cluster. *ProducerMessage modified by the first interceptor's
+		// OnSend() is passed to the second interceptor OnSend(), and so on in
+		// the interceptor chain.
+		Interceptors []ProducerInterceptor
 	}
 
 	// Consumer is the namespace for configuration related to consuming messages,
@@ -256,7 +295,16 @@ type Config struct {
 			}
 			Rebalance struct {
 				// Strategy for allocating topic partitions to members (default BalanceStrategyRange)
+				// Deprecated: Strategy exists for historical compatibility
+				// and should not be used. Please use GroupStrategies.
 				Strategy BalanceStrategy
+
+				// GroupStrategies is the priority-ordered list of client-side consumer group
+				// balancing strategies that will be offered to the coordinator. The first
+				// strategy that all group members support will be chosen by the leader.
+				// default: [BalanceStrategyRange]
+				GroupStrategies []BalanceStrategy
+
 				// The maximum allowed time for each worker to join the group once a rebalance has begun.
 				// This is basically a limit on the amount of time needed for all tasks to flush any pending
 				// data and commit offsets. If the timeout is exceeded, then the worker will be removed from
@@ -279,6 +327,17 @@ type Config struct {
 				// coordinator for the group.
 				UserData []byte
 			}
+
+			// support KIP-345
+			InstanceId string
+
+			// If true, consumer offsets will be automatically reset to configured Initial value
+			// if the fetched consumer offset is out of range of available offsets. Out of range
+			// can happen if the data has been deleted from the server, or during situations of
+			// under-replication where a replica does not have all the data yet. It can be
+			// dangerous to reset the offset automatically, particularly in the latter case. Defaults
+			// to true to maintain existing behavior.
+			ResetInvalidOffsets bool
 		}
 
 		Retry struct {
@@ -390,17 +449,34 @@ type Config struct {
 		// 	- use `ReadUncommitted` (default) to consume and return all messages in message channel
 		//	- use `ReadCommitted` to hide messages that are part of an aborted transaction
 		IsolationLevel IsolationLevel
+
+		// Interceptors to be called just before the record is sent to the
+		// messages channel. Interceptors allows to intercept and possible
+		// mutate the message before they are returned to the client.
+		// *ConsumerMessage modified by the first interceptor's OnConsume() is
+		// passed to the second interceptor OnConsume(), and so on in the
+		// interceptor chain.
+		Interceptors []ConsumerInterceptor
 	}
 
 	// A user-provided string sent with every request to the brokers for logging,
 	// debugging, and auditing purposes. Defaults to "sarama", but you should
 	// probably set it to something specific to your application.
 	ClientID string
+	// A rack identifier for this client. This can be any string value which
+	// indicates where this client is physically located.
+	// It corresponds with the broker config 'broker.rack'
+	RackID string
 	// The number of events to buffer in internal and external channels. This
 	// permits the producer and consumer to continue processing some messages
 	// in the background while user code is working, greatly improving throughput.
 	// Defaults to 256.
 	ChannelBufferSize int
+	// ApiVersionsRequest determines whether Sarama should send an
+	// ApiVersionsRequest message to each broker as part of its initial
+	// connection. This defaults to `true` to match the official Java client
+	// and most 3rdparty ones.
+	ApiVersionsRequest bool
 	// The version of Kafka that Sarama will assume it is running against.
 	// Defaults to the oldest supported stable version. Since Kafka provides
 	// backwards-compatibility, setting it to a version older than you have
@@ -435,6 +511,7 @@ func NewConfig() *Config {
 	c.Metadata.Retry.Backoff = 250 * time.Millisecond
 	c.Metadata.RefreshFrequency = 10 * time.Minute
 	c.Metadata.Full = true
+	c.Metadata.AllowAutoTopicCreation = true
 
 	c.Producer.MaxMessageBytes = 1000000
 	c.Producer.RequiredAcks = WaitForLocal
@@ -445,10 +522,14 @@ func NewConfig() *Config {
 	c.Producer.Return.Errors = true
 	c.Producer.CompressionLevel = CompressionLevelDefault
 
+	c.Producer.Transaction.Timeout = 1 * time.Minute
+	c.Producer.Transaction.Retry.Max = 50
+	c.Producer.Transaction.Retry.Backoff = 100 * time.Millisecond
+
 	c.Consumer.Fetch.Min = 1
 	c.Consumer.Fetch.Default = 1024 * 1024
 	c.Consumer.Retry.Backoff = 2 * time.Second
-	c.Consumer.MaxWaitTime = 250 * time.Millisecond
+	c.Consumer.MaxWaitTime = 500 * time.Millisecond
 	c.Consumer.MaxProcessingTime = 100 * time.Millisecond
 	c.Consumer.Return.Errors = false
 	c.Consumer.Offsets.AutoCommit.Enable = true
@@ -458,14 +539,16 @@ func NewConfig() *Config {
 
 	c.Consumer.Group.Session.Timeout = 10 * time.Second
 	c.Consumer.Group.Heartbeat.Interval = 3 * time.Second
-	c.Consumer.Group.Rebalance.Strategy = BalanceStrategyRange
+	c.Consumer.Group.Rebalance.GroupStrategies = []BalanceStrategy{BalanceStrategyRange}
 	c.Consumer.Group.Rebalance.Timeout = 60 * time.Second
 	c.Consumer.Group.Rebalance.Retry.Max = 4
 	c.Consumer.Group.Rebalance.Retry.Backoff = 2 * time.Second
+	c.Consumer.Group.ResetInvalidOffsets = true
 
 	c.ClientID = defaultClientID
 	c.ChannelBufferSize = 256
-	c.Version = MinVersion
+	c.ApiVersionsRequest = true
+	c.Version = DefaultVersion
 	c.MetricRegistry = metrics.NewRegistry()
 
 	return c
@@ -473,6 +556,8 @@ func NewConfig() *Config {
 
 // Validate checks a Config instance. It will return a
 // ConfigurationError if the specified values don't make sense.
+//
+//nolint:gocyclo // This function's cyclomatic complexity has go beyond 100
 func (c *Config) Validate() error {
 	// some configuration values should be warned on but not fail completely, do those first
 	if !c.Net.TLS.Enable && c.Net.TLS.Config != nil {
@@ -533,8 +618,6 @@ func (c *Config) Validate() error {
 		return ConfigurationError("Net.ReadTimeout must be > 0")
 	case c.Net.WriteTimeout <= 0:
 		return ConfigurationError("Net.WriteTimeout must be > 0")
-	case c.Net.KeepAlive < 0:
-		return ConfigurationError("Net.KeepAlive must be >= 0")
 	case c.Net.SASL.Enable:
 		if c.Net.SASL.Mechanism == "" {
 			c.Net.SASL.Mechanism = SASLTypePlaintext
@@ -644,7 +727,7 @@ func (c *Config) Validate() error {
 
 	if c.Producer.Compression == CompressionGZIP {
 		if c.Producer.CompressionLevel != CompressionLevelDefault {
-			if _, err := gzip.NewWriterLevel(ioutil.Discard, c.Producer.CompressionLevel); err != nil {
+			if _, err := gzip.NewWriterLevel(io.Discard, c.Producer.CompressionLevel); err != nil {
 				return ConfigurationError(fmt.Sprintf("gzip compression does not work with level %d: %v", c.Producer.CompressionLevel, err))
 			}
 		}
@@ -667,6 +750,10 @@ func (c *Config) Validate() error {
 		if c.Net.MaxOpenRequests > 1 {
 			return ConfigurationError("Idempotent producer requires Net.MaxOpenRequests to be 1")
 		}
+	}
+
+	if c.Producer.Transaction.ID != "" && !c.Producer.Idempotent {
+		return ConfigurationError("Transactional producer requires Idempotent to be true")
 	}
 
 	// validate the Consumer values
@@ -697,6 +784,10 @@ func (c *Config) Validate() error {
 		Logger.Println("Deprecation warning: Consumer.Offsets.CommitInterval exists for historical compatibility" +
 			" and should not be used. Please use Consumer.Offsets.AutoCommit, the current value will be ignored")
 	}
+	if c.Consumer.Group.Rebalance.Strategy != nil {
+		Logger.Println("Deprecation warning: Consumer.Group.Rebalance.Strategy exists for historical compatibility" +
+			" and should not be used. Please use Consumer.Group.Rebalance.GroupStrategies")
+	}
 
 	// validate IsolationLevel
 	if c.Consumer.IsolationLevel == ReadCommitted && !c.Version.IsAtLeast(V0_11_0_0) {
@@ -711,14 +802,29 @@ func (c *Config) Validate() error {
 		return ConfigurationError("Consumer.Group.Heartbeat.Interval must be >= 1ms")
 	case c.Consumer.Group.Heartbeat.Interval >= c.Consumer.Group.Session.Timeout:
 		return ConfigurationError("Consumer.Group.Heartbeat.Interval must be < Consumer.Group.Session.Timeout")
-	case c.Consumer.Group.Rebalance.Strategy == nil:
-		return ConfigurationError("Consumer.Group.Rebalance.Strategy must not be empty")
+	case c.Consumer.Group.Rebalance.Strategy == nil && len(c.Consumer.Group.Rebalance.GroupStrategies) == 0:
+		return ConfigurationError("Consumer.Group.Rebalance.GroupStrategies or Consumer.Group.Rebalance.Strategy must not be empty")
 	case c.Consumer.Group.Rebalance.Timeout <= time.Millisecond:
 		return ConfigurationError("Consumer.Group.Rebalance.Timeout must be >= 1ms")
 	case c.Consumer.Group.Rebalance.Retry.Max < 0:
 		return ConfigurationError("Consumer.Group.Rebalance.Retry.Max must be >= 0")
 	case c.Consumer.Group.Rebalance.Retry.Backoff < 0:
 		return ConfigurationError("Consumer.Group.Rebalance.Retry.Backoff must be >= 0")
+	}
+
+	for _, strategy := range c.Consumer.Group.Rebalance.GroupStrategies {
+		if strategy == nil {
+			return ConfigurationError("elements in Consumer.Group.Rebalance.Strategies must not be empty")
+		}
+	}
+
+	if c.Consumer.Group.InstanceId != "" {
+		if !c.Version.IsAtLeast(V2_3_0_0) {
+			return ConfigurationError("Consumer.Group.InstanceId need Version >= 2.3")
+		}
+		if err := validateGroupInstanceId(c.Consumer.Group.InstanceId); err != nil {
+			return err
+		}
 	}
 
 	// validate misc shared values
@@ -729,5 +835,38 @@ func (c *Config) Validate() error {
 		return ConfigurationError("ClientID is invalid")
 	}
 
+	return nil
+}
+
+func (c *Config) getDialer() proxy.Dialer {
+	if c.Net.Proxy.Enable {
+		Logger.Printf("using proxy %s", c.Net.Proxy.Dialer)
+		return c.Net.Proxy.Dialer
+	} else {
+		return &net.Dialer{
+			Timeout:   c.Net.DialTimeout,
+			KeepAlive: c.Net.KeepAlive,
+			LocalAddr: c.Net.LocalAddr,
+		}
+	}
+}
+
+const MAX_GROUP_INSTANCE_ID_LENGTH = 249
+
+var GROUP_INSTANCE_ID_REGEXP = regexp.MustCompile(`^[0-9a-zA-Z\._\-]+$`)
+
+func validateGroupInstanceId(id string) error {
+	if id == "" {
+		return ConfigurationError("Group instance id must be non-empty string")
+	}
+	if id == "." || id == ".." {
+		return ConfigurationError(`Group instance id cannot be "." or ".."`)
+	}
+	if len(id) > MAX_GROUP_INSTANCE_ID_LENGTH {
+		return ConfigurationError(fmt.Sprintf(`Group instance id cannot be longer than %v, characters: %s`, MAX_GROUP_INSTANCE_ID_LENGTH, id))
+	}
+	if !GROUP_INSTANCE_ID_REGEXP.MatchString(id) {
+		return ConfigurationError(fmt.Sprintf(`Group instance id %s is illegal, it contains a character other than, '.', '_' and '-'`, id))
+	}
 	return nil
 }

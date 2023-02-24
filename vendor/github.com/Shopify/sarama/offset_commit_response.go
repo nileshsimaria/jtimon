@@ -94,6 +94,10 @@ func (r *OffsetCommitResponse) version() int16 {
 	return r.Version
 }
 
+func (r *OffsetCommitResponse) headerVersion() int16 {
+	return 0
+}
+
 func (r *OffsetCommitResponse) requiredVersion() KafkaVersion {
 	switch r.Version {
 	case 1:
@@ -104,6 +108,8 @@ func (r *OffsetCommitResponse) requiredVersion() KafkaVersion {
 		return V0_11_0_0
 	case 4:
 		return V2_0_0_0
+	case 5, 6, 7:
+		return V2_3_0_0
 	default:
 		return MinVersion
 	}

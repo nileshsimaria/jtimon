@@ -7,8 +7,14 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+	gnmi "github.com/nileshsimaria/jtimon/gnmi/gnmi"
+	gnmipb "github.com/nileshsimaria/jtimon/gnmi/gnmi"
+	gnmi_ext1 "github.com/nileshsimaria/jtimon/gnmi/gnmi_ext"
+	gnmi_juniper_header_ext "github.com/nileshsimaria/jtimon/gnmi/gnmi_juniper_header_ext"
 	tpb "github.com/nileshsimaria/jtimon/telemetry"
 )
 
@@ -271,6 +277,1210 @@ func (s *server) streamInterfaces(ch chan *tpb.OpenConfigData, path *tpb.Path) {
 				}
 				seq++
 				ch <- d
+
+			}
+
+		} //finish one wrap
+		wrapDuration := time.Since(start)
+		time.Sleep(nsFreq - wrapDuration)
+	}
+}
+
+// Not the way JUNOS publishes the packets, but had to make sure to sync with OC way of simulation..
+func (s *server) gnmiStreamInterfaces(ch chan *gnmipb.SubscribeResponse, pname string, sub *gnmipb.Subscription) {
+	sysID := fmt.Sprintf("jtisim:%s:%d", s.jtisim.host, s.jtisim.port)
+	freq := sub.GetSampleInterval()
+	log.Println(pname, freq)
+
+	nsFreq := time.Duration(freq)
+	iDesc := parseInterfacesJSON(s.jtisim.descDir)
+	interfaces := generateIList(iDesc)
+
+	seq := uint64(0)
+
+	for {
+		ifds := interfaces.ifds
+		start := time.Now()
+		for _, ifd := range ifds {
+			rValue := getRandom(interfaces.desc.IFD.INPkts, s.jtisim.random)
+			inp := ifd.inPkts + (uint64(rValue) * (freq * 1000))
+			ifd.inPkts = inp
+
+			rValue = getRandom(interfaces.desc.IFD.INOctets, s.jtisim.random)
+			ino := ifd.inOctets + (uint64(rValue) * (freq * 1000))
+			ifd.inOctets = ino
+
+			ops := "UP"
+			ads := "DOWN"
+
+			var hdrInputExt = gnmi_juniper_header_ext.GnmiJuniperTelemetryHeaderExtension{
+				SystemId: sysID, ComponentId: 1, SubComponentId: 0,
+				SensorName: "sensor_1000_1_1", SequenceNumber: seq, SubscribedPath: "/interfaces/",
+				StreamedPath: "/junos/system/linecard/interface/", Component: "PFE",
+			}
+
+			hdrInputExtBytes, err := proto.Marshal(&hdrInputExt)
+			if err != nil {
+				log.Fatalf("Error marshalling header for ext case: %v", err)
+			}
+
+			rsp := &gnmi.SubscribeResponse{
+				Extension: []*gnmi_ext1.Extension{
+					{
+						Ext: &gnmi_ext1.Extension_RegisteredExt{
+							RegisteredExt: &gnmi_ext1.RegisteredExtension{
+								Id:  gnmi_ext1.ExtensionID_EID_JUNIPER_TELEMETRY_HEADER,
+								Msg: hdrInputExtBytes,
+							},
+						},
+					},
+				},
+				Response: &gnmi.SubscribeResponse_Update{
+					Update: &gnmi.Notification{
+						Timestamp: time.Now().UnixNano(),
+						Prefix: &gnmi.Path{
+							Origin: "",
+							Elem: []*gnmi.PathElem{
+								{Name: "interfaces"},
+								{Name: "interface", Key: map[string]string{"name": ifd.name}},
+							},
+						},
+						Update: []*gnmi.Update{
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "name"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_StringVal{StringVal: ifd.name},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "oper-status"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_StringVal{StringVal: ops},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "admin-status"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_StringVal{StringVal: ads},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "counters"},
+										{Name: "in-pkts"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: inp},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "counters"},
+										{Name: "in-octets"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "init-time"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "counters"},
+										{Name: "carrier-transitions"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "counters"},
+										{Name: "last-clear"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "counters"},
+										{Name: "out-octets"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "counters"},
+										{Name: "out-pkts"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "counters"},
+										{Name: "out-unicast-pkts"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "description"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "enabled"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "high-speed"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "ifindex"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "last-change"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "mtu"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "name"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "parent_ae_name"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+							{
+								Path: &gnmi.Path{
+									Origin: "",
+									Elem: []*gnmi.PathElem{
+										{Name: "state"},
+										{Name: "type"},
+									},
+								},
+								Val: &gnmi.TypedValue{
+									Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			seq++
+			ch <- rsp
+
+			hdrInputExt = gnmi_juniper_header_ext.GnmiJuniperTelemetryHeaderExtension{
+				SystemId: sysID, ComponentId: 1, SubComponentId: 0,
+				SensorName: "sensor_1013_1_1", SequenceNumber: seq, SubscribedPath: "/interfaces/",
+				StreamedPath: "/junos/system/linecard/interface/logical/usage/", Component: "PFE",
+			}
+
+			hdrInputExtBytes, err = proto.Marshal(&hdrInputExt)
+			if err != nil {
+				log.Fatalf("Error marshalling header for ext case: %v", err)
+			}
+
+			for _, ifl := range ifd.ifls {
+				rValue := getRandom(interfaces.desc.IFL.INUnicastPkts, s.jtisim.random)
+				inup := ifl.inUPkts + (uint64(rValue) * (freq * 1000))
+				ifl.inUPkts = inup
+
+				rValue = getRandom(interfaces.desc.IFL.INMulticastPkts, s.jtisim.random)
+				inmp := ifl.inMPkts + (uint64(rValue) * (freq * 1000))
+				ifl.inMPkts = inmp
+				name := fmt.Sprintf("%s.%d", ifd.name, ifl.index)
+
+				rsp := &gnmi.SubscribeResponse{
+					Extension: []*gnmi_ext1.Extension{
+						{
+							Ext: &gnmi_ext1.Extension_RegisteredExt{
+								RegisteredExt: &gnmi_ext1.RegisteredExtension{
+									Id:  gnmi_ext1.ExtensionID_EID_JUNIPER_TELEMETRY_HEADER,
+									Msg: hdrInputExtBytes,
+								},
+							},
+						},
+					},
+					Response: &gnmi.SubscribeResponse_Update{
+						Update: &gnmi.Notification{
+							Timestamp: time.Now().UnixNano(),
+							Prefix: &gnmi.Path{
+								Origin: "",
+								Elem: []*gnmi.PathElem{
+									{Name: "interfaces"},
+									{Name: "interface", Key: map[string]string{"name": ifd.name}},
+									{Name: "subinterfaces"},
+									{Name: "subinterface", Key: map[string]string{"index": strconv.Itoa(ifl.index)}},
+								},
+							},
+							Update: []*gnmi.Update{
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "index"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: uint64(ifl.index)},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "name"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_StringVal{StringVal: name},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "counters"},
+											{Name: "in-unicast-pkts"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: inup},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "counters"},
+											{Name: "in-multicast-pkts"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: inmp},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "oper-status"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_StringVal{StringVal: ops},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "admin-status"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_StringVal{StringVal: ads},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "ipv4"},
+											{Name: "state"},
+											{Name: "mtu"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "ipv4"},
+											{Name: "unnumbered"},
+											{Name: "interface-ref"},
+											{Name: "state"},
+											{Name: "interface"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "ipv4"},
+											{Name: "unnumbered"},
+											{Name: "interface-ref"},
+											{Name: "state"},
+											{Name: "subinterface"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "ipv4"},
+											{Name: "unnumbered"},
+											{Name: "state"},
+											{Name: "enabled"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "state"},
+											{Name: "ip"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "state"},
+											{Name: "origin"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "state"},
+											{Name: "prefix-length"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "@ip"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "ipv4"},
+											{Name: "state"},
+											{Name: "enabled"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "ipv4"},
+											{Name: "state"},
+											{Name: "mtu"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "ipv4"},
+											{Name: "unnumbered"},
+											{Name: "interface-ref"},
+											{Name: "state"},
+											{Name: "interface"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "ipv4"},
+											{Name: "unnumbered"},
+											{Name: "interface-ref"},
+											{Name: "state"},
+											{Name: "subinterface"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "state"},
+											{Name: "expiry"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "state"},
+											{Name: "host-name"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "state"},
+											{Name: "interface-name"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "state"},
+											{Name: "ip"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "state"},
+											{Name: "is-publish"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "state"},
+											{Name: "link-layer-address"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "state"},
+											{Name: "logical-router-id"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "state"},
+											{Name: "neighbor-state"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "state"},
+											{Name: "origin"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "neighbors"},
+											{Name: "neighbor"},
+											{Name: "state"},
+											{Name: "table-id"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "state"},
+											{Name: "enabled"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "state"},
+											{Name: "mtu"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "unnumbered"},
+											{Name: "interface-ref"},
+											{Name: "state"},
+											{Name: "interface"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "unnumbered"},
+											{Name: "interface-ref"},
+											{Name: "state"},
+											{Name: "subinterface"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv4"},
+											{Name: "unnumbered"},
+											{Name: "state"},
+											{Name: "enabled"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "addressesses"},
+											{Name: "address"},
+											{Name: "@ip"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "addressesses"},
+											{Name: "address"},
+											{Name: "ipv6"},
+											{Name: "state"},
+											{Name: "enabled"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "addressesses"},
+											{Name: "address"},
+											{Name: "ipv6"},
+											{Name: "state"},
+											{Name: "mtu"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "ipv6"},
+											{Name: "unnumbered"},
+											{Name: "interface-ref"},
+											{Name: "state"},
+											{Name: "interface"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "ipv6"},
+											{Name: "unnumbered"},
+											{Name: "interface-ref"},
+											{Name: "state"},
+											{Name: "subinterface"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "ipv6"},
+											{Name: "unnumbered"},
+											{Name: "state"},
+											{Name: "enabled"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "state"},
+											{Name: "ip"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "state"},
+											{Name: "origin"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "state"},
+											{Name: "prefix-length"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "addresses"},
+											{Name: "address"},
+											{Name: "state"},
+											{Name: "status"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "state"},
+											{Name: "enabled"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "state"},
+											{Name: "mtu"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "unnumbered"},
+											{Name: "interface-red"},
+											{Name: "state"},
+											{Name: "interface"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "unnumbered"},
+											{Name: "interface-red"},
+											{Name: "state"},
+											{Name: "subinterface"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "ipv6"},
+											{Name: "unnumbered"},
+											{Name: "state"},
+											{Name: "enabled"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "counters"},
+											{Name: "in-octets"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "counters"},
+											{Name: "in-pkts"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "counters"},
+											{Name: "out-octets"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "counters"},
+											{Name: "out-pkts"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "description"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "enabled"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "ifindex"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "index"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+								{
+									Path: &gnmi.Path{
+										Origin: "",
+										Elem: []*gnmi.PathElem{
+											{Name: "state"},
+											{Name: "last-change"},
+										},
+									},
+									Val: &gnmi.TypedValue{
+										Value: &gnmi.TypedValue_UintVal{UintVal: ino},
+									},
+								},
+							},
+						},
+					},
+				}
+
+				seq++
+				ch <- rsp
 
 			}
 

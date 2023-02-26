@@ -2,34 +2,46 @@
 
 
 [[projects]]
+  digest = "1:cde5fed6f5d156a28b0c379c49c44b70cef704f234685502452404107e681378"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
+    "protoc-gen-go/descriptor",
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
-    "ptypes/timestamp"
+    "ptypes/timestamp",
   ]
-  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
-  version = "v1.0.0"
+  pruneopts = "UT"
+  revision = "ae97035608a719c7a1c1c41bed0ae0744bdb0c6f"
+  version = "v1.5.2"
 
 [[projects]]
+  digest = "1:0e32afe1e5fbc68672396e25c8ae17936b0a28550d358c70216f5deb14043532"
   name = "github.com/nileshsimaria/jtimon"
   packages = [
     "authentication",
-    "telemetry"
+    "gnmi/gnmi",
+    "gnmi/gnmi_ext",
+    "gnmi/gnmi_juniper_header",
+    "gnmi/gnmi_juniper_header_ext",
+    "telemetry",
   ]
-  revision = "5e0061ca0f92c6c91e871f7ff20a700dc7ca8a01"
-  version = "v2.1.0"
+  pruneopts = "UT"
+  revision = "397f27a4688095b59d64b11acc8ac5a91c7ecc9e"
+  version = "v2.3.0"
 
 [[projects]]
+  digest = "1:524b71991fc7d9246cc7dc2d9e0886ccb97648091c63e30eef619e6862c955dd"
   name = "github.com/spf13/pflag"
   packages = ["."]
-  revision = "583c0c0531f06d5278b7d917446061adc344b5cd"
-  version = "v1.0.1"
+  pruneopts = "UT"
+  revision = "2e9d26c8c37aae03e3f9d4e90b7116f5accb7cab"
+  version = "v1.0.5"
 
 [[projects]]
   branch = "master"
+  digest = "1:6dd96ab514c45ce29a7b5a9f5d92eac801876ddf2afcdc4447183325f451e9ff"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -38,18 +50,32 @@
     "http2/hpack",
     "idna",
     "internal/timeseries",
-    "lex/httplex",
-    "trace"
+    "trace",
   ]
-  revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
+  pruneopts = "UT"
+  revision = "798c2154c571f098feedb84bca3043abd7dadf2a"
 
 [[projects]]
+  branch = "master"
+  digest = "1:1a5b3e5b8a8e37926476a36b430d651e54dd718ea13f3e2d1a74bb4c4a419a33"
+  name = "golang.org/x/sys"
+  packages = [
+    "internal/unsafeheader",
+    "unix",
+  ]
+  pruneopts = "UT"
+  revision = "ac73e9fd8988dfd87a86849835564a3eeebf96f0"
+
+[[projects]]
+  digest = "1:d343bfab7897dd73ee9bf8172d1fc83d935b7512067856ed596aaf57a9345f3c"
   name = "golang.org/x/text"
   packages = [
     "collate",
     "collate/build",
     "internal/colltab",
     "internal/gen",
+    "internal/language",
+    "internal/language/compact",
     "internal/tag",
     "internal/triegen",
     "internal/ucd",
@@ -59,51 +85,131 @@
     "unicode/bidi",
     "unicode/cldr",
     "unicode/norm",
-    "unicode/rangetable"
+    "unicode/rangetable",
   ]
-  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
-  version = "v0.3.0"
+  pruneopts = "UT"
+  revision = "e328d63cff14134669501e0e154e4f141c784322"
+  version = "v0.3.6"
 
 [[projects]]
   branch = "master"
+  digest = "1:7339759b4869e4b12e0ab4848f0f5edaa3c045b9b1cfe1d22af121605322490c"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "7fd901a49ba6a7f87732eb344f6e3c5b19d1b200"
+  pruneopts = "UT"
+  revision = "3947dc264843ae2083a0ed5b6e8e48609f3f81d2"
 
 [[projects]]
+  digest = "1:221b92197f5d6d2b558e2ab484cd84af1f9297ff861ed1046f7cc4159c0deefe"
   name = "google.golang.org/grpc"
   packages = [
     ".",
+    "attributes",
+    "backoff",
     "balancer",
     "balancer/base",
+    "balancer/grpclb/state",
     "balancer/roundrobin",
+    "binarylog/grpc_binarylog_v1",
     "codes",
     "connectivity",
     "credentials",
     "encoding",
     "encoding/gzip",
     "encoding/proto",
-    "grpclb/grpc_lb_v1/messages",
     "grpclog",
     "internal",
+    "internal/backoff",
+    "internal/balancerload",
+    "internal/binarylog",
+    "internal/buffer",
+    "internal/channelz",
+    "internal/credentials",
+    "internal/envconfig",
+    "internal/grpclog",
+    "internal/grpcrand",
+    "internal/grpcsync",
+    "internal/grpcutil",
+    "internal/metadata",
+    "internal/resolver",
+    "internal/resolver/dns",
+    "internal/resolver/passthrough",
+    "internal/resolver/unix",
+    "internal/serviceconfig",
+    "internal/status",
+    "internal/syscall",
+    "internal/transport",
+    "internal/transport/networktype",
     "keepalive",
     "metadata",
-    "naming",
     "peer",
     "resolver",
-    "resolver/dns",
-    "resolver/passthrough",
+    "serviceconfig",
     "stats",
     "status",
     "tap",
-    "transport"
   ]
-  revision = "d11072e7ca9811b1100b80ca0269ac831f06d024"
-  version = "v1.11.3"
+  pruneopts = "UT"
+  revision = "daba80583807e692013f3fd884092e77413705f1"
+  version = "v1.37.0"
+
+[[projects]]
+  digest = "1:18cefdbcccd23ac7224b30c1ae5c1f199fc7c506668c309f648da6a218778b8b"
+  name = "google.golang.org/protobuf"
+  packages = [
+    "encoding/prototext",
+    "encoding/protowire",
+    "internal/descfmt",
+    "internal/descopts",
+    "internal/detrand",
+    "internal/encoding/defval",
+    "internal/encoding/messageset",
+    "internal/encoding/tag",
+    "internal/encoding/text",
+    "internal/errors",
+    "internal/filedesc",
+    "internal/filetype",
+    "internal/flags",
+    "internal/genid",
+    "internal/impl",
+    "internal/order",
+    "internal/pragma",
+    "internal/set",
+    "internal/strs",
+    "internal/version",
+    "proto",
+    "reflect/protodesc",
+    "reflect/protoreflect",
+    "reflect/protoregistry",
+    "runtime/protoiface",
+    "runtime/protoimpl",
+    "types/descriptorpb",
+    "types/known/anypb",
+    "types/known/durationpb",
+    "types/known/timestamppb",
+  ]
+  pruneopts = "UT"
+  revision = "f2d1f6cbe10b90d22296ea09a7217081c2798009"
+  version = "v1.26.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0732f41f044b6ea421b21fd57ae104312cd80819f3b6672b46a86063dbcfe421"
+  input-imports = [
+    "github.com/golang/protobuf/proto",
+    "github.com/golang/protobuf/ptypes",
+    "github.com/golang/protobuf/ptypes/any",
+    "github.com/nileshsimaria/jtimon/authentication",
+    "github.com/nileshsimaria/jtimon/gnmi/gnmi",
+    "github.com/nileshsimaria/jtimon/gnmi/gnmi_ext",
+    "github.com/nileshsimaria/jtimon/gnmi/gnmi_juniper_header",
+    "github.com/nileshsimaria/jtimon/gnmi/gnmi_juniper_header_ext",
+    "github.com/nileshsimaria/jtimon/telemetry",
+    "github.com/spf13/pflag",
+    "golang.org/x/net/context",
+    "google.golang.org/grpc",
+    "google.golang.org/grpc/encoding/gzip",
+    "google.golang.org/grpc/metadata",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1

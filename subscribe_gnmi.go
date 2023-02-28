@@ -404,6 +404,7 @@ func xPathsTognmiSubscription(pathsCfg []PathsConfig, dialOutpathsCfg []*dialout
 
 			mode := gnmiMode(p.Mode)
 			mode, freq := gnmiFreq(mode, p.Freq)
+			gp.Origin = p.Origin
 
 			subs = append(subs, &gnmi.Subscription{Path: gp, Mode: mode, SampleInterval: freq})
 		}

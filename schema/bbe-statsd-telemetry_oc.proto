@@ -1,0 +1,160 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional junos_statistics jnpr_junos_statistics_ext = 81;
+}
+
+message junos_statistics {
+   optional system_type system = 151;
+   message system_type {
+      optional subscriber_management_type subscriber_management = 151;
+      message subscriber_management_type {
+         optional dynamic_interfaces_type dynamic_interfaces = 151;
+         message dynamic_interfaces_type {
+            optional interfaces_type interfaces = 151;
+            message interfaces_type {
+               optional uint32 max_polling_interfaces = 51;
+               optional uint32 current_polling_interfaces = 52;
+               optional meta_data_type meta_data = 151;
+               message meta_data_type {
+                  message interface_list {
+                     optional uint64 sid = 51 [(telemetry_options).is_key = true];
+                     optional uint32 interface_index = 55;
+                     optional string session_type = 56;
+                     optional string user_name = 57;
+                     optional string profile_name = 58;
+                     optional string interface_name = 59;
+                     optional string interface_set_name = 63;
+                     optional string underlying_interface_name = 60;
+                     optional uint32 cvlan_tag = 61;
+                     optional uint32 svlan_tag = 62;
+                  }
+                  repeated interface_list interface = 151;
+               }
+               optional queue_statistics_type queue_statistics = 155;
+               message queue_statistics_type {
+                  message interface_list {
+                     optional uint64 sid = 51 [(telemetry_options).is_key = true];
+                     optional bool polling_enabled = 52;
+                     optional fpcs_type fpcs = 151;
+                     message fpcs_type {
+                        message fpc_list {
+                           optional uint32 slot = 51 [(telemetry_options).is_key = true];
+                           optional uint32 last_update_time = 52;
+                           optional queues_type queues = 151;
+                           message queues_type {
+                              message queue_list {
+                                 optional uint32 queue_no = 50 [(telemetry_options).is_key = true];
+                                 optional uint64 transmitted_packets = 52;
+                                 optional uint64 transmitted_bytes = 53;
+                                 optional uint64 dropped_packets = 54;
+                                 optional uint64 dropped_bytes = 55;
+                              }
+                              repeated queue_list queue = 151;
+                           }
+                        }
+                        repeated fpc_list fpc = 151;
+                     }
+                  }
+                  repeated interface_list interface = 151;
+               }
+               optional subscriber_statistics_type subscriber_statistics = 160;
+               message subscriber_statistics_type {
+                  message interface_list {
+                     optional uint64 sid = 50 [(telemetry_options).is_key = true];
+                     optional uint64 ip_in_packets = 55;
+                     optional uint64 ip_out_packets = 56;
+                     optional uint64 ip_in_bytes = 57;
+                     optional uint64 ip_out_bytes = 58;
+                     optional uint64 ipv6_in_packets = 59;
+                     optional uint64 ipv6_out_packets = 60;
+                     optional uint64 ipv6_in_bytes = 61;
+                     optional uint64 ipv6_out_bytes = 62;
+                  }
+                  repeated interface_list interface = 151;
+               }
+               optional services_type services = 180;
+               message services_type {
+                  message interface_list {
+                     optional uint64 sid = 50 [(telemetry_options).is_key = true];
+                     optional service_statistics_type service_statistics = 181;
+                     message service_statistics_type {
+                        message service_list {
+                           optional uint64 ssid = 192 [(telemetry_options).is_key = true];
+                           optional string service_instance_name = 193;
+                           optional families_type families = 194;
+                           message families_type {
+                              message family_list {
+                                 optional string families_present = 196 [(telemetry_options).is_key = true];
+                                 optional filter_directions_type filter_directions = 197;
+                                 message filter_directions_type {
+                                    message filter_direction_list {
+                                       optional uint32 direction = 199 [(telemetry_options).is_key = true];
+                                       optional uint64 packets = 59;
+                                       optional uint64 bytes = 60;
+                                    }
+                                    repeated filter_direction_list filter_direction = 198;
+                                 }
+                              }
+                              repeated family_list family = 195;
+                           }
+                        }
+                        repeated service_list service = 191;
+                     }
+                  }
+                  repeated interface_list interface = 190;
+               }
+            }
+            optional interface_sets_type interface_sets = 155;
+            message interface_sets_type {
+               optional uint32 max_polling_interfaces = 51;
+               optional uint32 current_polling_interfaces = 52;
+               optional meta_data_type meta_data = 151;
+               message meta_data_type {
+                  message interface_set_list {
+                     optional uint32 container_id = 51 [(telemetry_options).is_key = true];
+                     optional string interface_set_name = 55;
+                     optional string interface_set_type = 56;
+                     optional string device_name = 57;
+                     optional uint32 stag = 58;
+                     optional uint32 ctag = 59;
+                     optional string cos_egress_tcp_name = 60;
+                     optional string cos_egress_tcp_remainder_name = 61;
+                     optional uint32 interface_set_member_count = 62;
+                  }
+                  repeated interface_set_list interface_set = 155;
+               }
+               optional queue_statistics_type queue_statistics = 155;
+               message queue_statistics_type {
+                  message interface_set_list {
+                     optional uint32 container_id = 51 [(telemetry_options).is_key = true];
+                     optional bool polling_enabled = 52;
+                     optional fpcs_type fpcs = 151;
+                     message fpcs_type {
+                        message fpc_list {
+                           optional uint32 slot = 51 [(telemetry_options).is_key = true];
+                           optional uint32 last_update_time = 52;
+                           optional queues_type queues = 151;
+                           message queues_type {
+                              message queue_list {
+                                 optional uint32 queue_no = 50 [(telemetry_options).is_key = true];
+                                 optional uint64 transmitted_packets = 52;
+                                 optional uint64 transmitted_bytes = 53;
+                                 optional uint64 dropped_packets = 54;
+                                 optional uint64 dropped_bytes = 55;
+                              }
+                              repeated queue_list queue = 151;
+                           }
+                        }
+                        repeated fpc_list fpc = 151;
+                     }
+                  }
+                  repeated interface_set_list interface_set = 151;
+               }
+            }
+         }
+      }
+   }
+}

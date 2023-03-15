@@ -1,0 +1,101 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional interfaces_ip_counters jnpr_interfaces_ip_counters_ext = 163;
+}
+
+message interfaces_ip_counters {
+   message interface_list {
+      optional string name = 51 [(telemetry_options).is_key = true];
+      optional uint64 init_time = 52;
+      message state_list {
+         optional string parent_ae_name = 51;
+         optional string oper_status = 52;
+         optional uint32 high_speed = 53;
+         message counters_list {
+            optional uint64 in_pkts = 51;
+            optional uint64 in_octets = 52;
+            optional uint64 in_unicast_pkts = 53;
+            optional uint64 in_multicast_pkts = 54;
+            optional uint64 in_broadcast_pkts = 55;
+            optional uint64 in_pause_pkts = 56;
+            optional uint64 out_pkts = 57;
+            optional uint64 out_octets = 58;
+            optional uint64 out_unicast_pkts = 59;
+            optional uint64 out_multicast_pkts = 60;
+            optional uint64 out_broadcast_pkts = 61;
+            optional uint64 out_pause_pkts = 62;
+            optional uint64 in_errors = 63;
+            optional uint64 in_discards = 64;
+            optional uint64 in_unknown_proto_pkts = 65;
+            optional uint64 carrier_transitions = 66;
+            optional uint64 out_errors = 67;
+            optional uint64 out_discards = 68;
+            optional uint64 out_unknown_proto_pkts = 69;
+         }
+         repeated counters_list counters = 151;
+      }
+      repeated state_list state = 151;
+      message subinterfaces_list {
+         message subinterface_list {
+            optional uint32 index = 51 [(telemetry_options).is_key = true];
+            optional uint64 init_time = 52;
+            message state_list {
+               optional string parent_ae_name = 51;
+               optional string oper_status = 52;
+               message counters_list {
+                  optional uint64 in_pkts = 51;
+                  optional uint64 in_octets = 52;
+                  optional uint64 out_pkts = 53;
+                  optional uint64 out_octets = 54;
+                  optional uint64 in_unicast_pkts = 55;
+                  optional uint64 in_multicast_pkts = 56;
+                  optional uint64 out_unicast_pkts = 57;
+                  optional uint64 out_multicast_pkts = 58;
+               }
+               repeated counters_list counters = 151;
+            }
+            repeated state_list state = 151;
+            optional ipv4_type ipv4 = 153;
+            message ipv4_type {
+               optional state_type state = 153;
+               message state_type {
+                  message counters_list {
+                     optional uint64 in_pkts = 51;
+                     optional uint64 in_octets = 52;
+                     optional uint64 in_multicast_pkts = 53;
+                     optional uint64 in_multicast_octets = 54;
+                     optional uint64 out_pkts = 55;
+                     optional uint64 out_octets = 56;
+                     optional uint64 out_multicast_pkts = 57;
+                     optional uint64 out_multicast_octets = 58;
+                  }
+                  repeated counters_list counters = 153;
+               }
+            }
+            optional ipv6_type ipv6 = 154;
+            message ipv6_type {
+               optional state_type state = 154;
+               message state_type {
+                  message counters_list {
+                     optional uint64 in_pkts = 51;
+                     optional uint64 in_octets = 52;
+                     optional uint64 in_multicast_pkts = 53;
+                     optional uint64 in_multicast_octets = 54;
+                     optional uint64 out_pkts = 55;
+                     optional uint64 out_octets = 56;
+                     optional uint64 out_multicast_pkts = 57;
+                     optional uint64 out_multicast_octets = 58;
+                  }
+                  repeated counters_list counters = 154;
+               }
+            }
+         }
+         repeated subinterface_list subinterface = 151;
+      }
+      repeated subinterfaces_list subinterfaces = 152;
+   }
+   repeated interface_list interface = 151;
+}

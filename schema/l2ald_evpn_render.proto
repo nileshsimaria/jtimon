@@ -1,0 +1,33 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional network_instances_l2evpn jnpr_network_instances_l2evpn_ext = 116;
+}
+
+message network_instances_l2evpn {
+   message network_instance_list {
+      optional string name = 51 [(telemetry_options).is_key = true];
+      optional protocols_type protocols = 151;
+      message protocols_type {
+         optional protocol_type protocol = 151;
+         message protocol_type {
+            optional evpn_type evpn = 151;
+            message evpn_type {
+               message vxlan_tunnel_end_point_list {
+                  optional string source_ip_address = 51;
+                  optional string remote_ip_address = 52 [(telemetry_options).is_key = true];
+                  optional string status = 53;
+                  optional string mode = 54;
+                  optional uint32 nexthop_index = 55;
+                  optional string source_interface = 56;
+                  optional string event_type = 57;
+               }
+               repeated vxlan_tunnel_end_point_list vxlan_tunnel_end_point = 152;
+            }
+         }
+      }
+   }
+   repeated network_instance_list network_instance = 161;
+}

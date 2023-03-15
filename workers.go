@@ -273,10 +273,11 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 		return w, err
 	}
 	log.Printf("%v, jctx.config.Kafka.producer: %v", jctx.config.Host, jctx.config.Kafka)
+	hostName, _ := GetHostName(jctx.config)
 	if alias, err := NewAlias(jctx.config.Alias); err == nil {
 		jctx.alias = alias
         } else {
-		jLog(&jctx, fmt.Sprintf("New alias creation failed for %v, err: %v", jctx.config.Host, err))
+		jLog(&jctx, fmt.Sprintf("New alias creation failed for %v, err: %v", hostName, err))
         }
 	go func() {
 		if *dialOut {
@@ -350,7 +351,11 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 				case syscall.SIGCONT:
 					// Do not start the subscribe worker for dialout..
 					if !*dialOut {
-						go work(&jctx, statusch)
+						if jctx.config.Host != "" && jctx.config.Port != 0 {
+							go work(&jctx, statusch)
+						} else if jctx.config.UDP.Host != "" && jctx.config.UDP.Port != 0 {
+							go udpWork(&jctx, statusch)
+						}
 					}
 				}
 			case <-statusch:
@@ -756,4 +761,62 @@ connect:
 		statusch <- struct{}{}
 		return
 	}
+}
+
+func udpWork(jctx *JCtx, statusch chan struct{}) {
+	var udpRetry bool
+
+udpdial:
+		vendor, err := getVendor(jctx, false)
+		if err != nil {
+			jLog(jctx, fmt.Sprintf("%v", err))
+			time.Sleep(10 * time.Second)
+			udpRetry = true
+			goto udpdial
+		}
+
+		udpHostname := jctx.config.UDP.Host + ":" + strconv.Itoa(jctx.config.UDP.Port)
+
+		select {
+		case s := <-jctx.control:
+			switch s {
+			case os.Interrupt:
+				jLog(jctx, fmt.Sprintf("UDP dialing for %s has been interrupted", udpHostname))
+				statusch <- struct{}{}
+				return
+			}
+		default:
+		}
+
+		if udpRetry {
+			jLog(jctx, fmt.Sprintf("Re-dialing UDP host %s", udpHostname))
+		} else {
+			jLog(jctx, fmt.Sprintf("Dialing UDP host %s", udpHostname))
+		}
+
+		ln, err := net.ListenPacket("udp", udpHostname)
+		if err != nil {
+			jLog(jctx, fmt.Sprintf("[%s] could not listen on: %v", jctx.config.UDP.Host, err))
+			return
+		}
+
+		if vendor.udpSubscribe == nil {
+			panic(fmt.Sprintf("could not found udp subscribe implementation for vendor %s", vendor.name))
+		}
+		fmt.Println("Calling udpSubscribe() :::", jctx.file)
+		udpCode := vendor.udpSubscribe(ln, jctx)
+		fmt.Println("Returns udpSubscribe() :::", jctx.file, "UDPCODE ::: ", udpCode)
+
+		ln.Close()
+
+		switch udpCode {
+		case SubRcSighupRestart:
+			jLog(jctx, fmt.Sprintf("sighup detected, re-dial with new config for udp worker %s", jctx.file))
+			udpRetry = true
+			goto udpdial
+		case SubRcSighupNoRestart:
+			jLog(jctx, fmt.Sprintf("not re-dialing for udp worker %s", jctx.file))
+			statusch <- struct{}{}
+			return
+		}
 }

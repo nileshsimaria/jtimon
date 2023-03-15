@@ -1,0 +1,106 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional network_instances_evpn jnpr_network_instances_evpn_ext = 112;
+}
+
+message network_instances_evpn {
+   message network_instance_list {
+      optional string name = 51 [(telemetry_options).is_key = true];
+      optional protocols_type protocols = 151;
+      message protocols_type {
+         optional protocol_type protocol = 151;
+         message protocol_type {
+            optional evpn_type evpn = 151;
+            message evpn_type {
+               optional uint32 num_peers = 51;
+               optional uint32 num_interfaces = 52;
+               optional uint32 num_interfaces_up = 53;
+               optional uint32 num_irb_interfaces = 54;
+               optional uint32 num_irb_interfaces_up = 55;
+               optional uint32 num_remote_macs = 59;
+               optional uint32 num_remote_mac_ip_v4 = 60;
+               optional uint32 num_remote_mac_ip_v6 = 61;
+               optional uint32 num_remote_irb_macs = 62;
+               optional uint32 num_ethernet_segments = 63;
+               optional string label_allocation_mode = 70;
+               message interfaces_list {
+                  optional string name = 61 [(telemetry_options).is_key = true];
+                  optional string esi = 62;
+                  optional string mode = 63;
+                  optional string status = 64;
+               }
+               repeated interfaces_list interfaces = 152;
+               message irb_interfaces_list {
+                  optional string name = 61 [(telemetry_options).is_key = true];
+                  optional string virtual_gateway_esi = 62;
+                  optional string status = 63;
+                  optional string l3_context = 64;
+               }
+               repeated irb_interfaces_list irb_interfaces = 153;
+               message peer_list {
+                  optional string peer_address = 71 [(telemetry_options).is_key = true];
+                  optional uint32 num_auto_discovery_routes = 73;
+                  optional uint32 num_multicast_routes = 74;
+                  optional uint32 num_ethernet_segment_routes = 75;
+                  optional uint32 num_mac_routes = 76;
+                  optional uint32 num_mac_ip_routes = 77;
+                  optional uint32 num_selective_multicast_routes = 78;
+               }
+               repeated peer_list peer = 154;
+               message sg_db_list {
+                  optional uint32 ethernet_tag_id = 71;
+                  optional string group = 72;
+                  optional string source = 73;
+                  optional uint32 total_esi_fanout = 74;
+                  optional uint32 total_local_fanout = 75;
+                  optional uint32 total_remote_fanout = 76;
+                  message sgdb_esi_list {
+                     optional string esi = 152 [(telemetry_options).is_key = true];
+                     optional string local_intf_name = 151;
+                     optional string join_sync_status = 153;
+                     optional string join_sync_last_updated = 154;
+                     optional string leave_sync_status = 155;
+                     optional string leave_sync_last_updated = 156;
+                  }
+                  repeated sgdb_esi_list sgdb_esi = 151;
+               }
+               repeated sg_db_list sg_db = 156;
+               message ethernet_segment_list {
+                  optional string esi = 71 [(telemetry_options).is_key = true];
+                  optional string status = 72;
+                  optional string local_intf_name = 73;
+                  optional string local_intf_status = 74;
+                  optional string df_election_algorithm = 75;
+                  optional string designated_forwarder = 76;
+                  message remote_pe_list {
+                     optional string ip_address = 71 [(telemetry_options).is_key = true];
+                     optional string mode = 72;
+                  }
+                  repeated remote_pe_list remote_pe = 151;
+               }
+               repeated ethernet_segment_list ethernet_segment = 155;
+               optional assisted_replication_type assisted_replication = 157;
+               message assisted_replication_type {
+                  optional string role = 51;
+                  message l2_domain_list {
+                     optional uint32 vni_id = 51 [(telemetry_options).is_key = true];
+                     message nexthops_list {
+                        optional uint32 nexthop_index = 72 [(telemetry_options).is_key = true];
+                        optional uint32 vni_id = 71;
+                        optional string interface = 73;
+                        optional string replicator_ip = 74;
+                        optional bool is_designated_node = 75;
+                     }
+                     repeated nexthops_list nexthops = 171;
+                  }
+                  repeated l2_domain_list l2_domain = 171;
+               }
+            }
+         }
+      }
+   }
+   repeated network_instance_list network_instance = 151;
+}

@@ -1,0 +1,65 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional junos_diameter jnpr_junos_diameter_ext = 103;
+}
+
+message junos_diameter {
+   optional system_type system = 151;
+   message system_type {
+      optional subscriber_management_type subscriber_management = 151;
+      message subscriber_management_type {
+         optional aaa_type aaa = 151;
+         message aaa_type {
+            optional diameter_type diameter = 151;
+            message diameter_type {
+               optional peers_type peers = 151;
+               message peers_type {
+                  message peer_list {
+                     optional string peer_name = 52 [(telemetry_options).is_key = true];
+                     optional nasreq_type nasreq = 151;
+                     message nasreq_type {
+                        optional response_time_type response_time = 151;
+                        message response_time_type {
+                           optional uint64 one_minute_minimum_response_time = 51;
+                           optional uint64 one_minute_average_response_time = 52;
+                           optional uint64 one_minute_maximum_response_time = 53;
+                           optional uint64 one_minute_messages_sent = 54;
+                           optional uint64 one_minute_messages_received = 55;
+                           optional uint64 one_minute_messages_no_response = 56;
+                        }
+                     }
+                     optional gx_type gx = 152;
+                     message gx_type {
+                        optional response_time_type response_time = 151;
+                        message response_time_type {
+                           optional uint64 one_minute_minimum_response_time = 51;
+                           optional uint64 one_minute_average_response_time = 52;
+                           optional uint64 one_minute_maximum_response_time = 53;
+                           optional uint64 one_minute_messages_sent = 54;
+                           optional uint64 one_minute_messages_received = 55;
+                           optional uint64 one_minute_messages_no_response = 56;
+                        }
+                     }
+                     optional gy_type gy = 153;
+                     message gy_type {
+                        optional response_time_type response_time = 151;
+                        message response_time_type {
+                           optional uint64 one_minute_minimum_response_time = 51;
+                           optional uint64 one_minute_average_response_time = 52;
+                           optional uint64 one_minute_maximum_response_time = 53;
+                           optional uint64 one_minute_messages_sent = 54;
+                           optional uint64 one_minute_messages_received = 55;
+                           optional uint64 one_minute_messages_no_response = 56;
+                        }
+                     }
+                  }
+                  repeated peer_list peer = 151;
+               }
+            }
+         }
+      }
+   }
+}

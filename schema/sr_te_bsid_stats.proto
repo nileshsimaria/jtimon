@@ -1,0 +1,53 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+//
+// This occupies branch 24 from JuniperNetworksSensors
+//
+extend JuniperNetworksSensors {
+    optional SrTeBsidStats jnpr_sr_te_bsid_stats_ext = 24;
+}
+
+//
+// Top-level message
+//
+message SrTeBsidStats {
+    // List of SR TE stats per BSID, IP and Color records
+    repeated SegmentRoutingTeBsidRecord te_bsid_stats = 1;
+}
+
+//
+// SR TE BSID statistics record
+//
+message SegmentRoutingTeBsidRecord {
+    // Name of the BSID
+    required uint64      bsid_identifier        = 1  [(telemetry_options).is_key = true];
+
+    // Ip prefix of endpoint
+    required string      to_ip_prefix           = 2  [(telemetry_options).is_key = true];
+
+    // Policy color value
+    optional uint32      color_identifier       = 3  [(telemetry_options).is_key = true];
+
+    // Instance Identifier for cases when RPD creates multiple instances
+    optional uint32 instance_identifier         = 4  [(telemetry_options).is_key = true];
+
+    // Name of the counter. This is useful when an SR label has multiple counters.
+    // For some scenarios like routing restart, it is possible that a new counter is
+    // created in the hardware.
+    optional string      counter_name           = 5  [(telemetry_options).is_key = true];
+
+    // Statistics
+    optional SegmentRoutingTeBsidStats stats    = 6;
+}
+
+message SegmentRoutingTeBsidStats {
+    // Packet and Byte statistics
+    optional uint64      packets      = 1   [(telemetry_options).is_counter = true];
+    optional uint64      bytes        = 2   [(telemetry_options).is_counter = true];
+
+    // Rates of the above counters
+    optional uint64      packet_rate  = 3   [(telemetry_options).is_gauge = true];
+    optional uint64      byte_rate    = 4   [(telemetry_options).is_gauge = true];
+}

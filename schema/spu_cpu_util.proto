@@ -1,0 +1,22 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional junos_pfe_spu_cpu jnpr_junos_pfe_spu_cpu_ext = 130;
+}
+
+message junos_pfe_spu_cpu {
+   optional security_type security = 151;
+   message security_type {
+      optional spu_type spu = 151;
+      message spu_type {
+         optional string spu_name = 51;
+         message cpu_list {
+            optional string cpu_name = 52 [(telemetry_options).is_key = true];
+            optional uint32 utilization = 53;
+         }
+         repeated cpu_list cpu = 151;
+      }
+   }
+}

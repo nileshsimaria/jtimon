@@ -1,0 +1,30 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional junos_pfe_packet_capture jnpr_junos_pfe_packet_capture_ext = 139;
+}
+
+message junos_pfe_packet_capture {
+   optional system_type system = 151;
+   message system_type {
+      optional linecard_type linecard = 151;
+      message linecard_type {
+         optional packet_capture_type packet_capture = 151;
+         message packet_capture_type {
+            message packet_list {
+               optional uint64 id = 51 [(telemetry_options).is_key = true];
+               optional uint64 total_length = 52;
+               optional uint64 actual_length = 53;
+               optional string packet_data = 54;
+               optional uint64 timestamp = 55;
+               optional uint32 ifl_index = 56;
+               optional uint32 cos_queue = 57;
+               optional string direction = 58;
+            }
+            repeated packet_list packet = 151;
+         }
+      }
+   }
+}

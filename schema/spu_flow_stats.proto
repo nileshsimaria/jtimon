@@ -1,0 +1,81 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional junos_pfe_spu_flow jnpr_junos_pfe_spu_flow_ext = 131;
+}
+
+message junos_pfe_spu_flow {
+   optional security_type security = 151;
+   message security_type {
+      optional spu_type spu = 151;
+      message spu_type {
+         optional string spu_name = 51;
+         optional flow_type flow = 151;
+         message flow_type {
+            optional stats_scope_type stats_scope = 151;
+            message stats_scope_type {
+               optional system_type system = 151;
+               message system_type {
+                  optional session_type session = 151;
+                  message session_type {
+                     optional uint32 no_v4 = 51;
+                     optional uint32 no_v6 = 52;
+                     optional uint32 no_unicast = 53;
+                     optional uint32 no_multicast = 54;
+                     optional uint32 no_sof = 55;
+                     optional uint32 no_nat = 56;
+                     optional uint32 no_ssl = 57;
+                     optional uint32 no_tunnel = 58;
+                     optional uint32 no_failed = 59;
+                  }
+                  optional packet_type packet = 152;
+                  message packet_type {
+                     optional uint64 pkt_received = 51;
+                     optional uint64 pkt_transmitted = 52;
+                     optional uint64 pkt_dropped = 53;
+                     optional uint64 fragments_received = 54;
+                     optional uint64 pre_fragments = 55;
+                     optional uint64 post_fragments = 56;
+                     optional uint64 pmi_received = 57;
+                     optional uint64 pmi_transmitted = 58;
+                     optional uint64 pmi_dropped = 59;
+                  }
+               }
+               optional lsys_scope_type lsys_scope = 152;
+               message lsys_scope_type {
+                  message lsys_list {
+                     optional string lsys_name = 151 [(telemetry_options).is_key = true];
+                     optional session_type session = 152;
+                     message session_type {
+                        optional uint32 no_v4 = 51;
+                        optional uint32 no_v6 = 52;
+                        optional uint32 no_unicast = 53;
+                        optional uint32 no_multicast = 54;
+                        optional uint32 no_sof = 55;
+                        optional uint32 no_nat = 56;
+                        optional uint32 no_ssl = 57;
+                        optional uint32 no_tunnel = 58;
+                        optional uint32 no_failed = 59;
+                     }
+                     optional packet_type packet = 153;
+                     message packet_type {
+                        optional uint64 pkt_received = 51;
+                        optional uint64 pkt_transmitted = 52;
+                        optional uint64 pkt_dropped = 53;
+                        optional uint64 fragments_received = 54;
+                        optional uint64 pre_fragments = 55;
+                        optional uint64 post_fragments = 56;
+                        optional uint64 pmi_received = 57;
+                        optional uint64 pmi_transmitted = 58;
+                        optional uint64 pmi_dropped = 59;
+                     }
+                  }
+                  repeated lsys_list lsys = 152;
+               }
+            }
+         }
+      }
+   }
+}

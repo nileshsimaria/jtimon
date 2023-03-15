@@ -1,0 +1,68 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional ddos_stats jnpr_ddos_stats_ext = 126;
+}
+
+message ddos_stats {
+   message group_list {
+      optional string group_name = 153 [(telemetry_options).is_key = true];
+      optional uint32 group_id = 154;
+      optional protocol_stats_type protocol_stats = 155;
+      message protocol_stats_type {
+         message protocol_list {
+            optional string protocol_name = 157 [(telemetry_options).is_key = true];
+            optional uint32 protocol_id = 158;
+            optional locale_stats_type locale_stats = 159;
+            message locale_stats_type {
+               message locale_list {
+                  optional string location = 162 [(telemetry_options).is_key = true];
+                  optional uint64 received = 163;
+                  optional uint64 arrived_policer = 164;
+                  optional uint64 dropped_individual_policer = 165;
+                  optional uint64 dropped_aggregate_policer = 166;
+                  optional uint64 dropped_individual_flow = 167;
+                  optional uint64 dropped_aggregate_flow = 168;
+                  optional uint64 total_dropped = 169;
+                  optional uint64 final_passed = 170;
+                  optional uint64 arrival_rate = 171;
+                  optional uint64 max_arrival_rate = 173;
+                  optional uint64 pass_rate = 172;
+                  optional violation_type violation = 174;
+                  message violation_type {
+                     optional string policer_state = 175;
+                     optional uint32 policer_violation_count = 176;
+                     optional uint64 policer_violation_start_time = 177;
+                     optional uint64 policer_violation_end_time = 178;
+                     optional uint64 policer_violation_duration = 179;
+                  }
+               }
+               repeated locale_list locale = 160;
+            }
+            optional flow_stats_type flow_stats = 161;
+            message flow_stats_type {
+               message flow_list {
+                  optional string flow_type = 181 [(telemetry_options).is_key = true];
+                  optional uint64 flow_count = 182;
+                  optional flow_info_stats_type flow_info_stats = 183;
+                  message flow_info_stats_type {
+                     message flow_info_list {
+                        optional uint64 ifl = 185 [(telemetry_options).is_key = true];
+                        optional uint64 time_found = 186;
+                        optional uint64 time_last_violated = 187;
+                        optional uint64 rate = 188;
+                        optional uint64 packets = 189;
+                     }
+                     repeated flow_info_list flow_info = 184;
+                  }
+               }
+               repeated flow_list flow = 180;
+            }
+         }
+         repeated protocol_list protocol = 156;
+      }
+   }
+   repeated group_list group = 152;
+}

@@ -1,0 +1,47 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional junos_kernel jnpr_junos_kernel_ext = 120;
+}
+
+message junos_kernel {
+   optional exception_profiles_type exception_profiles = 151;
+   message exception_profiles_type {
+      optional os_profile_type os_profile = 152;
+      message os_profile_type {
+         optional incident_descriptor_type incident_descriptor = 151;
+         message incident_descriptor_type {
+            optional string exception_code = 52;
+            optional string description = 53;
+            optional string host_id = 54;
+            optional string resource_id = 55;
+            optional uint64 timestamp = 56;
+            optional uint64 id = 51;
+         }
+         optional string exception_type = 52;
+         optional string exception_owner = 53;
+         optional os_counters_type os_counters = 152;
+         message os_counters_type {
+            optional uint32 isrs_low_on_mbuf_clusters = 51;
+            optional uint64 isrs_mbuf_alloc_failures = 52;
+            optional uint64 isrs_mbuf_cluster_alloc_failures = 53;
+            optional uint32 nw_queue_drops_ether = 54;
+            optional uint32 nw_queue_drops_ip = 55;
+            optional uint32 nw_queue_drops_ipv6 = 56;
+            optional uint32 nw_queue_drops_arp = 57;
+            optional uint64 nw_queue_drops_bgp = 58;
+            optional uint64 nw_queue_drops_ospf = 59;
+            optional uint64 nw_queue_drops_rsvp = 60;
+            optional uint64 nw_queue_drops_isis = 61;
+            optional uint64 nw_queue_drops_mpls = 62;
+            optional uint64 nw_queue_drops_tcp = 63;
+            optional uint64 nw_queue_drops_udp = 64;
+            optional uint64 nw_queue_drops_icmp = 65;
+            optional uint64 nw_queue_drops_icmp6 = 66;
+            optional uint64 nw_queue_drops_ttp = 67;
+         }
+      }
+   }
+}

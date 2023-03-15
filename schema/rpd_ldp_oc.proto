@@ -1,0 +1,176 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional network_instances_ldp jnpr_network_instances_ldp_ext = 132;
+}
+
+message network_instances_ldp {
+   message network_instance_list {
+      optional string name = 51 [(telemetry_options).is_key = true];
+      optional mpls_type mpls = 151;
+      message mpls_type {
+         optional signaling_protocols_type signaling_protocols = 151;
+         message signaling_protocols_type {
+            optional ldp_type ldp = 151;
+            message ldp_type {
+               optional global_type global = 151;
+               message global_type {
+                  optional state_type state = 151;
+                  message state_type {
+                     optional string lsr_id = 51;
+                  }
+                  optional graceful_restart_type graceful_restart = 152;
+                  message graceful_restart_type {
+                     optional state_type state = 151;
+                     message state_type {
+                        optional bool enabled = 51;
+                        optional uint32 reconnect_time = 52;
+                        optional uint32 recovery_time = 53;
+                        optional bool helper_enable = 54;
+                     }
+                  }
+                  optional authentication_type authentication = 153;
+                  message authentication_type {
+                     optional state_type state = 151;
+                     message state_type {
+                        optional bool enable = 51;
+                     }
+                  }
+               }
+               optional interface_attributes_type interface_attributes = 152;
+               message interface_attributes_type {
+                  optional state_type state = 151;
+                  message state_type {
+                     optional uint32 hello_holdtime = 51;
+                     optional uint32 hello_interval = 52;
+                  }
+                  optional interfaces_type interfaces = 152;
+                  message interfaces_type {
+                     message interface_list {
+                        optional string interface_id = 51 [(telemetry_options).is_key = true];
+                        optional state_type state = 151;
+                        message state_type {
+                           optional string interface_id = 51;
+                           optional uint32 hello_holdtime = 52;
+                           optional uint32 hello_interval = 53;
+                        }
+                        optional interface_ref_type interface_ref = 152;
+                        message interface_ref_type {
+                           optional state_type state = 151;
+                           message state_type {
+                              optional string interface = 51;
+                              optional uint32 subinterface = 52;
+                           }
+                        }
+                        optional address_families_type address_families = 153;
+                        message address_families_type {
+                           message address_family_list {
+                              optional string afi_name = 51 [(telemetry_options).is_key = true];
+                              optional state_type state = 151;
+                              message state_type {
+                                 optional string afi_name = 51;
+                                 optional bool enabled = 52;
+                              }
+                           }
+                           repeated address_family_list address_family = 151;
+                        }
+                     }
+                     repeated interface_list interface = 151;
+                  }
+               }
+               optional targeted_type targeted = 153;
+               message targeted_type {
+                  optional state_type state = 151;
+                  message state_type {
+                     optional uint32 hello_holdtime = 51;
+                     optional uint32 hello_interval = 52;
+                     optional bool hello_accept = 53;
+                  }
+                  optional address_families_type address_families = 152;
+                  message address_families_type {
+                     message address_family_list {
+                        optional string afi_name = 51 [(telemetry_options).is_key = true];
+                        optional state_type state = 151;
+                        message state_type {
+                           optional string afi_name = 51;
+                        }
+                        optional targets_type targets = 152;
+                        message targets_type {
+                           message target_list {
+                              optional string remote_address = 51 [(telemetry_options).is_key = true];
+                              optional state_type state = 151;
+                              message state_type {
+                                 optional string remote_address = 51;
+                                 optional string local_address = 52;
+                                 optional bool enabled = 53;
+                                 optional uint32 hello_holdtime = 54;
+                                 optional uint32 hello_interval = 55;
+                              }
+                           }
+                           repeated target_list target = 151;
+                        }
+                     }
+                     repeated address_family_list address_family = 151;
+                  }
+               }
+               optional neighbors_type neighbors = 154;
+               message neighbors_type {
+                  message neighbor_list {
+                     optional string lsr_id = 51;
+                     optional uint32 label_space_id = 52;
+                     optional state_type state = 151;
+                     message state_type {
+                        optional string lsr_id = 51;
+                        optional uint32 label_space_id = 52;
+                        optional string session_state = 53;
+                     }
+                     optional hello_adjacencies_type hello_adjacencies = 152;
+                     message hello_adjacencies_type {
+                        message hello_adjacency_list {
+                           optional string remote_address = 51;
+                           optional string local_address = 52;
+                           optional state_type state = 151;
+                           message state_type {
+                              optional string remote_address = 51;
+                              optional string local_address = 52;
+                              optional string adjacency_type = 53;
+                              optional bool jnx_enabled = 54;
+                           }
+                           optional interface_ref_type interface_ref = 152;
+                           message interface_ref_type {
+                              optional state_type state = 151;
+                              message state_type {
+                                 optional string interface = 51;
+                                 optional uint32 subinterface = 52;
+                              }
+                           }
+                           optional hello_holdtime_type hello_holdtime = 153;
+                           message hello_holdtime_type {
+                              optional state_type state = 151;
+                              message state_type {
+                                 optional uint32 adjacent = 51;
+                                 optional uint32 negotiated = 52;
+                                 optional uint64 hello_expiration = 53;
+                              }
+                           }
+                        }
+                        repeated hello_adjacency_list hello_adjacency = 151;
+                     }
+                     optional authentication_type authentication = 153;
+                     message authentication_type {
+                        optional state_type state = 151;
+                        message state_type {
+                           optional bool enable = 51;
+                        }
+                     }
+                  }
+                  repeated neighbor_list neighbor = 151;
+               }
+            }
+         }
+      }
+   }
+   repeated network_instance_list network_instance = 151;
+}

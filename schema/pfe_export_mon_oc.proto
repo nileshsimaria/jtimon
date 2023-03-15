@@ -1,0 +1,57 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional junos_pfe_export_mon_stats jnpr_junos_pfe_export_mon_stats_ext = 129;
+}
+
+message junos_pfe_export_mon_stats {
+   optional system_type system = 151;
+   message system_type {
+      optional linecard_type linecard = 151;
+      message linecard_type {
+         optional export_monitor_type export_monitor = 151;
+         message export_monitor_type {
+            message export_info_list {
+               optional string resource = 153 [(telemetry_options).is_key = true];
+               optional uint32 rep_interval = 154;
+               optional uint32 payload_size = 155;
+               optional uint32 qos_options = 156;
+               optional uint32 fc_options = 157;
+               optional uint32 plp_options = 158;
+               optional server_type server = 159;
+               message server_type {
+                  optional string ip = 160;
+                  optional uint32 port = 161;
+               }
+               optional uint32 num_clients = 162;
+               message clients_list {
+                  optional uint32 index = 164 [(telemetry_options).is_key = true];
+                  optional string ip = 165;
+                  optional uint32 port = 166;
+               }
+               repeated clients_list clients = 163;
+               optional accounting_type accounting = 167;
+               message accounting_type {
+                  optional uint64 successful_reaps = 168;
+                  optional uint64 failed_reaps = 169;
+                  optional uint32 reaps_in_last_rep_interval = 170;
+                  optional uint32 packets_in_last_rep_interval = 171;
+                  optional uint32 instances_in_last_rep_interval = 172;
+                  optional uint64 total_packets = 173;
+                  optional uint64 num_wraps = 174;
+                  optional uint64 average_reaps = 175;
+                  optional uint32 last_packet_size = 176;
+               }
+               message wraps_list {
+                  optional uint32 index = 178 [(telemetry_options).is_key = true];
+                  optional string time = 179;
+               }
+               repeated wraps_list wraps = 177;
+            }
+            repeated export_info_list export_info = 152;
+         }
+      }
+   }
+}

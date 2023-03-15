@@ -1,0 +1,105 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional network_instances_SRTE jnpr_network_instances_SRTE_ext = 169;
+}
+
+message network_instances_SRTE {
+   message network_instance_list {
+      optional string name = 51 [(telemetry_options).is_key = true];
+      optional segment_routing_type segment_routing = 151;
+      message segment_routing_type {
+         optional te_policies_type te_policies = 151;
+         message te_policies_type {
+            message te_policy_list {
+               optional uint32 color = 51;
+               optional string endpoint = 52;
+               optional state_type state = 151;
+               message state_type {
+                  optional uint32 color = 51;
+                  optional string endpoint = 52;
+                  optional string bsid = 53;
+               }
+               optional candidate_paths_type candidate_paths = 152;
+               message candidate_paths_type {
+                  message candidate_path_list {
+                     optional string protocol_origin = 51;
+                     optional uint32 originator_asn = 52;
+                     optional string originator_addr = 53;
+                     optional uint32 discriminator = 54;
+                     optional state_type state = 151;
+                     message state_type {
+                        optional string protocol_origin = 51;
+                        optional uint32 originator_asn = 52;
+                        optional string originator_addr = 53;
+                        optional uint32 discriminator = 54;
+                        optional uint32 preference = 55;
+                        optional string enlp = 56;
+                        optional bool valid = 57;
+                     }
+                     optional segment_lists_type segment_lists = 152;
+                     message segment_lists_type {
+                        message segment_list_list {
+                           optional uint32 id = 51 [(telemetry_options).is_key = true];
+                           optional state_type state = 151;
+                           message state_type {
+                              optional uint32 id = 51;
+                              optional bool valid = 52;
+                              optional string invalid_reason = 53;
+                              optional uint32 weight = 54;
+                           }
+                           optional sids_type sids = 152;
+                           message sids_type {
+                              message sid_list {
+                                 optional uint64 index = 51 [(telemetry_options).is_key = true];
+                                 optional state_type state = 151;
+                                 message state_type {
+                                    optional uint64 index = 51;
+                                    optional string value = 52;
+                                 }
+                              }
+                              repeated sid_list sid = 151;
+                           }
+                        }
+                        repeated segment_list_list segment_list = 151;
+                     }
+                  }
+                  repeated candidate_path_list candidate_path = 151;
+               }
+            }
+            repeated te_policy_list te_policy = 151;
+         }
+      }
+      optional mpls_type mpls = 152;
+      message mpls_type {
+         optional signaling_protocols_type signaling_protocols = 151;
+         message signaling_protocols_type {
+            optional segment_routing_type segment_routing = 151;
+            message segment_routing_type {
+               optional interfaces_type interfaces = 151;
+               message interfaces_type {
+                  message interface_list {
+                     optional string interface_id = 51 [(telemetry_options).is_key = true];
+                     optional state_type state = 151;
+                     message state_type {
+                        optional string interface_id = 51;
+                     }
+                     optional interface_ref_type interface_ref = 152;
+                     message interface_ref_type {
+                        optional state_type state = 151;
+                        message state_type {
+                           optional string interface = 51;
+                           optional uint32 subinterface = 52;
+                        }
+                     }
+                  }
+                  repeated interface_list interface = 151;
+               }
+            }
+         }
+      }
+   }
+   repeated network_instance_list network_instance = 151;
+}

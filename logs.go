@@ -8,7 +8,8 @@ import (
 
 func jLog(jctx *JCtx, msg string) {
 	if *logMux {
-		log.Print(fmt.Sprintf("[%s]:%s", jctx.config.Host, msg))
+		hostName, _ := GetHostName(jctx.config)
+		log.Print(fmt.Sprintf("[%s]:%s", hostName, msg))
 		return
 	}
 
@@ -53,7 +54,8 @@ func logInit(jctx *JCtx) {
 		jctx.config.Log.logger = log.New(out, "", flags)
 		jctx.config.Log.out = out
 
-		log.Printf("logging in %s for %s:%d [periodic stats every %d seconds]\n",
-			jctx.config.Log.File, jctx.config.Host, jctx.config.Port, jctx.config.Log.PeriodicStats)
+		hostName, _ := GetHostName(jctx.config)
+		log.Printf("logging in %s for %s [periodic stats every %d seconds]\n",
+			jctx.config.Log.File, hostName, jctx.config.Log.PeriodicStats)
 	}
 }

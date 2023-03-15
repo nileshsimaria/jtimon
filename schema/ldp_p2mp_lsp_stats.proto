@@ -1,0 +1,52 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+//
+// This occupies branch 52 from JuniperNetworksSensors
+//
+extend JuniperNetworksSensors {
+    optional LdpP2mpLspStats jnpr_ldp_p2mp_lsp_stats_ext = 155;
+}
+
+//
+// Top-level message
+//
+message LdpP2mpLspStats {
+    // List of LDP P2MP LSP stats record
+    repeated LdpP2mpLspRecord ldp_p2mp_lsp_stats_records = 1;
+}
+
+message LdpP2mpLspRecord {
+
+    // IP prefix
+    required string      root_address           = 1  [(telemetry_options).is_key = true];
+
+    optional uint32      lsp_id                 = 2  [(telemetry_options).is_key = true];
+
+    // Source Ip address
+    optional string      source_ip              = 3  [(telemetry_options).is_key = true];
+
+    // Group Ip address
+    optional string      group_ip               = 4  [(telemetry_options).is_key = true];
+
+    // Instance Identifier for cases when RPD creates multiple instances
+    optional uint32 instance_identifier         = 5  [(telemetry_options).is_key = true];
+
+    // Name of the counter.
+    optional string      counter_name           = 6  [(telemetry_options).is_key = true];
+
+    // Statistics
+    optional LabelDistributionProtocolP2mpLspStats stats              = 7;
+}
+
+message LabelDistributionProtocolP2mpLspStats {
+    // Packet and Byte statistics
+    optional uint64      packets      = 1 [(telemetry_options).is_counter = true];
+    optional uint64      bytes        = 2   [(telemetry_options).is_counter = true];
+
+    // Rates of the above counters
+    optional uint64      packet_rate  = 3   [(telemetry_options).is_counter = true];
+    optional uint64      byte_rate    = 4   [(telemetry_options).is_counter = true];
+}
+

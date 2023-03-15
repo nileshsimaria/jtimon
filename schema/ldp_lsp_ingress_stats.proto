@@ -1,0 +1,46 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+//
+// This occupies branch 50 from JuniperNetworksSensors
+//
+extend JuniperNetworksSensors {
+    optional LdpLspIngressStats jnpr_ldp_lsp_ingress_stats_ext = 153;
+}
+
+//
+// Top-level message
+//
+message LdpLspIngressStats {
+    // List of LDP LSP stats record
+    repeated LdpLspIngressRecord ldp_lsp_ingress_stats_records = 1;
+}
+
+//
+// LDP LSP Ingress statistics record
+//
+message LdpLspIngressRecord {
+
+    // IP prefix
+    required string      ip_prefix       = 1  [(telemetry_options).is_key = true];
+
+    // Instance Identifier for cases when RPD creates multiple instances
+    optional uint32 instance_identifier  = 2  [(telemetry_options).is_key = true];
+
+    // Name of the counter.
+    optional string      counter_name    = 3  [(telemetry_options).is_key = true];
+
+    // Statistics
+    optional LabelDistributionProtocolLspIngressStats stats    = 4;
+}
+
+message LabelDistributionProtocolLspIngressStats {
+    // Packet and Byte statistics
+    optional uint64      packets      = 1   [(telemetry_options).is_counter = true];
+    optional uint64      bytes        = 2   [(telemetry_options).is_counter = true];
+
+    // Rates of the above counters
+    optional uint64      packet_rate  = 3   [(telemetry_options).is_gauge = true];
+    optional uint64      byte_rate    = 4   [(telemetry_options).is_gauge = true];
+}

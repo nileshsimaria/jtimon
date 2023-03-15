@@ -1,0 +1,134 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional network_instances jnpr_network_instances_ext = 117;
+}
+
+message network_instances {
+   message network_instance_list {
+      optional string name = 51 [(telemetry_options).is_key = true];
+      optional afts_type afts = 151;
+      message afts_type {
+         optional ipv4_unicast_type ipv4_unicast = 151;
+         message ipv4_unicast_type {
+            message ipv4_entry_list {
+               optional string prefix = 51 [(telemetry_options).is_key = true];
+               optional state_type state = 151;
+               message state_type {
+                  optional string prefix = 51;
+                  optional uint64 next_hop_group = 52;
+               }
+            }
+            repeated ipv4_entry_list ipv4_entry = 151;
+         }
+         optional ipv6_unicast_type ipv6_unicast = 152;
+         message ipv6_unicast_type {
+            message ipv6_entry_list {
+               optional string prefix = 51 [(telemetry_options).is_key = true];
+               optional state_type state = 151;
+               message state_type {
+                  optional string prefix = 51;
+                  optional uint64 next_hop_group = 52;
+               }
+            }
+            repeated ipv6_entry_list ipv6_entry = 151;
+         }
+         optional mpls_type mpls = 153;
+         message mpls_type {
+            message label_entry_list {
+               optional string label = 51 [(telemetry_options).is_key = true];
+               optional state_type state = 151;
+               message state_type {
+                  optional string label = 51;
+                  optional uint64 next_hop_group = 52;
+                  repeated string popped_mpls_label_stack = 53;
+               }
+            }
+            repeated label_entry_list label_entry = 151;
+         }
+         optional next_hop_groups_type next_hop_groups = 154;
+         message next_hop_groups_type {
+            message next_hop_group_list {
+               optional uint64 id = 51 [(telemetry_options).is_key = true];
+               optional state_type state = 151;
+               message state_type {
+                  optional uint64 id = 51;
+               }
+               optional next_hops_type next_hops = 152;
+               message next_hops_type {
+                  message next_hop_list {
+                     optional uint64 index = 51 [(telemetry_options).is_key = true];
+                     optional state_type state = 151;
+                     message state_type {
+                        optional uint64 index = 51;
+                        optional uint64 weight = 52;
+                     }
+                  }
+                  repeated next_hop_list next_hop = 151;
+               }
+               optional conditional_type conditional = 53;
+               message conditional_type {
+                  message condition_list {
+                     optional uint64 id = 55 [(telemetry_options).is_key = true];
+                     optional state_type state = 56;
+                     message state_type {
+                        optional uint64 id = 57;
+                        repeated uint32 dscp = 58;
+                        optional uint64 next_hop_group = 59;
+                     }
+                     optional input_interfaces_type input_interfaces = 60;
+                     message input_interfaces_type {
+                        message input_interface_list {
+                           optional string id = 62 [(telemetry_options).is_key = true];
+                           optional state_type state = 63;
+                           message state_type {
+                              optional string id = 64;
+                              optional string interface = 65;
+                              optional uint32 subinterface = 66;
+                           }
+                        }
+                        repeated input_interface_list input_interface = 61;
+                     }
+                  }
+                  repeated condition_list condition = 54;
+               }
+            }
+            repeated next_hop_group_list next_hop_group = 151;
+         }
+         optional next_hops_type next_hops = 155;
+         message next_hops_type {
+            message next_hop_list {
+               optional uint64 index = 51 [(telemetry_options).is_key = true];
+               optional state_type state = 151;
+               message state_type {
+                  optional uint64 index = 54;
+                  optional string ip_address = 51;
+                  optional string mac_address = 52;
+                  repeated string pushed_mpls_label_stack = 53;
+               }
+               optional interface_ref_type interface_ref = 153;
+               message interface_ref_type {
+                  optional state_type state = 151;
+                  message state_type {
+                     optional string interface = 51;
+                     optional uint32 subinterface = 52;
+                  }
+               }
+               optional juniper_type juniper = 152;
+               message juniper_type {
+                  optional state_type state = 151;
+                  message state_type {
+                     optional bool unmapped_nexthop = 51;
+                     repeated uint64 mapped_next_hop_index = 52;
+                     optional uint32 lsp_id = 53;
+                  }
+               }
+            }
+            repeated next_hop_list next_hop = 151;
+         }
+      }
+   }
+   repeated network_instance_list network_instance = 151;
+}

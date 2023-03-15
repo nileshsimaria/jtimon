@@ -1,0 +1,65 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional network_instances_fdb jnpr_network_instances_fdb_ext = 114;
+}
+
+message network_instances_fdb {
+   message network_instance_list {
+      optional string name = 51 [(telemetry_options).is_key = true];
+      optional mac_table_info_type mac_table_info = 171;
+      message mac_table_info_type {
+         optional bool learning = 71;
+         optional uint32 aging_time = 72;
+         optional uint32 table_size = 73;
+         optional uint32 num_local_entries = 74;
+      }
+      optional mac_table_type mac_table = 151;
+      message mac_table_type {
+         optional entries_type entries = 151;
+         message entries_type {
+            message entry_list {
+               optional string mac_address = 51;
+               optional uint32 vlan_id = 52;
+               optional uint32 vni = 53;
+               optional string vlan_name = 54 [(telemetry_options).is_key = true];
+               optional string interface = 55;
+               optional string entry_type = 56;
+               optional string event_type = 57;
+               optional uint32 ethernet_tag_id = 58;
+            }
+            repeated entry_list entry = 151;
+         }
+      }
+      optional macip_table_info_type macip_table_info = 181;
+      message macip_table_info_type {
+         optional bool learning = 81;
+         optional uint32 aging_time = 82;
+         optional uint32 table_size = 83;
+         optional bool proxy_macip = 84;
+         optional uint32 num_local_entries = 85;
+      }
+      optional macip_table_type macip_table = 161;
+      message macip_table_type {
+         optional entries_type entries = 161;
+         message entries_type {
+            message entry_list {
+               optional string ip_address = 51;
+               optional string mac_address = 52;
+               optional uint32 vlan_id = 53;
+               optional uint32 vni = 54;
+               optional string vlan_name = 55 [(telemetry_options).is_key = true];
+               optional string interface = 56;
+               optional string l3_interface = 57;
+               optional string entry_type = 58;
+               optional string event_type = 59;
+               optional uint32 ethernet_tag_id = 60;
+            }
+            repeated entry_list entry = 161;
+         }
+      }
+   }
+   repeated network_instance_list network_instance = 151;
+}

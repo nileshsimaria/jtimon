@@ -1,0 +1,29 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional network_instances_bridge_domain jnpr_network_instances_bridge_domain_ext = 115;
+}
+
+message network_instances_bridge_domain {
+   message network_instance_list {
+      optional string name = 51 [(telemetry_options).is_key = true];
+      message vlan_list {
+         optional string vlan_name = 51 [(telemetry_options).is_key = true];
+         optional uint32 vlan_id = 52;
+         optional string status = 53;
+         optional uint32 vni = 54;
+         optional string l3_interface = 55;
+         optional uint32 num_local_mac_entries = 56;
+         optional uint32 num_ar_replicator_entries = 57;
+         optional uint32 ethernet_tag_id = 58;
+         message member_list {
+            optional string interface = 61;
+         }
+         repeated member_list member = 161;
+      }
+      repeated vlan_list vlan = 151;
+   }
+   repeated network_instance_list network_instance = 151;
+}

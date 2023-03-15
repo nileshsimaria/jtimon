@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 
 	"google.golang.org/grpc"
 )
@@ -14,6 +15,7 @@ type vendor struct {
 	sendLoginCheck     func(*JCtx, *grpc.ClientConn) error
 	dialExt            func(*JCtx) grpc.DialOption
 	subscribe          func(*grpc.ClientConn, *JCtx) SubErrorCode
+	udpSubscribe       func(net.PacketConn, *JCtx) SubErrorCode
 }
 
 func getVendor(jctx *JCtx, tryGnmi bool) (*vendor, error) {
@@ -41,6 +43,7 @@ func newJuniperJUNOS() *vendor {
 		sendLoginCheck:     loginCheckJunos,
 		dialExt:            nil,
 		subscribe:          subscribeJunos,
+		udpSubscribe:       udpSubscribeJunos,
 	}
 }
 

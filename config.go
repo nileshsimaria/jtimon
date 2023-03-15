@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"strconv"
 )
 
 // ConfigFileList to get the list of config file names
@@ -27,6 +28,7 @@ type Config struct {
 	Meta              bool          `json:"meta"`
 	EOS               bool          `json:"eos"`
 	GRPC              GRPCConfig    `json:"grpc"`
+	UDP               UDPConfig     `json:"udp"`
 	TLS               TLSConfig     `json:"tls"`
 	Influx            InfluxConfig  `json:"influx"`
 	Kafka             *KafkaConfig  `json:"kafka"`
@@ -97,6 +99,12 @@ type PathsConfig struct {
 	Path string `json:"path"`
 	Freq uint64 `json:"freq"`
 	Mode string `json:"mode"`
+}
+
+type UDPConfig struct {
+	Port              int           `json:"port"`
+	Host              string        `json:"host"`
+	Protos            []string      `json:"protos"`
 }
 
 // NewJTIMONConfigFilelist to return configfilelist object
@@ -285,6 +293,9 @@ func (jctx *JCtx) isConfigChanged(new Config) bool {
 	if !reflect.DeepEqual(old.Influx, new.Influx) {
 		return true
 	}
+	if !reflect.DeepEqual(old.UDP, new.UDP) {
+		return true
+	}
 
 	return false
 }
@@ -326,6 +337,20 @@ func HandleConfigChange(jctx *JCtx, config Config, restart *bool) error {
 	return nil
 }
 
+func GetHostName(config Config) (string, error) {
+	var hostName string
+	if config.Host != "" && config.Port != 0 && config.UDP.Host != "" && config.UDP.Port != 0 {
+		return "", fmt.Errorf("Please select either gRPC or UDP subscription")
+	} else if config.Host != "" && config.Port != 0 {
+		hostName = config.Host + ":" + strconv.Itoa(config.Port)
+	} else if config.UDP.Host != "" && config.UDP.Port != 0 {
+		hostName = config.UDP.Host + ":" + strconv.Itoa(config.UDP.Port)
+	} else {
+		return "", fmt.Errorf("Please provide a valid hostName")
+	}
+	return hostName, nil
+}
+
 // ConfigRead will read the config and init the services. In case of config changes, it will update the existing config
 func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 	var err error
@@ -334,6 +359,12 @@ func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 	if err != nil {
 		log.Printf("config parsing error for %s: %v", jctx.file, err)
 		return fmt.Errorf("config parsing (json unmarshal) error for %s: %v", jctx.file, err)
+	}
+
+	_, err = GetHostName(config)
+	if err != nil {
+		log.Printf("Please provide valid host and port for either gRPC or UDP in %s", jctx.file)
+		return err
 	}
 
 	if init {

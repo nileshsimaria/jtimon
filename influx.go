@@ -579,6 +579,56 @@ func addIDB(ocData *na_pb.OpenConfigData, jctx *JCtx, rtime time.Time) {
 	}
 }
 
+func udpAddIDB(data map[string]interface{}, jctx *JCtx, rtime time.Time) {
+	cfg := jctx.config
+
+	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+		Database:        cfg.Influx.Dbname,
+		Precision:       "ns",
+		RetentionPolicy: cfg.Influx.RetentionPolicy,
+	})
+
+	if err != nil {
+		jLog(jctx, fmt.Sprintf("NewBatchPoints failed, error: %v\n", err))
+		return
+	}
+
+	fields := make(map[string]interface{})
+	for dataKey, val := range data {
+		if dataKey != "Properties" {
+			fields[dataKey] = val
+		}
+	}
+	for dataKey, _ := range data {
+		if dataKey == "Properties" {
+			tags := make(map[string]string)
+			for k, v := range data["Properties"].(map[string]interface{}) {
+				tags["jkey"] = k
+				fields["jvalue"] = v
+
+				pt, err := client.NewPoint(cfg.Influx.Measurement, tags, fields, rtime)
+				if err != nil {
+					jLog(jctx, fmt.Sprintf("Could not get NewPoint (first point): %v\n", err))
+					continue
+				}
+				if IsVerboseLogging(jctx) {
+						jLog(jctx, fmt.Sprintf("Tags: %+v\n", pt.Tags()))
+						if f, err := pt.Fields(); err == nil {
+							jLog(jctx, fmt.Sprintf("KVs : %+v\n", f))
+						}
+				}
+				bp.AddPoint(pt)
+			}
+		}
+	}
+
+	if err := (*jctx.influxCtx.influxClient).Write(bp); err != nil {
+		jLog(jctx, fmt.Sprintf("Batch DB write failed: %v", err))
+	} else {
+		jLog(jctx, fmt.Sprintf("Updated %d records in database %s", len(bp.Points()), cfg.Influx.Dbname))
+	}
+}
+
 func getInfluxClient(cfg Config, timeout time.Duration) *client.Client {
 	if cfg.Influx.Server == "" {
 		return nil

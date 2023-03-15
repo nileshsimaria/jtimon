@@ -1,0 +1,31 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional junos_evpn jnpr_junos_evpn_ext = 113;
+}
+
+message junos_evpn {
+   optional evpn_type evpn = 171;
+   message evpn_type {
+      optional evpn_smet_forwarding_type evpn_smet_forwarding = 171;
+      message evpn_smet_forwarding_type {
+         optional bool enabled = 71;
+         optional uint32 nexthop_limit = 72;
+         optional uint32 nexthop_usage = 73;
+      }
+      message l3_context_list {
+         optional string context_name = 71 [(telemetry_options).is_key = true];
+         optional string encapsulation = 72;
+         optional string advertisement_mode = 73;
+         optional string multicast_routing_mode = 74;
+         message ip_prefix_database_list {
+            optional string ip_prefix = 71 [(telemetry_options).is_key = true];
+            optional string route_status = 72;
+         }
+         repeated ip_prefix_database_list ip_prefix_database = 170;
+      }
+      repeated l3_context_list l3_context = 180;
+   }
+}

@@ -9,10 +9,11 @@ import (
 	"encoding/json"
 	"os"
 	"syscall"
-
+	"net"
 	"github.com/golang/protobuf/proto"
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
 	na_pb "github.com/nileshsimaria/jtimon/telemetry"
+	protoschema "github.com/nileshsimaria/jtimon/schema"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -245,4 +246,59 @@ func loginCheckJunos(jctx *JCtx, conn *grpc.ClientConn) error {
 		}
 	}
 	return nil
+}
+
+// subscribe routine to process the received udp packets.
+// In case of SIGHUP, the streaming is restarted.
+func udpSubscribeJunos(conn net.PacketConn, jctx *JCtx) SubErrorCode {
+    go func() {
+		jLog(jctx, fmt.Sprintf("Receiving UDP telemetry data from %s:%d\n", jctx.config.UDP.Host, jctx.config.UDP.Port))
+
+		buffer := make([]byte, 102400)
+
+		for {
+			n, _, err := conn.ReadFrom(buffer)
+			if err == io.EOF {
+				printSummary(jctx)
+				return
+			}
+			if err != nil {
+				jLog(jctx, fmt.Sprintf("Read UDP packets failed, %v", err))
+				return
+			}
+			if n == 0 {
+				jLog(jctx, fmt.Sprintf("%v No UDP packet received\n", conn))
+				return
+			}
+
+			ts := &protoschema.TelemetryStream{}
+			if err := proto.Unmarshal(buffer[:n], ts); err != nil {
+				jLog(jctx, fmt.Sprintf("Failed to parse TelemetryStream: ", err))
+			}
+
+			data, mName := processUDPData(jctx, ts)
+			if jctx.config.Influx.Measurement == "" {
+				jctx.config.Influx.Measurement = mName
+			}
+
+			rtime := time.Now()
+			// to influxdb
+			if *noppgoroutines {
+				udpAddIDB(data, jctx, rtime)
+			} else {
+				go udpAddIDB(data, jctx, rtime)
+			}
+		}
+    }()
+	for {
+		select {
+		case s := <-jctx.control:
+			switch s {
+			case syscall.SIGHUP:
+				return SubRcSighupRestart
+			case os.Interrupt:
+				return SubRcSighupNoRestart
+			}
+		}
+	}
 }

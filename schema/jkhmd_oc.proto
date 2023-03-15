@@ -1,0 +1,168 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional junos_kernel_health jnpr_junos_kernel_health_ext = 85;
+}
+
+message junos_kernel_health {
+   optional chassis_type chassis = 191;
+   message chassis_type {
+      optional gres_type gres = 181;
+      message gres_type {
+         optional uint64 gres_time = 51;
+         optional uint64 slave_connect_time = 52;
+         optional string configured_state = 53;
+         optional string master_kernel_ready = 54;
+         optional string slave_kernel_ready = 55;
+         optional string error_state = 56;
+         optional string other_re_present = 151;
+         optional string other_re_alive = 152;
+         optional string is_protocol_master = 165;
+      }
+      optional issu_type issu = 182;
+      message issu_type {
+         optional string failure_stage = 51;
+         optional string current_issu_stage = 52;
+      }
+      optional aggregated_devices_type aggregated_devices = 351;
+      message aggregated_devices_type {
+         optional uint32 ps_lt_unstack_cnt = 311;
+         optional uint32 ps_ifl_ccc_down_cnt = 312;
+         optional uint32 rlt_lp_link_down_cnt = 313;
+         optional uint32 ae_unstack_cnt = 314;
+         optional uint32 ae_lp_link_down_cnt = 315;
+      }
+   }
+   optional routing_options_type routing_options = 509;
+   message routing_options_type {
+      optional nonstop_routing_type nonstop_routing = 510;
+      message nonstop_routing_type {
+         optional uint32 jsr_split_failure_cnt = 506;
+         optional uint32 jsr_merge_failure_cnt = 507;
+         optional uint32 jsr_prl_queue_full_cnt = 508;
+      }
+   }
+   optional security_type security = 183;
+   message security_type {
+      optional string veriexec_state = 51;
+   }
+   optional kernel_type kernel = 192;
+   message kernel_type {
+      optional peer_infra_type peer_infra = 184;
+      message peer_infra_type {
+         optional uint32 peer_pfeman_conn_drops = 51;
+         optional uint32 spurious_ppt_wkups = 52;
+      }
+      optional vpls_type vpls = 201;
+      message vpls_type {
+         optional uint32 unicast_token_cnt = 213;
+         optional uint32 unicast_token_max = 214;
+         optional uint32 flood_token_cnt = 215;
+         optional uint32 flood_token_max = 216;
+      }
+      optional tunnel_type tunnel = 202;
+      message tunnel_type {
+         optional uint32 rpf_tunnelid_cnt = 217;
+         optional uint32 rpf_tunnelid_max = 218;
+         optional uint32 nonrpf_tunnelid_cnt = 219;
+         optional uint32 nonrpf_tunnelid_max = 220;
+         optional uint32 looped_cnt = 221;
+      }
+      optional multicast_type multicast = 203;
+      message multicast_type {
+         optional uint64 iifmismatch_err_cnt = 222;
+         optional uint64 rslv_req_err_cnt = 223;
+      }
+      optional tnp_type tnp = 225;
+      message tnp_type {
+         optional uint64 tnp_hello_drop_cnt = 211;
+         optional uint64 tnp_frag_drop_cnt = 212;
+      }
+      optional record_meta_data_type record_meta_data = 185;
+      message record_meta_data_type {
+         optional uint64 record_time = 51;
+      }
+      optional rtsock_type rtsock = 153;
+      message rtsock_type {
+         optional uint64 total_veto_cnt = 148;
+         optional uint64 total_error_cnt = 149;
+      }
+      optional tcpip_type tcpip = 598;
+      message tcpip_type {
+         optional tcp_type tcp = 511;
+         message tcp_type {
+            optional uint32 tcp_ddos_attack_cnt = 502;
+            optional uint32 tcp_conndrops_cnt = 503;
+            optional uint64 tcp_time_wait_conn = 504;
+         }
+         optional nhidx_type nhidx = 593;
+         message nhidx_type {
+            optional uint32 nexthop_pub_max = 401;
+            optional uint32 nexthop_priv_max = 402;
+            optional uint32 nexthop_pub_cnt = 403;
+            optional uint32 nexthop_priv_cnt = 404;
+         }
+         optional rtb_type rtb = 594;
+         message rtb_type {
+            optional uint32 route_clone_max = 405;
+            optional uint32 route_clone_cnt = 406;
+         }
+         optional arp_type arp = 595;
+         message arp_type {
+            optional uint32 nbrcache_iri_max = 407;
+            optional uint32 nbrcache_mgmt_max = 408;
+            optional uint32 nbrcache_public_max = 409;
+            optional uint32 nbrcache_iri_cnt = 410;
+            optional uint32 nbrcache_mgmt_cnt = 411;
+            optional uint32 nbrcache_public_cnt = 412;
+            optional uint32 nbrcache_iri_drop_cnt = 413;
+            optional uint32 nbrcache_mgmt_drop_cnt = 414;
+            optional uint32 nbrcache_public_drop_cnt = 415;
+         }
+         optional ndp_type ndp = 596;
+         message ndp_type {
+            optional uint32 nbrcache_iri_max = 416;
+            optional uint32 nbrcache_mgmt_max = 417;
+            optional uint32 nbrcache_public_max = 418;
+            optional uint32 nbrcache_iri_cnt = 419;
+            optional uint32 nbrcache_mgmt_cnt = 420;
+            optional uint32 nbrcache_public_cnt = 421;
+            optional uint32 nbrcache_iri_drop_cnt = 422;
+            optional uint32 nbrcache_mgmt_drop_cnt = 423;
+            optional uint32 nbrcache_public_drop_cnt = 424;
+         }
+         optional netisr_type netisr = 597;
+         message netisr_type {
+            optional uint32 ether_wm_cnt = 425;
+            optional uint32 ether_drop_cnt = 426;
+            optional uint64 ether_pkt_handled = 427;
+            optional uint64 ether_pkt_queued = 428;
+            optional uint32 ip_wm_cnt = 429;
+            optional uint32 ip_drop_cnt = 430;
+            optional uint64 ip_pkt_handled = 431;
+            optional uint64 ip_pkt_queued = 432;
+            optional uint32 ip6_wm_cnt = 433;
+            optional uint32 ip6_drop_cnt = 434;
+            optional uint64 ip6_pkt_handled = 435;
+            optional uint64 ip6_pkt_queued = 436;
+            optional uint32 arp_wm_cnt = 437;
+            optional uint32 arp_drop_cnt = 438;
+            optional uint64 arp_pkt_handled = 439;
+            optional uint64 arp_pkt_queued = 440;
+         }
+      }
+   }
+   optional kernel_ifstate_type kernel_ifstate = 186;
+   message kernel_ifstate_type {
+      optional uint32 dead_ifstates_cnt = 51;
+      optional uint32 alive_ifstates_cnt = 52;
+      optional uint32 delayed_unrefs_cnt = 53;
+      optional uint32 delayed_unrefs_max = 54;
+      optional uint32 stuck_clients_cnt = 55;
+      optional uint32 dead_clients_cnt = 56;
+      optional uint32 alive_clients_cnt = 57;
+      optional uint32 client_limit_reached = 58;
+   }
+}

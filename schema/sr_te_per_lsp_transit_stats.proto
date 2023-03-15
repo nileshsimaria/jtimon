@@ -1,0 +1,34 @@
+syntax = "proto2";
+option go_package = "git.juniper.net/iceberg/healthbot-ingest-jti-native/pkg/jti/adapters/_junos/schema";
+import "telemetry_top.proto";
+
+extend JuniperNetworksSensors {
+   optional mpls_SrTePerLspTransitStats jnpr_mpls_SrTePerLspTransitStats_ext = 104;
+}
+
+message mpls_SrTePerLspTransitStats {
+   optional signaling_protocols_type signaling_protocols = 151;
+   message signaling_protocols_type {
+      optional segment_routing_type segment_routing = 151;
+      message segment_routing_type {
+         optional sr_te_per_lsp_transit_policies_type sr_te_per_lsp_transit_policies = 151;
+         message sr_te_per_lsp_transit_policies_type {
+            message sr_te_per_lsp_transit_policy_list {
+               message record_list {
+                  optional string tunnel_name = 51 [(telemetry_options).is_key = true];
+                  optional string source = 52 [(telemetry_options).is_key = true];
+                  optional string origin = 53 [(telemetry_options).is_key = true];
+                  optional string distinguisher = 54 [(telemetry_options).is_key = true];
+                  optional string lsp_name = 55 [(telemetry_options).is_key = true];
+                  optional string counter_name = 56;
+                  optional uint32 instance_identifier = 57;
+                  optional uint64 packets = 58 [(telemetry_options).is_counter = true];
+                  optional uint64 bytes = 59 [(telemetry_options).is_counter = true];
+               }
+               repeated record_list record = 151;
+            }
+            repeated sr_te_per_lsp_transit_policy_list sr_te_per_lsp_transit_policy = 151;
+         }
+      }
+   }
+}

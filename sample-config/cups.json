@@ -1,0 +1,12 @@
+{
+    "host": "198.19.227.128",
+    "port": 50051,
+    "cid": "your-cid",
+    "paths": [{
+        "path": "/junos/system/subscriber-management/cups/",
+        "freq": 2000
+    }],
+    "log": {
+        "file": "jtimon.log"
+    }
+}

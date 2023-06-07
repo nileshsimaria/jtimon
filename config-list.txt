@@ -1,0 +1,8 @@
+cp-configs/cups-controller.json
+cp-configs/cups-sgrps.json
+cp-configs/cups-ups.json
+up-configs/system.json
+up-configs/spu-flow.json
+up-configs/pfe-mpls-ldp-p2mp-if-ingress.json
+up-configs/pfe-mpls-sr-egress.json
+up-configs/pfe-mpls-sr-sid-egress.json

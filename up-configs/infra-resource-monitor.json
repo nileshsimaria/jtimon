@@ -1,0 +1,12 @@
+{
+    "host": "198.19.231.70",
+    "port": 50051,
+    "cid": "your-cid",
+    "paths": [{
+        "path": "/junos/system/subscriber-management/infra/resource-monitor/",
+        "freq": 2000
+    }],
+    "log": {
+        "file": "up-logs/infra-resource-monitor.log"
+    }
+}

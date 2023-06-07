@@ -1,0 +1,86 @@
+{
+    "port": 50051,
+    "host": "192.19.227.128",
+    "user": "",
+    "password": "",
+    "cid": "",
+    "meta": false,
+    "eos": false,
+    "grpc": {
+        "ws": 0,
+        "tunnel-server": {
+            "address": "",
+            "dial-target": "",
+            "dial-target-type": "",
+            "tls": {
+                "clientcrt": "",
+                "clientkey": "",
+                "ca": "",
+                "servername": "",
+                "insecure": false
+            }
+        }
+    },
+    "tls": {
+        "clientcrt": "",
+        "clientkey": "",
+        "ca": "",
+        "servername": "",
+        "insecure": false
+    },
+    "influx": {
+        "server": "",
+        "port": 0,
+        "dbname": "",
+        "user": "",
+        "password": "",
+        "recreate": false,
+        "measurement": "",
+        "batchsize": 0,
+        "batchfrequency": 0,
+        "http-timeout": 0,
+        "retention-policy": "",
+        "accumulator-frequency": 0,
+        "write-per-measurement": false
+    },
+    "kafka": {
+        "version": "",
+        "brokers": [
+            ""
+        ],
+        "client-id": "",
+        "topic": "",
+        "compression-codec": 0,
+        "required-acks": 0,
+        "max-retry": 0,
+        "max-message-bytes": 0,
+        "sasl-username": "",
+        "sasl-password": "",
+        "tls-ca": "",
+        "tls-cert": "",
+        "tls-key": "",
+        "insecure-skip-verify": false
+    },
+    "paths": [
+        {
+            "path": "",
+            "freq": 0,
+            "mode": "",
+            "origin": ""
+        }
+    ],
+    "log": {
+        "file": "",
+        "periodic-stats": 0,
+        "verbose": false
+    },
+    "vendor": {
+        "name": "",
+        "remove-namespace": false,
+        "schema": null,
+        "gnmi": null
+    },
+    "alias": "",
+    "password-decoder": "",
+    "enable-uint": false
+}

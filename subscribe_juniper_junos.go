@@ -132,6 +132,8 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 		// Go Routine which actually starts the streaming connection and receives the data
 		jLog(jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
 
+		// TODO: when to setup socket for tcp? go routine consideration
+		
 		for {
 			ocData, err := stream.Recv()
 			if err == io.EOF {
@@ -184,6 +186,14 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 				addKafka(ocData, jctx, rtime)
 			} else {
 				go addKafka(ocData, jctx, rtime)
+			}
+			// to tcp endpoint
+			if *tcpEndpoint {
+				if *noppgoroutines {
+					addTcpEndpoint(ocData, jctx, rtime)
+				} else {
+					go addTcpEndpoint(ocData, jctx, rtime)
+				}
 			}
 		}
 	}()

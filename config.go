@@ -36,6 +36,13 @@ type Config struct {
 	Alias             string        `json:"alias"`
 	PasswordDecoder   string        `json:"password-decoder"`
 	EnableUintSupport bool          `json:"enable-uint"`
+	TCP               *TCPConfig	`json:"tcp"`
+}
+
+// TCPConfig  definition
+type TCPConfig struct {
+	Host	string		`json:"host"`
+	Port	int			`json:"port"`
 }
 
 // GnmiConfig definition

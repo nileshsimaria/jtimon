@@ -1,0 +1,12 @@
+{
+    "host": "198.19.231.70",
+    "port": 50051,
+    "cid": "your-cid",
+    "paths": [{
+        "path": "/interfaces/interface/state/counters/",
+        "freq": 2000
+    }],
+    "log": {
+        "file": "up-logs/oc-counters.log"
+    }
+}

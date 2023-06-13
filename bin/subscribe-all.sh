@@ -1,5 +1,6 @@
 #!/bin/bash
 
+./bin/update-config-list.sh
 rm -rf cp-logs/* up-logs/*
 if [ $# -lt 1 ]; then
 	echo "Usage: ./exec <config-list-file>"

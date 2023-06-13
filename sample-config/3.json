@@ -1,0 +1,26 @@
+{
+    "host": "host-or-ip",
+    "port": 50051,
+    "cid": "mac1",
+    "paths": [{
+        "path": "/interfaces",
+        "freq": 2000
+    }],
+    "influx": {
+        "server": "127.0.0.1",
+        "port": 8086,
+        "dbname": "db",
+        "user": "influx",
+        "password": "influxdb",
+        "recreate": true,
+        "measurement": "m"
+    },
+    "log": {
+        "file": "jtimon.log"
+    },
+    "tcp": {
+        "server": "<ip-addr>",
+        "port": 10517,
+        "<credentials>": "<credentials>"
+    }
+}

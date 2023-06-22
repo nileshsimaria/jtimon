@@ -8,7 +8,9 @@
 ./up-configs/spu-flow.json
 ./up-configs/system.json
 ./cp-configs/cups-controller.json
+./cp-configs/cups-sessions.json
 ./cp-configs/cups-sgrps.json
 ./cp-configs/cups-ups.json
 ./cp-configs/cups.json
 ./cp-configs/junos.json
+./cp-configs/tcp-cups.json

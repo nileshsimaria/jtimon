@@ -39,12 +39,6 @@ type Config struct {
 	TCP               *TCPConfig	`json:"tcp"`
 }
 
-// TCPConfig  definition
-type TCPConfig struct {
-	Host	string		`json:"host"`
-	Port	int			`json:"port"`
-}
-
 // GnmiConfig definition
 type GnmiConfig struct {
 	Encoding string
@@ -367,6 +361,12 @@ func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 		influxInit(jctx)
 		if err := KafkaInit(jctx); err != nil {
 			log.Printf("KafkaInit error : %v", err)
+		}
+		// TCP Client
+		if *tcpPush {
+			if err := tcpClientInit(jctx); err != nil {
+				log.Printf("TCPClientInit error : %v", err)
+			}
 		}
 	} else {
 		err := HandleConfigChange(jctx, config, restart)

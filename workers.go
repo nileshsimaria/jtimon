@@ -273,6 +273,8 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 		return w, err
 	}
 	log.Printf("%v, jctx.config.Kafka.producer: %v", jctx.config.Host, jctx.config.Kafka)
+	log.Printf("%v, jctx.config.TCP: %v", jctx.config.Host, jctx.config.TCP)
+
 	if alias, err := NewAlias(jctx.config.Alias); err == nil {
 		jctx.alias = alias
         } else {
@@ -297,12 +299,6 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 			)
 			jLog(&jctx, fmt.Sprintf("Initial configuration for %v published to topic %v, partition %v, offset %v, err: %v", jctx.config.Host, topic, p, o, err))
 		}
-		// TODO: setup TCP client socket
-		// TODO: discover how packets are sent; can origin system be identified for a given telemetry packet? Else, would need to batch
-		// if *tcpEndpoint {
-		// 	conn, err := net.Dial("tcp", config.)
-		// }
-		// FIXME: can't do it here, configuration file may change, thus altering TCP server endpoint 
 		for {
 			select {
 			case sig := <-signalch:
@@ -635,12 +631,6 @@ func workTunnel(jctx *JCtx, statusch chan struct{}) error {
 }
 
 func work(jctx *JCtx, statusch chan struct{}) {
-	// TODO: review logical position of this
-	tcpConn, err := tcpClientInit(jctx)
-	if err != nil {
-		jLog(jctx, fmt.Sprintf("tcp connection failure: %v", err))
-	}
-	defer tcpClientTeardown(tcpConn)
 	if jctx.config.GRPC.TunnelServer.Address != "" {
 		if err := workTunnel(jctx, statusch); err != nil { // FIXME: pass conn down, or ignore for now, work on work() for now
 			jLog(jctx, fmt.Sprintf("tunnel worker failed: %v", err))

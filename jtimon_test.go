@@ -139,3 +139,16 @@ func prometheusCollect(host string, port int, jctx *JCtx) error {
 
 	return nil
 }
+
+func tcpExport(host string, port int, jctx *JCtx) error {
+	// var f *os.File
+	// var err error
+
+	// if f, err = os.Create(jctx.file + ".testres"); err != nil {
+	// 	return err
+	// }
+	// defer f.Close()
+
+	// url := fmt.Sprintf("http://%s:%d/metrics", host, port)
+	return nil
+}

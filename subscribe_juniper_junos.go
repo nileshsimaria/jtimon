@@ -94,11 +94,11 @@ func handleOnePacket(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 }
 
 // subSendAndReceive handles the following
-// 		- Opens up a stream for receiving the telemetry data
-//		- Handles SIGHUP by terminating the current stream and requests the
-//		  	caller to restart the streaming by setting the corresponding return
-//			code
-//		- In case of an error, Set the error code to restart the connection.
+//   - Opens up a stream for receiving the telemetry data
+//   - Handles SIGHUP by terminating the current stream and requests the
+//     caller to restart the streaming by setting the corresponding return
+//     code
+//   - In case of an error, Set the error code to restart the connection.
 func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 	subReqM na_pb.SubscriptionRequest) SubErrorCode {
 
@@ -131,9 +131,6 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 	go func() {
 		// Go Routine which actually starts the streaming connection and receives the data
 		jLog(jctx, fmt.Sprintf("Receiving telemetry data from %s:%d\n", jctx.config.Host, jctx.config.Port))
-
-		// TODO: when to setup socket for tcp? go routine consideration
-		
 		for {
 			ocData, err := stream.Recv()
 			if err == io.EOF {
@@ -160,6 +157,8 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 				if b, err := json.MarshalIndent(ocData, "", "  "); err == nil {
 					jLog(jctx, fmt.Sprintf("%s\n", b))
 				}
+			} else {
+				jLog(jctx, fmt.Sprintf("%s\n", ocData))
 			}
 
 			if *print || *stateHandler || IsVerboseLogging(jctx) {
@@ -172,7 +171,6 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 			} else {
 				go addIDB(ocData, jctx, rtime)
 			}
-
 			// to prometheus
 			if *prom {
 				if *noppgoroutines {
@@ -188,11 +186,11 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 				go addKafka(ocData, jctx, rtime)
 			}
 			// to tcp endpoint
-			if *tcpEndpoint {
+			if *tcpPush {
 				if *noppgoroutines {
-					addTcpEndpoint(ocData, jctx, rtime)
+					pushTcpEndpoint(ocData, jctx)
 				} else {
-					go addTcpEndpoint(ocData, jctx, rtime)
+					go pushTcpEndpoint(ocData, jctx)
 				}
 			}
 		}

@@ -15,7 +15,6 @@ func jLog(jctx *JCtx, msg string) {
 	if jctx.config.Log.logger != nil {
 		jctx.config.Log.logger.Printf(msg)
 	}
-
 }
 
 func logStop(jctx *JCtx) {

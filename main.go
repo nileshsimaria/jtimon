@@ -38,7 +38,7 @@ var (
 	myCert          = flag.String("cert", "./certs/self_signed/server-cert.pem", "Path of server cert")
 	myKey           = flag.String("pem", "./certs/self_signed/server-key.pem", "Path of server key")
 	kafkaBroker     = flag.String("kafka-broker", "kafka:9092", "Comma seperated list of Kafka brokers each in the form ip:port")
-	tcpEndpoint		= flag.Bool("tcp-endpoint", false, "Send telemetry packet to TCP endpoint") // FIXME:
+	tcpPush			= flag.Bool("tcp-push", false, "Send telemetry packet to TCP endpoint as JSON")
 
 	jtimonVersion = "version-not-available"
 	buildTime     = "build-time-not-available"

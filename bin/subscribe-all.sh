@@ -9,7 +9,7 @@ fi
 echo "Parsing config list..."
 filename=$1
 mapfile -t config_files < "$filename"
-cmd=(./jtimon --json)
+cmd=(./jtimon-linux-amd64 --json)
 for config_file in "${config_files[@]}"; do
 	cmd+=("--config" "$config_file")
 done

@@ -494,6 +494,9 @@ func TestInflux(t *testing.T) {
 		})
 	}
 }
+func TestTCP(t *testing.T) {
+
+}
 func TestJTISIMMaxRun(t *testing.T) {
 	tests := []struct {
 		name        string

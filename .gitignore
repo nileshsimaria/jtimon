@@ -13,4 +13,4 @@ cp-*
 bin
 sample-log
 config-list.txt
-
+*.tar

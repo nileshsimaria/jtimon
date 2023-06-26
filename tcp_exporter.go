@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
-	na_pb "github.com/nileshsimaria/jtimon/telemetry"
-	"net"
 	"fmt"
+	"net"
+
+	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 )
 
 // TCPConfig  definition
@@ -47,13 +49,17 @@ func sendData(tcfg *TCPConfig, m[]byte) error {
 	}
 	return nil
 }
+
 func pushTcpEndpoint(ocData *na_pb.OpenConfigData, jctx *JCtx) {
-	b, err := json.MarshalIndent(ocData, "", "  ")
+	b, err := json.Marshal(ocData)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("marshal error: %v", err))
 		return
 	}
-	if err := sendData(jctx.config.TCP, b); err != nil {
+	stripped := bytes.Replace(b, []byte("\n"), []byte(""), -1)
+	stripped = bytes.Replace(stripped, []byte("\r"), []byte(""), -1)
+	capped := append(stripped, '\n')
+	if err := sendData(jctx.config.TCP, capped); err != nil {
 		jLog(jctx, fmt.Sprintf("TCP data send failed, error: %v", err))
 	}
 }

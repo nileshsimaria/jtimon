@@ -14,6 +14,7 @@ type TCPConfig struct {
 	Host		string		`json:"host"`
 	Port		int			`json:"port"`
 	Connection 	net.Conn 	`json:"connection"`
+	// datach chan<- bool	`json:"data-ch"`
 }
 
 func tcpConnect(tcfg *TCPConfig) error {

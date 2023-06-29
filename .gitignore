@@ -15,4 +15,4 @@ sample-log
 config-file-lists
 config-list.txt
 *.tar
-diff*
+diff-*

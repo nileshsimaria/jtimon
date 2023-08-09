@@ -364,7 +364,7 @@ func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 		}
 		// TCP Client
 		if *tcpPush {
-			if err := tcpClientInit(jctx); err != nil {
+			if err := TcpClientInit(jctx.config.TCP, &jctx.tcpCtx); err != nil {
 				log.Printf("TCPClientInit error : %v", err)
 			}
 		}

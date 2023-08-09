@@ -9,10 +9,9 @@ import (
 	"encoding/json"
 	"os"
 	"syscall"
-
+	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 	"github.com/golang/protobuf/proto"
 	auth_pb "github.com/nileshsimaria/jtimon/authentication"
-	na_pb "github.com/nileshsimaria/jtimon/telemetry"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -188,9 +187,9 @@ func subSendAndReceive(conn *grpc.ClientConn, jctx *JCtx,
 			// to tcp endpoint
 			if *tcpPush {
 				if *noppgoroutines {
-					pushTcpEndpoint(ocData, jctx)
+					AddTcpEndpoint(ocData, jctx)
 				} else {
-					go pushTcpEndpoint(ocData, jctx)
+					go AddTcpEndpoint(ocData, jctx)
 				}
 			}
 		}

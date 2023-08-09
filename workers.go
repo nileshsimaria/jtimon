@@ -43,6 +43,7 @@ type JCtx struct {
 	testExp         *os.File
 	testRes         *os.File
 	receivedSyncRsp bool
+	tcpCtx			*TCPCtx
 }
 
 // JWorkers holds worker
@@ -274,6 +275,7 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 	}
 	log.Printf("%v, jctx.config.Kafka.producer: %v", jctx.config.Host, jctx.config.Kafka)
 	log.Printf("%v, jctx.config.TCP: %v", jctx.config.Host, jctx.config.TCP)
+
 
 	if alias, err := NewAlias(jctx.config.Alias); err == nil {
 		jctx.alias = alias
@@ -632,7 +634,7 @@ func workTunnel(jctx *JCtx, statusch chan struct{}) error {
 
 func work(jctx *JCtx, statusch chan struct{}) {
 	if jctx.config.GRPC.TunnelServer.Address != "" {
-		if err := workTunnel(jctx, statusch); err != nil { // FIXME: pass conn down, or ignore for now, work on work() for now
+		if err := workTunnel(jctx, statusch); err != nil {
 			jLog(jctx, fmt.Sprintf("tunnel worker failed: %v", err))
 		}
 		return

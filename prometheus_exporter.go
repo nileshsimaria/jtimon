@@ -156,6 +156,22 @@ func addPrometheus(ocData *na_pb.OpenConfigData, jctx *JCtx) {
 				continue
 			}
 			fieldValue = floatVal
+		case *na_pb.KeyValue_LeaflistValue:
+			e := v.GetLeaflistValue().Element
+			csLLStrValue := ""
+			for _, elem := range e {
+				switch elem.Value.(type) {
+				case *na_pb.TypedValue_LeaflistStrValue:
+					llStrValue := elem.GetLeaflistStrValue()
+					csLLStrValue = csLLStrValue + llStrValue + ","
+				}
+			}
+			if csLLStrValue != "" {
+				csLLStrValue = strings.TrimSuffix(csLLStrValue, ",")
+			}
+
+			tags["csLLStrValue"] = csLLStrValue // comma separated leaflist string value as a tag
+			fieldValue = 0                      // and ofcourse the value is useless so we set it to 0
 		default:
 			continue
 		}

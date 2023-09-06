@@ -14,7 +14,8 @@
     "paths": [
         {
             "freq": 30000,
-            "path": "/interfaces/interface/state/"
+            "path": "/interfaces/interface/state/",
+            "origin": "openconfig"
         },
         {
             "freq": 30000,

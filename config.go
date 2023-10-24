@@ -36,6 +36,7 @@ type Config struct {
 	Alias             string        `json:"alias"`
 	PasswordDecoder   string        `json:"password-decoder"`
 	EnableUintSupport bool          `json:"enable-uint"`
+	TCP               *TCPConfig	`json:"tcp"`
 }
 
 // GnmiConfig definition
@@ -360,6 +361,12 @@ func ConfigRead(jctx *JCtx, init bool, restart *bool) error {
 		influxInit(jctx)
 		if err := KafkaInit(jctx); err != nil {
 			log.Printf("KafkaInit error : %v", err)
+		}
+		// TCP Client
+		if *tcpPush {
+			if err := TcpClientInit(jctx.config.TCP, &jctx.tcpCtx); err != nil {
+				log.Printf("TCPClientInit error : %v", err)
+			}
 		}
 	} else {
 		err := HandleConfigChange(jctx, config, restart)

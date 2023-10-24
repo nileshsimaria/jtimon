@@ -43,6 +43,7 @@ type JCtx struct {
 	testExp         *os.File
 	testRes         *os.File
 	receivedSyncRsp bool
+	tcpCtx			*TCPCtx
 }
 
 // JWorkers holds worker
@@ -273,6 +274,9 @@ func NewJWorker(file string, wg *sync.WaitGroup, wsChan chan string) (*JWorker, 
 		return w, err
 	}
 	log.Printf("%v, jctx.config.Kafka.producer: %v", jctx.config.Host, jctx.config.Kafka)
+	log.Printf("%v, jctx.config.TCP: %v", jctx.config.Host, jctx.config.TCP)
+
+
 	if alias, err := NewAlias(jctx.config.Alias); err == nil {
 		jctx.alias = alias
         } else {

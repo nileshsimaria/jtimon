@@ -4,7 +4,15 @@ jtimon-darwin-amd64
 jtimon-linux-amd64
 *.log
 *.logs
-.*
 debug.test
 jtimon-windows-amd64.exe
 coverage.out
+up-*
+cp-*
+cp-configs
+bin
+sample-log
+config-file-lists
+config-list.txt
+*.tar
+diff-*

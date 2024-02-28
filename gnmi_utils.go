@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"reflect"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
@@ -287,39 +288,32 @@ func gnmiParsePath(prefix string, pes []*gnmi.PathElem, kvpairs map[string]strin
 }
 
 func gnmiParseJsontoXpath(jsonData map[string]interface{}, currXpath string, jsonXpaths map[string]interface{}) error {
-	for k, v := range jsonData {
-		switch v.(type) {
+	var (
+		err   error
+		value interface{}
+	)
+	for k, dataValue := range jsonData {
+		xpath := currXpath + gXPathTokenPathSep + k
+		switch dataValue.(type) {
 		case map[string]interface{}:
-			xpath := currXpath + gXPathTokenPathSep + k
-			gnmiParseJsontoXpath(v.(map[string]interface{}), xpath, jsonXpaths)
-		default:
-			xpath := currXpath + gXPathTokenPathSep + k
-			decodedValue := v
-			var (
-				err   error
-				value interface{}
-			)
-			switch decodedValue.(type) {
-			case json.Number:
-				jsonNumber := decodedValue.(json.Number)
-				if strings.Contains(jsonNumber.String(), ".") {
-					value, err = jsonNumber.Float64()
-				} else {
-					value, err = jsonNumber.Int64()
-				}
-
-				if err != nil {
-					errMsg := fmt.Sprintf("Parsing json number failed, error: %v, jsonNumber: %s", err, jsonNumber.String())
-					return errors.New(errMsg)
-				}
-			case bool, string:
-				value = decodedValue
-			default:
-				errMsg := fmt.Sprintf("Not a number/bool/string, jsonValue: %v", v)
+			gnmiParseJsontoXpath(dataValue.(map[string]interface{}), xpath, jsonXpaths)
+		case json.Number:
+			jsonNumber := dataValue.(json.Number)
+			if strings.Contains(jsonNumber.String(), ".") {
+				value, err = jsonNumber.Float64()
+			} else {
+				value, err = jsonNumber.Int64()
+			}
+			if err != nil {
+				errMsg := fmt.Sprintf("Parsing json number failed, error: %v, jsonNumber: %s", err, jsonNumber.String())
 				return errors.New(errMsg)
 			}
 			jsonXpaths[xpath] = value
-
+		case bool, string:
+			jsonXpaths[xpath] = dataValue
+		default:
+			errMsg := fmt.Sprintf("Not a number/bool/string, jsonValue: %v, type :%v", dataValue, reflect.TypeOf(dataValue))
+			return errors.New(errMsg)
 		}
 	}
 	return nil

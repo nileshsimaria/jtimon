@@ -626,6 +626,104 @@ func TestGnmiParseUpdates(t *testing.T) {
 			enableUint: false,
 		},
 		{
+			name:        "updates-valid-with-misc-complex-types-json_ietf",
+			err:         false,
+			parseOrigin: false,
+			prefix: &gnmi.Path{
+				Origin: "",
+				Elem: []*gnmi.PathElem{
+					{Name: "interface"},
+					{Name: "interface", Key: map[string]string{"k1": "foo"}},
+					{Name: "subinterfaces"},
+					{Name: "subinterface", Key: map[string]string{"k1": "foo1", "k2": "bar1"}},
+				},
+			},
+			updates: []*gnmi.Update{
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "mtu"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonVal{
+							JsonVal: []byte(`{
+										"cpu": {
+											"utilization": {
+												"state": {
+													"instant": 9,
+													"avg": 8,
+													"min": 8,
+													"max": 10,
+													"interval": "300000000000",
+													"min-time": "1709048542669532934",
+													"max-time": "1709048602669532934"
+												}
+											}
+										}
+							}`),
+						},
+					},
+				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "mtu"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonVal{
+							JsonVal: []byte(`{"js1": {"js2": "js3"}}`),
+						},
+					},
+				},
+				{
+					Path: &gnmi.Path{
+						Origin: "",
+						Elem: []*gnmi.PathElem{
+							{Name: "state"},
+							{Name: "counters"},
+							{Name: "in-octets"},
+						},
+					},
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonVal{
+							JsonVal: []byte(`{"sum": {"max": "10"}}`),
+						},
+					},
+				},
+			},
+			parseOutput: &gnmiParseOutputT{
+				prefixPath: "/a/b/c/d",
+				kvpairs:    map[string]string{"/a/b/@k1": "foo", "/a/b/c/d/@k1": "foo1", "/a/b/c/d/@k2": "bar1"},
+				xpaths:     map[string]interface{}{},
+			},
+			output: &gnmiParseOutputT{
+				prefixPath: "/a/b/c/d",
+				kvpairs: map[string]string{
+					"/a/b/@k1":     "foo",
+					"/a/b/c/d/@k1": "foo1",
+					"/a/b/c/d/@k2": "bar1",
+				},
+				xpaths: map[string]interface{}{
+					"/a/b/c/d/state/mtu/cpu/utlization/state/instant":  int64(9),
+					"/a/b/c/d/state/mtu/cpu/utlization/state/avg":      int64(8),
+					"/a/b/c/d/state/mtu/cpu/utlization/state/min":      int64(8),
+					"/a/b/c/d/state/mtu/cpu/utlization/state/max":      int64(10),
+					"/a/b/c/d/state/mtu/cpu/utlization/state/interval": "300000000000",
+					"/a/b/c/d/state/mtu/cpu/utlization/state/min-time": "1709048542669532934",
+					"/a/b/c/d/state/mtu/cpu/utlization/state/max-time": "1709048542669532934",
+					"/a/b/c/d/state/mtu/js1/js2":                       "js3",
+					"/a/b/c/d/state/counters/in-octets/sum/max":        "10",
+				},
+			},
+			enableUint: false,
+		},
+		{
 			name:        "updates-valid-no-prefix-with-origin--config--donotParseOrigin",
 			err:         false,
 			parseOrigin: false,

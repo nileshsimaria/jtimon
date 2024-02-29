@@ -325,6 +325,7 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool, enableUint bool) (inter
 		value   interface{}
 		jsonVal []byte
 	)
+	emptyString := ""
 
 	switch gnmiValue.GetValue().(type) {
 	case *gnmi.TypedValue_StringVal:
@@ -348,7 +349,7 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool, enableUint bool) (inter
 	case *gnmi.TypedValue_BoolVal:
 		value = gnmiValue.GetBoolVal()
 	case *gnmi.TypedValue_BytesVal:
-		value = string(gnmiValue.GetBytesVal())
+		value = emptyString
 	case *gnmi.TypedValue_AsciiVal:
 		value = gnmiValue.GetAsciiVal()
 	case *gnmi.TypedValue_AnyVal:
@@ -393,8 +394,8 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool, enableUint bool) (inter
 				stringVals = append(stringVals, saVal.(string))
 				value = stringVals
 			case []byte:
-				stringVals = append(stringVals, string(saVal.([]byte)))
-				value = stringVals
+				stringVals = append(stringVals, emptyString)
+				value = ""
 			}
 		}
 	default:

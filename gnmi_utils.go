@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"reflect"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
@@ -153,8 +154,6 @@ func gnmiParseUpdates(parseOrigin bool, prefix *gnmi.Path, updates []*gnmi.Updat
 		xpath      string
 		tmpJXpaths = jnprXpathDetails{xPaths: map[string]interface{}{}}
 		jXpaths    *jnprXpathDetails
-
-		err error
 	)
 
 	if prefixPath == "" {
@@ -181,9 +180,19 @@ func gnmiParseUpdates(parseOrigin bool, prefix *gnmi.Path, updates []*gnmi.Updat
 			[]string{gGnmiJuniperHeaderFieldName, gGnmiJuniperPublishTsFieldName})
 
 		if len(internalFields) == 0 {
-			xpathValue[xpath], err = gnmiParseValue(update.GetVal(), false, enableUint)
+			parsedVal, err := gnmiParseValue(update.GetVal(), false, enableUint)
 			if err != nil {
 				return nil, err
+			}
+			switch parsedVal.(type) {
+			case map[string]interface{}:
+				jsonXpaths := parsedVal.(map[string]interface{})
+				for k, v := range jsonXpaths {
+					gnmiPathWithJsonXpaths := xpath + k
+					xpathValue[gnmiPathWithJsonXpaths] = v
+				}
+			default:
+				xpathValue[xpath] = parsedVal
 			}
 		} else {
 			if _, ok := internalFields[gGnmiJuniperHeaderFieldName]; ok {
@@ -276,6 +285,38 @@ func gnmiParsePath(prefix string, pes []*gnmi.PathElem, kvpairs map[string]strin
 	}
 
 	return prefix, kvpairs, lookForOutput
+}
+
+func gnmiParseJsontoXpath(jsonData map[string]interface{}, currXpath string, jsonXpaths map[string]interface{}) error {
+	var (
+		err   error
+		value interface{}
+	)
+	for k, dataValue := range jsonData {
+		xpath := currXpath + gXPathTokenPathSep + k
+		switch dataValue.(type) {
+		case map[string]interface{}:
+			gnmiParseJsontoXpath(dataValue.(map[string]interface{}), xpath, jsonXpaths)
+		case json.Number:
+			jsonNumber := dataValue.(json.Number)
+			if strings.Contains(jsonNumber.String(), ".") {
+				value, err = jsonNumber.Float64()
+			} else {
+				value, err = jsonNumber.Int64()
+			}
+			if err != nil {
+				errMsg := fmt.Sprintf("Parsing json number failed, error: %v, jsonNumber: %s", err, jsonNumber.String())
+				return errors.New(errMsg)
+			}
+			jsonXpaths[xpath] = value
+		case bool, string:
+			jsonXpaths[xpath] = dataValue
+		default:
+			errMsg := fmt.Sprintf("Not a number/bool/string, jsonValue: %v, type :%v", dataValue, reflect.TypeOf(dataValue))
+			return errors.New(errMsg)
+		}
+	}
+	return nil
 }
 
 // Convert gNMI value to data types that Influx Line Protocol supports.
@@ -398,6 +439,13 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool, enableUint bool) (inter
 
 		case bool, string:
 			value = decodedValue
+		case map[string]interface{}:
+			jsonXpaths := make(map[string]interface{})
+			err = gnmiParseJsontoXpath(decodedValue.(map[string]interface{}), "", jsonXpaths)
+			if err != nil {
+				return nil, err
+			}
+			return jsonXpaths, nil
 		default:
 			errMsg := fmt.Sprintf("Not a number/bool/string, jsonValue: %s", dst.String())
 			return nil, errors.New(errMsg)

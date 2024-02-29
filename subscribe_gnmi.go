@@ -307,6 +307,7 @@ func gnmiHandleResponse(jctx *JCtx, rsp *gnmi.SubscribeResponse) error {
 	/*
 	 * Extract prefix, tags, values and juniper speecific header info if present
 	 */
+	jLog(jctx, fmt.Sprintf("gNMI host: %v, Rsp from device :%v", hostname, rsp))
 	parseOutput, err = gnmiParseNotification(!jctx.config.Vendor.RemoveNS, rsp, parseOutput, jctx.config.EnableUintSupport)
 	if err != nil {
 		jLog(jctx, fmt.Sprintf("gNMI host: %v, parsing notification failed: %v", hostname, err.Error()))

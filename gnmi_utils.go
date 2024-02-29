@@ -309,7 +309,9 @@ func gnmiParseJsontoXpath(jsonData map[string]interface{}, currXpath string, jso
 				return errors.New(errMsg)
 			}
 			jsonXpaths[xpath] = value
+			fmt.Printf("JSON Number string xpath %v, Value: %v, type :%v\n", xpath, value, reflect.TypeOf(value))
 		case bool, string:
+			fmt.Printf("JSON bool string xpath %v, Value: %v, type :%v\n", xpath, dataValue, reflect.TypeOf(dataValue))
 			jsonXpaths[xpath] = dataValue
 		default:
 			errMsg := fmt.Sprintf("Not a number/bool/string, jsonValue: %v, type :%v", dataValue, reflect.TypeOf(dataValue))
@@ -452,6 +454,7 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool, enableUint bool) (inter
 		}
 	}
 
+	fmt.Printf("Value parsing, Value: %v, type :%v\n", value, reflect.TypeOf(value))
 	return value, nil
 }
 

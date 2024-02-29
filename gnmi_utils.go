@@ -168,6 +168,17 @@ func gnmiParseUpdates(parseOrigin bool, prefix *gnmi.Path, updates []*gnmi.Updat
 		prefixPath, kvpairs, _ = gnmiParsePath(prefixPath, prefix.GetElem(), kvpairs, nil)
 	}
 
+	if strings.HasPrefix(prefixPath, "openconfig:") {
+		prefixPath = prefixPath[11:]
+	}
+	newKvPairs := map[string]string{}
+	for k, v := range kvpairs {
+		if strings.HasPrefix(k, "openconfig:") {
+			newKvPairs[k[11:]] = v
+		}
+	}
+	kvpairs = newKvPairs
+
 	for _, update := range updates {
 		var internalFields = map[string]struct{}{}
 

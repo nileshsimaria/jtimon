@@ -268,6 +268,22 @@ func dbBatchWriteM(jctx *JCtx) {
 					packet := data[j].points
 					k := 0
 					for k = 0; k < len(packet); k++ {
+						fields, err := packet[k].Fields()
+						if err != nil {
+							continue
+						}
+						if _, ok := fields["/components/component/power-supply/state/capacity"]; ok {
+							fmt.Println("Found capacity", packet[k].String())
+							delete(fields, "/components/component/power-supply/state/capacity")
+							pkt, err := client.NewPoint(packet[k].Name(), packet[k].Tags(), fields, packet[k].Time())
+							fmt.Println("Found capacity pkt is ", packet[k].String())
+							if err != nil {
+								fmt.Println("Found capacity. Point creation filed", err.Error())
+							} else {
+								packet[k] = pkt
+							}
+							fmt.Println("Found capacity point is ", packet[k].String())
+						}
 						bp.AddPoint(packet[k])
 						if len(bp.Points()) >= batchSize {
 							jLog(jctx, fmt.Sprintf("Attempt to write %d points in %s", len(bp.Points()), measurement))

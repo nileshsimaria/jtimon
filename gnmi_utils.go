@@ -348,7 +348,7 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool, enableUint bool) (inter
 	case *gnmi.TypedValue_BoolVal:
 		value = gnmiValue.GetBoolVal()
 	case *gnmi.TypedValue_BytesVal:
-		value = gnmiValue.GetBytesVal()
+		value = string(gnmiValue.GetBytesVal())
 	case *gnmi.TypedValue_AsciiVal:
 		value = gnmiValue.GetAsciiVal()
 	case *gnmi.TypedValue_AnyVal:
@@ -371,7 +371,6 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool, enableUint bool) (inter
 			floatVals  []float64
 			boolVals   []bool
 			stringVals []string
-			byteVals   [][]byte
 		)
 
 		vals := gnmiValue.GetLeaflistVal().GetElement()
@@ -394,8 +393,8 @@ func gnmiParseValue(gnmiValue *gnmi.TypedValue, ts bool, enableUint bool) (inter
 				stringVals = append(stringVals, saVal.(string))
 				value = stringVals
 			case []byte:
-				byteVals = append(byteVals, saVal.([]byte))
-				value = byteVals
+				stringVals = append(stringVals, string(saVal.([]byte)))
+				value = stringVals
 			}
 		}
 	default:

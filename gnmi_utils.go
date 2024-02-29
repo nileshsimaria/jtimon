@@ -190,9 +190,11 @@ func gnmiParseUpdates(parseOrigin bool, prefix *gnmi.Path, updates []*gnmi.Updat
 				for k, v := range jsonXpaths {
 					gnmiPathWithJsonXpaths := xpath + k
 					xpathValue[gnmiPathWithJsonXpaths] = v
+					fmt.Printf("JSON Update xpath %v, Value: %v, type :%v\n", gnmiPathWithJsonXpaths, v, reflect.TypeOf(v))
 				}
 			default:
 				xpathValue[xpath] = parsedVal
+				fmt.Printf("Update xpath %v, Value: %v, type :%v\n", xpath, parsedVal, reflect.TypeOf(parsedVal))
 			}
 		} else {
 			if _, ok := internalFields[gGnmiJuniperHeaderFieldName]; ok {

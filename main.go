@@ -29,6 +29,7 @@ var (
 	noppgoroutines = flag.Bool("no-per-packet-goroutines", false, "Spawn per packet go routines")
 	genTestData    = flag.Bool("generate-test-data", false, "Generate test data")
 	conTestData    = flag.Bool("consume-test-data", false, "Consume test data")
+	conTestDataX   = flag.Bool("consume-test-dataX", false, "Consume test data")
 
 	jtimonVersion = "version-not-available"
 	buildTime     = "build-time-not-available"

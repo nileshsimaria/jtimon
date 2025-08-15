@@ -41,6 +41,7 @@ type InfluxConfig struct {
 	Recreate             bool   `json:"recreate"`
 	Measurement          string `json:"measurement"`
 	BatchSize            int    `json:"batchsize"`
+	BufferSize           int    `json:"buffersize"`
 	BatchFrequency       int    `json:"batchfrequency"`
 	HTTPTimeout          int    `json:"http-timeout"`
 	RetentionPolicy      string `json:"retention-policy"`
@@ -227,12 +228,13 @@ func dbBatchWriteM(jctx *JCtx) {
 	}
 
 	batchSize := jctx.config.Influx.BatchSize
-	batchMCh := make(chan *batchWMData, batchSize/4)
+	bufferSize := jctx.config.Influx.BufferSize
+	batchMCh := make(chan *batchWMData, bufferSize)
 	jctx.influxCtx.batchWMCh = batchMCh
 
 	// wake up periodically and perform batch write into InfluxDB
 	bFreq := jctx.config.Influx.BatchFrequency
-	jLog(jctx, fmt.Sprintln("batch size:", batchSize, "batch frequency:", bFreq))
+	jLog(jctx, fmt.Sprintln("batch size:", batchSize, "batch frequency:", bFreq, "buffer size:", bufferSize))
 
 	ticker := time.NewTicker(time.Duration(bFreq) * time.Millisecond)
 	go func() {

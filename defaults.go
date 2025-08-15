@@ -6,6 +6,8 @@ const (
 
 	// DefaultIDBBatchSize to use if user has not provided in the config
 	DefaultIDBBatchSize = 1024 * 100
+	// DefaultIDBBufferSize to use if user has not provided in the config
+	DefaultIDBBufferSize = 1024
 	//DefaultIDBBatchFreq is 2 seconds
 	DefaultIDBBatchFreq = 2000
 	//DefaultIDBAccumulatorFreq is 2 seconds
